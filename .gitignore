@@ -1,0 +1,17 @@
+.DS_Store
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.test
+*.out
+/gitview
+prototype-ui/
+!internal/web/dist/
+internal/web/dist/*
+!internal/web/dist/.keep
