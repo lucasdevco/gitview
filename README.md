@@ -4,7 +4,7 @@
 
 首个命令行入口只提供 `gitview serve`：在本机启动服务，并通过浏览器查看当前 Git 仓库。贡献者、热点、函数历史等分析不再分别提供命令行子命令。
 
-项目已进入简化 Web MVP 实现阶段。产品需求、指标口径、技术方案和路线图统一维护在 [`docs/`](./docs/README.md)。
+当前 Web MVP 提供 Overview、Contributor、文件 Hotspots/Ownership、Go 函数历史、revision Compare 与月度 Explain。产品需求、指标口径、技术方案和路线图统一维护在 [`docs/`](./docs/README.md)。
 
 正式界面使用 React、Tailwind CSS v4 与 [shadcn/ui](https://ui.shadcn.com/docs/components)，交互密度和配色参考本地 agentsview。
 
@@ -29,6 +29,7 @@ make build
 cmd/gitview/        CLI 入口、命令定义与 serve 生命周期
 internal/gitrepo/   系统 Git adapter
 internal/overview/  Overview 领域模型与聚合服务
+internal/function/  Go AST、函数热点与 probable 历史归属
 internal/server/    HTTP API、middleware 与 SPA 交付
 internal/web/       嵌入式前端产物及 backend-only fallback
 frontend/           React SPA；生产构建先输出到 frontend/dist

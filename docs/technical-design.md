@@ -52,9 +52,9 @@ gitview serve ── HTTP + embedded SPA ── AnalysisService ── Git Adapt
 | 服务边界 | transport-neutral `AnalysisService` | Phase 1 起 |
 | HTTP API | Go `net/http` + 明确的 JSON DTO；复杂度增长后再评估 Huma/OpenAPI | Phase 1–2 |
 | Web UI | React 19 + TypeScript；单页 MVP 不强制完整路由体系 | Phase 1 起 |
-| 服务端状态 | 简单 query 封装；跨页缓存需求出现后再引入 TanStack Query | 后续 |
+| 服务端状态 | TanStack Query；查询键包含页面、筛选和实体 ID | Phase 4 已采用 |
 | UI 与样式 | shadcn/ui + Tailwind CSS；用 CSS variables 映射 agentsview 的交互、密度与配色语义 | Phase 1 起 |
-| API client | 手写一个窄 client；API 扩大后再生成 | Phase 2 |
+| API client | 集中在 `frontend/src/lib/api.ts` 的窄类型 client；OpenAPI 生成后置 | Phase 2–4 |
 | 前端工具链 | Vite | Phase 1 起 |
 | 前端交付 | `go:embed` 嵌入静态 SPA | Phase 1 起 |
 | 实时进度 | 首版普通请求状态；长分析被证明需要后再加 SSE | 后续 |
@@ -158,6 +158,8 @@ Symbol {
 
 建议首个技术验证同时比较“Go 原生 AST”和“Tree-sitter Go grammar”，再决定首版是 Go-only 做深，还是少量语言做广。
 
+首轮实现已选择 Go 原生 `go/parser` / `go/ast`，不执行被分析仓库代码。HEAD 下的 `.go` blob 通过 Git object 读取；vendor 默认排除并产生 warning。
+
 ### 4.2 将 diff 归属到函数
 
 对 commit 的父与子版本分别解析符号范围，将 patch hunk 的旧行映射到父符号、新行映射到子符号。文件级改动可分成：
@@ -168,6 +170,8 @@ Symbol {
 - 函数外修改（imports、全局变量、注释等）。
 
 不能只用当前文件行号套用历史 diff，否则函数移动后会错误归属。
+
+当前版本为刻意简化的第一阶段：`git log -p --unified=0` 流式读取历史，将 hunk 与 HEAD 函数范围重叠归属，并对全部结果标记 `probable`。这适合发现候选热点和查看证据，但不宣称跨移动/重命名精确；父子 blob 双解析与 lineage engine 仍是升级到 `exact` 的前置条件。
 
 ### 4.3 函数 lineage
 
@@ -233,7 +237,7 @@ Symbol {
 
 ## 8. HTTP 输出与兼容性
 
-- 首个 API 只提供 health 和 Overview 所需 JSON，不承诺通用导出格式。
+- 当前 API 提供 health、Overview、Contributor、文件 Hotspots/Ownership、Go Functions、Compare 和 Explain 所需 JSON，不承诺通用导出格式。
 - JSON 顶层包含 `schema_version`、`analysis_context`、`warnings`、`data`，为页面演进保留兼容边界。
 - `serve` 启动失败使用非零 exit code；页面查询错误通过 HTTP status 与稳定 error code 表达。
 - 部分语言失败时返回带 warnings 的可用报告；核心 Git 读取失败才整体失败。

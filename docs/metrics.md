@@ -76,6 +76,13 @@ weight = recency_decay × (function_changes or churn) × change_type_weight
 
 模型参数必须可解释、可配置，并在输出中展示版本。
 
+当前文件级实现固定采用以下可解释口径：
+
+- 贡献权重为文件 churn；二进制变更因没有行数而使用权重 1，但 API 中仍报告实际 churn 0。
+- historical owner 使用选定历史的最高权重贡献者；recent owner 使用最近 180 天。
+- `bus_factor_80` 为累计覆盖 80% 权重所需的最少贡献者数。
+- `ownership_risk = max(historical_share, recent_share) × 100`；构成份额同时返回。
+
 ## 7. 热点与风险指标
 
 - Change frequency：实体在窗口内被不同 commit 修改的次数。
@@ -86,6 +93,16 @@ weight = recency_decay × (function_changes or churn) × change_type_weight
 - Complexity growth：两个 revision 间复杂度变化。
 
 所有综合分数必须同时输出构成项，禁止只给一个不透明的 0–100 分。
+
+当前文件和函数热点采用同一透明基线：
+
+```text
+hotspot_score = sqrt(normalized_change_frequency × normalized_churn) × 100
+```
+
+文件 change frequency 为文件涉及的 commit 数；函数 change frequency 为有 hunk 归属的不同 commit 数。API 同时返回 commits/changes、churn、复杂度和所有权份额，不把综合分数单独解释为风险结论。
+
+Go 函数复杂度从 1 开始，`if`、`for`、`range`、非 default case、带通信语句的 select case，以及 `&&` / `||` 各增加 1。当前函数位置、签名和复杂度来自 HEAD 的 Go AST；历史 patch 使用零上下文 hunk 与当前范围重叠进行归属，因此 lineage confidence 固定为 `probable`，移动、重命名和边界变化可能不完整。
 
 ## 8. 数据质量标记
 

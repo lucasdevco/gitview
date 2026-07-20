@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react"
-import { AlertCircle, GitBranch, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { Link, useNavigate, useSearch } from "@tanstack/react-router"
+import { AlertCircle, FilterX, GitBranch, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +12,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { fetchOverview, type OverviewResponse } from "@/lib/api"
+import { AppNav } from "@/components/app-nav"
+import { OverviewFilterBar } from "@/features/overview/overview-filters"
+import type { OverviewFilters } from "@/lib/api"
+import { overviewQueryOptions } from "@/lib/queries"
+import { filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
 
 const number = new Intl.NumberFormat()
 const chartConfig = {
@@ -20,31 +25,20 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function App() {
-  const [report, setReport] = useState<OverviewResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const search = useSearch({ from: "/" })
+  const navigate = useNavigate({ from: "/" })
+  const filters = filtersFromSearch(search)
+  const query = useQuery({ ...overviewQueryOptions(filters), placeholderData: keepPreviousData })
+  const report = query.data
+  const error = query.error instanceof Error ? query.error.message : query.error ? "Unable to load repository overview" : null
+  const loading = query.isFetching
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true)
-    setError(null)
-    try {
-      setReport(await fetchOverview(signal))
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === "AbortError") return
-      setError(reason instanceof Error ? reason.message : "Unable to load repository overview")
-    } finally {
-      if (!signal?.aborted) setLoading(false)
-    }
-  }, [])
+  const applyFilters = (next: OverviewFilters) => {
+    void navigate({ search: searchFromFilters(next) })
+  }
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void load(controller.signal)
-    return () => controller.abort()
-  }, [load])
-
-  if (!report && loading) return <LoadingShell />
-  if (!report && error) return <FatalError message={error} retry={() => void load()} />
+  if (!report && query.isPending) return <LoadingShell />
+  if (!report && error) return <FatalError message={error} retry={() => void query.refetch()} />
   if (!report) return null
 
   const { repository, totals, monthly_activity, contributors, recent_commits } = report.data
@@ -59,7 +53,8 @@ export function App() {
         </div>
         <Badge variant="outline" className="ml-1 gap-1 font-mono text-[10px]"><GitBranch className="size-3" />{repository.branch || "detached"}</Badge>
         <Badge variant="secondary" className="hidden font-mono text-[10px] sm:inline-flex">{repository.head.slice(0, 8) || "empty"}</Badge>
-        <Button variant="ghost" size="xs" className="ml-auto" onClick={() => void load()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />Refresh</Button>
+        <AppNav search={search} />
+        <Button variant="ghost" size="xs" className="ml-auto" onClick={() => void query.refetch()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />Refresh</Button>
       </header>
 
       <main className={`flex-1 space-y-4 p-4 pb-10 transition-opacity ${loading ? "opacity-85" : ""}`}>
@@ -67,6 +62,8 @@ export function App() {
           <div><h1 className="text-base font-semibold tracking-tight">Repository overview</h1><p className="text-[11px] text-muted-foreground">Contribution activity across reachable HEAD history</p></div>
           <span className="hidden text-[10px] text-muted-foreground sm:block">Updated {formatDate(report.analysis_context.generated_at)}</span>
         </div>
+
+        <OverviewFilterBar value={filters} loading={loading} onApply={applyFilters} />
 
         {error && <Alert variant="destructive"><AlertCircle /><AlertTitle>Refresh failed</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
         {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>Data quality warning</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
@@ -79,7 +76,7 @@ export function App() {
           <MetricCard label="Churn" value={totals.churn} />
         </section>
 
-        {repository.empty ? <EmptyRepository /> : <>
+        {repository.empty ? <EmptyRepository /> : totals.commits === 0 ? <NoMatchingHistory /> : <>
           <Card className="gap-3 rounded-md py-3 shadow-none">
             <CardHeader className="px-3"><CardTitle className="text-xs">Monthly activity</CardTitle></CardHeader>
             <CardContent className="px-2">
@@ -100,7 +97,7 @@ export function App() {
           <section className="grid gap-3 lg:grid-cols-2">
             <DataPanel title="Contributors" count={contributors.length}>
               <Table><TableHeader><TableRow><TableHead>Person</TableHead><TableHead className="text-right">Commits</TableHead><TableHead className="text-right">Churn</TableHead><TableHead className="text-right">Last active</TableHead></TableRow></TableHeader>
-                <TableBody>{contributors.map((person) => <TableRow key={`${person.name}-${person.last_active}`}><TableCell className="max-w-48 truncate font-medium">{person.name}</TableCell><NumericCell>{person.commits}</NumericCell><NumericCell>{number.format(person.churn)}</NumericCell><TableCell className="text-right text-[10px] text-muted-foreground">{formatDate(person.last_active)}</TableCell></TableRow>)}</TableBody>
+                <TableBody>{contributors.map((person) => <TableRow key={person.id}><TableCell className="max-w-48"><div className="flex min-w-0 items-center gap-1"><Link to="/contributors/$contributorId" params={{ contributorId: person.id }} search={searchFromFilters(filters)} className="truncate font-medium hover:underline">{person.name}</Link>{person.is_bot && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[8px]">bot</Badge>}</div></TableCell><NumericCell>{person.commits}</NumericCell><NumericCell>{number.format(person.churn)}</NumericCell><TableCell className="text-right text-[10px] text-muted-foreground">{formatDate(person.last_active)}</TableCell></TableRow>)}</TableBody>
               </Table>
             </DataPanel>
             <DataPanel title="Recent commits" count={recent_commits.length}>
@@ -131,6 +128,10 @@ function formatDate(value: string) { return value ? new Intl.DateTimeFormat(unde
 
 function EmptyRepository() {
   return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><GitCommitHorizontal className="size-8 text-muted-foreground" /><CardTitle className="text-sm">No commits yet</CardTitle><p className="text-xs text-muted-foreground">Create the first commit, then refresh this page.</p></Card>
+}
+
+function NoMatchingHistory() {
+  return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><FilterX className="size-8 text-muted-foreground" /><CardTitle className="text-sm">No matching history</CardTitle><p className="text-xs text-muted-foreground">Adjust or clear the current date and path filters.</p></Card>
 }
 
 function LoadingShell() {

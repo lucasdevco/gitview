@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	functionanalysis "gitview/internal/function"
 	"gitview/internal/gitrepo"
 	"gitview/internal/overview"
 	"gitview/internal/server"
@@ -24,7 +25,7 @@ func serve(parent context.Context, config serveConfig) error {
 	if err != nil {
 		return err
 	}
-	api, err := server.New(overview.NewService(repository))
+	api, err := server.New(overview.NewService(repository), functionanalysis.NewService(repository))
 	if err != nil {
 		return fmt.Errorf("initialize web server: %w", err)
 	}

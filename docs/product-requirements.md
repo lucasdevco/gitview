@@ -128,12 +128,12 @@ gitview serve [repository]
 - 支持 `--port` 覆盖端口；固定只监听 loopback，不提供 `--host`，前期不自动打开浏览器。
 - Contributors、Functions、Hotspots、Ownership、Compare、Explain 等均是 Web 页面或后续页面能力，不创建同名 CLI 子命令。
 
-### 5.1 最小 Web MVP
+### 5.1 已实现的 Web MVP
 
-首个可运行版本只完成一条垂直路径：
+首个可运行版本从 Overview 垂直路径扩展为以下本地 Web 页面：
 
 ```text
-启动本地服务 → 识别一个仓库 → 读取 HEAD 历史 → 打开 Overview → 查看基础统计与最近提交
+启动本地服务 → Overview/筛选 → Contributor → 文件 Hotspots/Ownership → Go Functions → Compare/Explain
 ```
 
 包含：
@@ -143,10 +143,9 @@ gitview serve [repository]
 - 简单的按月提交趋势、贡献者列表和最近提交列表。
 - 分析中、空仓库、非 Git 仓库和 Git 调用失败状态。
 
-暂不包含：
+当前限制：
 
-- 函数解析与 lineage。
-- 热点、ownership、风险评分、区间对比和解释页。
+- 函数解析只支持 Go，历史 lineage 为 `probable`，不保证跨移动/重命名精确。
 - SQLite 增量索引、SSE、后台 watcher、OpenAPI 代码生成。
 - JSON/CSV 导出、配置文件、多仓库和远程平台集成。
 

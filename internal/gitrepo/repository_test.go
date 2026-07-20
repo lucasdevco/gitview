@@ -1,6 +1,7 @@
 package gitrepo
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -34,12 +35,21 @@ func TestRepositoryReadsMailmapAndRootCommit(t *testing.T) {
 	if meta.Branch != "main" || meta.Head == "" || meta.Empty {
 		t.Fatalf("unexpected metadata: %+v", meta)
 	}
-	log, err := repository.Commits(context.Background())
+	var log bytes.Buffer
+	err = repository.Commits(context.Background(), "", &log)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(log) == 0 {
+	if log.Len() == 0 {
 		t.Fatal("expected history output")
+	}
+	var filtered bytes.Buffer
+	err = repository.Commits(context.Background(), "one.txt", &filtered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if records := bytes.Count(filtered.Bytes(), []byte{'\x1e'}); records != 1 {
+		t.Fatalf("expected one path-filtered commit, got %d", records)
 	}
 }
 

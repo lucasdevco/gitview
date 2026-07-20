@@ -2,10 +2,9 @@
 
 ## 需要优先确认
 
-1. 首批函数级语言是什么？建议 Go 做深度首发，再依据目标仓库加入 TypeScript/Java/Python。
-2. ownership 的近期窗口是 90、180 还是 365 天？建议默认 180 天并允许配置。
-3. SQLite 驱动选择 CGO 还是 pure Go？仅在无缓存性能不达标后再实测。
-4. 路由 search 参数是否使用手写 validator，还是增加 schema 库？增加第二个正式页面时再决定。
+1. 精确函数 lineage 何时从当前范围 hunk 归属升级为父子 blob 双解析？
+2. SQLite 驱动选择 CGO 还是 pure Go？仅在有界内存缓存无法满足目标仓库后再实测。
+3. 何时加入 Go 以外的首个语言分析器，以及选择 Tree-sitter 还是语言专用解析器？
 
 ## 第二批问题
 
@@ -37,6 +36,10 @@
 | 2026-07-19 | 展示 additions、deletions、churn，不提供伪精确 modified | Git numstat 无法稳定证明“修改行数” |
 | 2026-07-19 | merge commit 计数但不累计 merge diff；root commit 与空树比较 | 保留真实提交轨迹，同时避免 merge 重复累计已进入历史的行变更 |
 | 2026-07-19 | `serve` 固定监听 `127.0.0.1`，只开放 `--port` | 默认安全的本地工具边界，不引入远程暴露配置 |
+| 2026-07-20 | 正式前端采用 TanStack Router file routing、TanStack Query 与手写 search validator | 多页下钻需要 URL 作为导航状态事实来源；当前参数简单，无需额外 schema 依赖 |
+| 2026-07-20 | 文件 ownership 默认窗口为 180 天，权重使用 churn，bus factor 阈值为 80% | 口径透明并同时展示历史/近期 owner；二进制只给权重 1，不伪造 churn |
+| 2026-07-20 | 函数分析首发 Go AST；历史归属先标记 `probable` | 在不建设完整 lineage 索引的前提下交付可下钻证据，同时明确移动和重命名误差 |
+| 2026-07-20 | Compare 使用 `from..to` 可达提交语义；Explain 使用公历月、author time、本机时区 | 与 Git revision range 和现有时间口径保持一致且可复现 |
 
 ## 决策记录模板
 

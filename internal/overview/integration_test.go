@@ -34,7 +34,7 @@ func TestRealGitHistoryAppliesMailmapAndExcludesMergeDiff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := overview.NewService(repository).Overview(context.Background())
+	report, err := overview.NewService(repository).Overview(context.Background(), overview.Filters{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,6 +43,13 @@ func TestRealGitHistoryAppliesMailmapAndExcludesMergeDiff(t *testing.T) {
 	}
 	if report.Totals.Additions != 4 || report.Totals.Deletions != 0 || report.Totals.Churn != 4 {
 		t.Fatalf("merge diff should not be counted: %+v", report.Totals)
+	}
+	detail, err := overview.NewService(repository).Contributor(context.Background(), overview.Filters{}, report.Contributors[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Contributor.Commits != 4 || len(detail.TopPaths) != 4 {
+		t.Fatalf("unexpected contributor detail: %+v", detail)
 	}
 }
 
