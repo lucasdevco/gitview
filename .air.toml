@@ -3,7 +3,7 @@ tmp_dir = ".air"
 
 [build]
 cmd = "make build"
-entrypoint = ["./gitview", "--help"]
+entrypoint = ["/usr/bin/true"]
 include_ext = ["go", "ts", "tsx", "js", "jsx", "css", "html", "json"]
 exclude_dir = [".air", ".git", "frontend/dist", "frontend/node_modules", "internal/web/dist"]
 exclude_unchanged = true
