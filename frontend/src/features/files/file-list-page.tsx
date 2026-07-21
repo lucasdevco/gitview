@@ -1,9 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { Flame, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react"
+import { RefreshCw, TriangleAlert } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AppNav } from "@/components/app-nav"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { RepositoryContext } from "@/components/repository-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -28,8 +29,7 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
   return <div className="flex min-h-screen flex-col bg-background">
     {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
     <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
-      <div className="flex size-6 items-center justify-center rounded bg-primary text-primary-foreground">{isHotspot ? <Flame className="size-3.5" /> : <ShieldCheck className="size-3.5" />}</div>
-      <div className="min-w-0"><div className="truncate text-xs font-semibold">{repository.name}</div><div className="text-[10px] text-muted-foreground">{t(isHotspot ? "File hotspots" : "File ownership")}</div></div>
+      <RepositoryContext repository={repository} />
       <AppNav search={search} />
       <div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
     </header>

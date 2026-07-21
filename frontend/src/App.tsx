@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { AlertCircle, FilterX, GitBranch, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
+import { AlertCircle, FilterX, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -11,9 +11,9 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AppNav } from "@/components/app-nav"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { RepositoryContext } from "@/components/repository-context"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
 import type { OverviewFilters } from "@/lib/api"
 import { overviewQueryOptions } from "@/lib/queries"
@@ -47,13 +47,7 @@ export function App() {
     <div className="flex min-h-screen flex-col bg-background">
       {loading && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
       <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
-        <div className="flex size-6 items-center justify-center rounded bg-primary font-mono text-[10px] font-bold text-primary-foreground">GV</div>
-        <div className="min-w-0">
-          <div className="truncate text-xs font-semibold">{repository.name}</div>
-          <Tooltip><TooltipTrigger asChild><div className="max-w-[44vw] truncate text-[10px] text-muted-foreground">{repository.root}</div></TooltipTrigger><TooltipContent>{repository.root}</TooltipContent></Tooltip>
-        </div>
-        <Badge variant="outline" className="ml-1 gap-1 font-mono text-[10px]"><GitBranch className="size-3" />{repository.branch || t("detached")}</Badge>
-        <Badge variant="secondary" className="hidden font-mono text-[10px] sm:inline-flex">{repository.head.slice(0, 8) || t("empty")}</Badge>
+        <RepositoryContext repository={repository} />
         <AppNav search={search} />
         <div className="ml-auto" />
         <LanguageSwitcher />
