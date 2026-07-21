@@ -155,8 +155,8 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom text-sm",
-          isExpanded && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-background",
+          "w-full caption-bottom text-xs text-foreground",
+          isExpanded && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10",
           className,
         )}
         {...props}
@@ -232,7 +232,7 @@ function parseNumericValue(value: string) {
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead data-slot="table-header" className={cn("[&_tr]:border-b", className)} {...props} />
+  return <thead data-slot="table-header" className={cn("bg-muted/35 text-muted-foreground [&_tr]:border-b", className)} {...props} />
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -248,13 +248,13 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th data-slot="table-head" className={cn("h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]", className)} {...props} />
+  return <th data-slot="table-head" className={cn("h-9 px-2 text-left align-middle text-[10px] font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]", className)} {...props} />
 }
 
 type TableCellProps = React.ComponentProps<"td"> & { sortValue?: string | number }
 
 function TableCell({ className, sortValue, ...props }: TableCellProps) {
-  return <td data-slot="table-cell" data-sort-value={sortValue} className={cn("p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]", className)} {...props} />
+  return <td data-slot="table-cell" data-sort-value={sortValue} className={cn("p-2 align-middle text-xs whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]", className)} {...props} />
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {

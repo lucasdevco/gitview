@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { CalendarDays, ChevronLeft, ChevronRight, Filter, FilterX, FolderOpen, FolderTree } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, FilterX, FolderOpen, FolderTree } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { format, parse, startOfYear, subDays } from "date-fns"
 import { enUS, zhCN } from "date-fns/locale"
@@ -58,16 +58,12 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
 
   return (
     <form
-      className="flex flex-col gap-2 rounded-lg border bg-card/80 p-1.5 shadow-xs backdrop-blur sm:flex-row sm:items-center"
+      className="grid w-full gap-2 rounded-lg border bg-card/80 p-2 shadow-xs backdrop-blur sm:w-fit sm:max-w-full sm:grid-cols-[15rem_minmax(18rem,22rem)_auto] sm:items-end"
       onSubmit={(event) => { event.preventDefault(); onApply(draft) }}
       data-testid="overview-filters"
     >
-      <div className="hidden size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary sm:flex">
-        <Filter className="size-3.5" />
-      </div>
-
-      <div className="grid min-w-0 flex-1 gap-0.5">
-        <Label className="px-1 text-[9px] font-medium tracking-wide text-muted-foreground">{t("Author date")}</Label>
+      <div className="grid min-w-0 gap-1">
+        <Label className="flex h-3.5 items-center px-0.5 text-[9px] font-medium tracking-wide text-muted-foreground">{t("Author date")}</Label>
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" className="group h-9 w-full justify-start gap-2 rounded-md bg-background px-2.5 text-xs font-normal shadow-none hover:border-primary/40 hover:bg-background">
@@ -105,8 +101,8 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
         </Popover>
       </div>
 
-      <div className="grid min-w-0 flex-[1.35] gap-0.5">
-        <Label htmlFor="path-filter" className="px-1 text-[9px] font-medium tracking-wide text-muted-foreground">{t("Repository path")}</Label>
+      <div className="grid min-w-0 gap-1">
+        <Label htmlFor="path-filter" className="flex h-3.5 items-center px-0.5 text-[9px] font-medium tracking-wide text-muted-foreground">{t("Repository path")}</Label>
         <div className="flex overflow-hidden rounded-md border bg-background transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:border-primary/40">
           <div className="relative min-w-0 flex-1 border-r">
             <span className="pointer-events-none absolute left-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded bg-muted text-muted-foreground">
@@ -170,7 +166,7 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
         </div>
       </div>
 
-      <div className="flex items-end gap-1 self-stretch sm:ml-0.5">
+      <div className="flex h-9 items-center gap-1 sm:ml-0.5">
         <Button type="submit" size="sm" className="h-9 flex-1 px-4 shadow-xs sm:flex-none" disabled={loading || !hasChanges}>{t("Apply")}</Button>
         <Button
           type="button"
