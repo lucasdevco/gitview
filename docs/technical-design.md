@@ -237,7 +237,7 @@ Symbol {
 
 ## 8. HTTP 输出与兼容性
 
-- 当前 API 提供 health、Overview、Contributor、文件 Hotspots/Ownership、Go Functions、Compare 和 Explain 所需 JSON，不承诺通用导出格式。
+- 当前 API 提供 health、Overview、Contributor、文件 Hotspots/Ownership、多语言 Functions、Compare 和 Explain 所需 JSON，不承诺通用导出格式。
 - JSON 顶层包含 `schema_version`、`analysis_context`、`warnings`、`data`，为页面演进保留兼容边界。
 - `serve` 启动失败使用非零 exit code；页面查询错误通过 HTTP status 与稳定 error code 表达。
 - 部分语言失败时返回带 warnings 的可用报告；核心 Git 读取失败才整体失败。
@@ -258,4 +258,4 @@ Symbol {
 2. 用真实仓库验证 Git 基础总计、按月统计和 `.mailmap` 身份归一化。
 3. 用 fixture 固化 merge、root commit、rename、二进制文件和空仓库行为。
 4. 对 10k+ commit 仓库测量无缓存分析，再决定是否需要 SQLite。
-5. 函数页进入实现前，再比较 Tree-sitter 与 Go AST，并验证 lineage fixture。
+5. 函数页使用 Tree-sitter 统一解析受支持语言，并通过多语言 fixture 验证符号、复杂度和 lineage 归因。

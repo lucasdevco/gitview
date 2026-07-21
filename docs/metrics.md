@@ -102,7 +102,7 @@ hotspot_score = sqrt(normalized_change_frequency × normalized_churn) × 100
 
 文件 change frequency 为文件涉及的 commit 数；函数 change frequency 为有 hunk 归属的不同 commit 数。API 同时返回 commits/changes、churn、复杂度和所有权份额，不把综合分数单独解释为风险结论。
 
-Go 函数复杂度从 1 开始，`if`、`for`、`range`、非 default case、带通信语句的 select case，以及 `&&` / `||` 各增加 1。当前函数位置、签名和复杂度来自 HEAD 的 Go AST；历史 patch 使用零上下文 hunk 与当前范围重叠进行归属，因此 lineage confidence 固定为 `probable`，移动、重命名和边界变化可能不完整。
+函数复杂度从 1 开始，按各语言 Tree-sitter 语法树中的条件、循环、非 default case、异常分支、条件表达式以及 `&&` / `||`（Python 为 `and` / `or`）递增。当前函数位置、签名和复杂度来自 HEAD 的 Tree-sitter 语法树；首批支持 Go、JavaScript/TypeScript、Python、Java 和 Rust。历史 patch 使用零上下文 hunk 与当前范围重叠进行归属，因此 lineage confidence 固定为 `probable`，移动、重命名和边界变化可能不完整。
 
 ## 8. 数据质量标记
 

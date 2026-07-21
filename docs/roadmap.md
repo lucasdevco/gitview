@@ -60,11 +60,11 @@
 
 1. Contributors 详情。
 2. 文件级 Hotspots 与 Ownership。
-3. Go 函数解析、函数变更归属与历史。
+3. 基于 Tree-sitter 的多语言函数解析、函数变更归属与历史。
 4. 函数级 Hotspots、Ownership 与 lineage confidence。
 5. Compare 与解释能力。
 
-当前已交付以上五个切片。函数历史首轮只支持 Go：当前快照由 Go AST 精确解析，历史 hunk 按当前函数范围归属并明确标记 `probable`；精确跨 revision lineage 仍属于后续深化。
+当前已交付以上五个切片。函数历史首批支持 Go、JavaScript/TypeScript、Python、Java 和 Rust：当前快照由 Tree-sitter 解析，历史 hunk 按当前函数范围归属并明确标记 `probable`；精确跨 revision lineage 仍属于后续深化。
 
 这些能力不增加同名 CLI 子命令。
 

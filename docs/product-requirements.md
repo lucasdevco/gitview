@@ -133,7 +133,7 @@ gitview serve [repository]
 首个可运行版本从 Overview 垂直路径扩展为以下本地 Web 页面：
 
 ```text
-启动本地服务 → Overview/筛选 → Contributor → 文件 Hotspots/Ownership → Go Functions → Compare/Explain
+启动本地服务 → Overview/筛选 → Contributor → 文件 Hotspots/Ownership → 多语言 Functions → Compare/Explain
 ```
 
 包含：

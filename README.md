@@ -1,56 +1,141 @@
 # gitview
 
-面向 Git 项目的本地 Web 分析工具。
+[English](./README.md) | [简体中文](./README.zh-CN.md)
 
-首个命令行入口只提供 `gitview serve`：在本机启动服务，并通过浏览器查看当前 Git 仓库。贡献者、热点、函数历史等分析不再分别提供命令行子命令。
+Explore contribution history, code hotspots, ownership, and function evolution in any local Git repository. One binary, no account, everything stays local.
 
-当前 Web MVP 提供 Overview、Contributor、文件 Hotspots/Ownership、Go 函数历史、revision Compare 与月度 Explain。产品需求、指标口径、技术方案和路线图统一维护在 [`docs/`](./docs/README.md)。
+> **Status:** gitview is currently a Web MVP under active development.
 
-正式界面使用 React、Tailwind CSS v4 与 [shadcn/ui](https://ui.shadcn.com/docs/components)，交互密度和配色参考本地 agentsview。
+## Why gitview?
 
-## 本地运行
+Git contains more than a commit list. It can help answer practical maintenance questions:
 
-需要 Go 1.26、Node.js 和系统 Git：
+- Who understands this area of the codebase?
+- Which files change often and carry concentrated ownership risk?
+- What caused a spike in activity during a particular month?
+- How has a function evolved, and which commits shaped it?
+- Where should a maintainer or new contributor start reading?
 
-```text
+gitview turns local Git history into a focused web interface. It is designed for understanding and maintaining projects—not for ranking individual developer performance.
+
+## Features
+
+- **Repository overview** — commits, contributors, additions, deletions, churn, monthly trends, and recent activity.
+- **Contributor details** — activity timeline, primary paths, and the commits behind each contributor's history.
+- **File hotspots** — find frequently changed files using an explicit score based on change frequency and churn.
+- **Code ownership** — inspect historical owners, recent maintainers, contribution share, and estimated bus factor.
+- **Function history** — browse functions, complexity, hotspots, contributors, and probable change history across Go, JavaScript/TypeScript, Python, Java, and Rust.
+- **Branches and commits** — inspect branch state, working-tree changes, commit metadata, and diffs.
+- **Revision comparison** — compare two Git revisions across totals, contributors, files, and commits.
+- **Monthly explanation** — explain activity changes through the contributors, paths, and commits that drove them.
+- **Focused filtering** — narrow analysis by author date and repository path; filters are preserved in the URL.
+- **English and Simplified Chinese UI**.
+
+## Quick Start
+
+### Requirements
+
+- Go 1.26+
+- Node.js 20.19+ or 22.12+
+- Git
+- A C compiler for the Tree-sitter Go bindings
+
+### Build from source
+
+```bash
+git clone https://github.com/lucasdevco/gitview.git
+cd gitview
+cd frontend && npm ci && cd ..
 make build
-./gitview serve /path/to/repository
 ```
 
-默认地址是 `http://127.0.0.1:8080`，可用 `--port` 指定端口；传入 `--port 0` 时由系统选择空闲端口。服务只监听 loopback，不提供 `--host`。
+`make build` compiles the React frontend, embeds it into the Go binary, and creates `./gitview`.
 
-开发时可以分别运行 Go 服务和 `frontend/` 中的 Vite dev server；Vite 会把 `/api` 代理到 `127.0.0.1:8080`。
+### Analyze a repository
 
-也可以使用项目内置的 [Air](https://github.com/air-verse/air) 监听源码变更。连续变更停止 2 秒后会执行一次 `make build`：
+```bash
+# Analyze the current repository
+./gitview serve
 
-```text
+# Analyze another local repository
+./gitview serve /path/to/repository
+
+# Use a different port
+./gitview serve --port 9090 /path/to/repository
+```
+
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Pass `--port 0` to let the operating system choose an available port.
+
+gitview intentionally listens on loopback only. It does not expose a `--host` option.
+
+## How It Works
+
+gitview reads repository metadata and history through the system Git executable, calculates analysis results in memory, and serves an embedded React application from the same binary.
+
+- Repository code, hooks, and build scripts are not executed.
+- No account or external service is required.
+- Repository data stays on the local machine.
+- Analysis results distinguish direct Git facts from derived or approximate metrics.
+
+## Current Limitations
+
+- Function-level analysis supports Go, JavaScript/TypeScript, Python, Java, and Rust; other languages fall back to file-level analysis.
+- Function history is marked `probable`; moves, renames, and boundary changes may not be tracked precisely.
+- Analysis focuses on history reachable from the selected branch or revision.
+- There is no persistent index, background watcher, multi-repository mode, or GitHub/GitLab integration yet.
+- JSON/CSV export and static reports are not yet available.
+
+See the [roadmap](./docs/roadmap.md) for planned work.
+
+## Development
+
+Run the backend and frontend separately for local development:
+
+```bash
+# Terminal 1: start the Go API server
+go run ./cmd/gitview serve /path/to/repository
+
+# Terminal 2: start Vite with /api proxied to 127.0.0.1:8080
+cd frontend
+npm run dev
+```
+
+For automatic rebuilds after source changes:
+
+```bash
 make watch
 ```
 
-## 目录结构
+Useful checks:
 
-目录职责参考 agentsview，并按当前 MVP 范围精简：
-
-```text
-cmd/gitview/        CLI 入口、命令定义与 serve 生命周期
-internal/gitrepo/   系统 Git adapter
-internal/overview/  Overview 领域模型与聚合服务
-internal/function/  Go AST、函数热点与 probable 历史归属
-internal/server/    HTTP API、middleware 与 SPA 交付
-internal/web/       嵌入式前端产物及 backend-only fallback
-frontend/           React SPA；生产构建先输出到 frontend/dist
-docs/               产品、指标和技术决策
+```bash
+make test
+make check
 ```
 
-`make frontend` 将 `frontend/dist` 复制到 `internal/web/dist`，供 Go `embed` 打入二进制。`internal/web/fallback` 保证没有生成前端时仍可执行 backend-only 测试与构建。
+## Project Layout
 
-## 文档入口
+```text
+cmd/gitview/        CLI entry point and server lifecycle
+internal/gitrepo/   System Git adapter
+internal/overview/  Repository, contributor, file, ownership, and comparison analysis
+internal/function/  Tree-sitter function parsing and history analysis
+internal/server/    Local HTTP API and SPA delivery
+internal/web/       Embedded frontend assets and backend-only fallback
+frontend/           React, TypeScript, Vite, Tailwind CSS, and shadcn/ui application
+docs/               Product requirements, metric definitions, architecture, and roadmap
+```
 
-- [产品需求文档](./docs/product-requirements.md)
-- [指标与统计口径](./docs/metrics.md)
-- [技术分析与架构设计](./docs/technical-design.md)
-- [agentsview 参考架构分析](./docs/agentsview-reference.md)
-- [stella/web 前端参考架构](./docs/stella-web-reference.md)
-- [产品 UI 交互图](./docs/ui-interaction.md)
-- [路线图](./docs/roadmap.md)
-- [开放问题与决策记录](./docs/open-questions.md)
+## Documentation
+
+- [Documentation index](./docs/README.md)
+- [Product requirements](./docs/product-requirements.md)
+- [Metric definitions](./docs/metrics.md)
+- [Technical design](./docs/technical-design.md)
+- [UI interactions](./docs/ui-interaction.md)
+- [Roadmap](./docs/roadmap.md)
+- [Open questions and decisions](./docs/open-questions.md)
+
+## Acknowledgements
+
+The product structure and local-first presentation were inspired by [agentsview](https://github.com/kenn-io/agentsview).

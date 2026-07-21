@@ -39,6 +39,7 @@
 | 2026-07-20 | 正式前端采用 TanStack Router file routing、TanStack Query 与手写 search validator | 多页下钻需要 URL 作为导航状态事实来源；当前参数简单，无需额外 schema 依赖 |
 | 2026-07-20 | 文件 ownership 默认窗口为 180 天，权重使用 churn，bus factor 阈值为 80% | 口径透明并同时展示历史/近期 owner；二进制只给权重 1，不伪造 churn |
 | 2026-07-20 | 函数分析首发 Go AST；历史归属先标记 `probable` | 在不建设完整 lineage 索引的前提下交付可下钻证据，同时明确移动和重命名误差 |
+| 2026-07-21 | 函数解析迁移到 Tree-sitter，首批支持 Go、JavaScript/TypeScript、Python、Java、Rust | 用统一解析层扩展主流语言；未知语言保留文件级分析，历史归属继续标记 `probable` |
 | 2026-07-20 | Compare 使用 `from..to` 可达提交语义；Explain 使用公历月、author time、本机时区 | 与 Git revision range 和现有时间口径保持一致且可复现 |
 
 ## 决策记录模板
