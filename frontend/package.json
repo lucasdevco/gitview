@@ -7,8 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
+    "format": "biome check --write --linter-enabled=false .",
     "test": "vitest run",
     "test:ui": "vitest --ui"
   },
