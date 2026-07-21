@@ -2,8 +2,8 @@ export function DiffView({ patch, className = "max-h-[calc(100vh-19rem)]" }: { p
   return (
     <div className={`${className} overflow-auto bg-muted/20 font-mono text-[11px] leading-5`}>
       <pre className="min-w-max py-2">
-        {parseDiffLines(patch).map((line, index) => (
-          <div key={index} className={lineClass(line.text)}>
+        {parseDiffLines(patch).map((line) => (
+          <div key={`${line.oldLine ?? ""}:${line.newLine ?? ""}:${line.text}`} className={lineClass(line.text)}>
             <span className="inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">
               {line.oldLine ?? ""}
             </span>

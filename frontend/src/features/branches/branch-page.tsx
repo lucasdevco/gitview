@@ -60,7 +60,8 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
   const files =
     selected === workingTreeID ? (report?.data.working_tree.files ?? []) : patchFiles.map((file) => file.path)
   const patch = patchFiles.find((file) => file.path === selectedFile)?.patch ?? ""
-  useEffect(() => setSelectedFile(files[0] ?? ""), [selected, patchFiles])
+  const firstFile = files[0] ?? ""
+  useEffect(() => setSelectedFile(firstFile), [firstFile])
 
   const graph = useMemo(() => layoutGraph(report?.data.commits ?? []), [report?.data.commits])
   if (!report && query.isPending) return <Loading />
@@ -223,6 +224,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
                     <div className="min-h-0 flex-1 overflow-auto p-1.5">
                       {files.map((file) => (
                         <button
+                          type="button"
                           key={file}
                           className={`flex h-7 w-full items-center gap-2 rounded px-2 text-left font-mono text-[10px] ${selectedFile === file ? "bg-muted font-medium" : "hover:bg-muted/60"}`}
                           onClick={() => setSelectedFile(file)}
@@ -325,7 +327,7 @@ function GraphNode({ lane, lanes }: { lane: number; lanes: number }) {
     <>
       {Array.from({ length: Math.min(lanes, graphColors.length) }, (_, index) => (
         <span
-          key={index}
+          key={graphColors[index]}
           className="absolute inset-y-0 w-0.5"
           style={{ left: 20 + index * 14, background: graphColor(index) }}
         />

@@ -82,7 +82,7 @@ export function ReportWarnings({ warnings, className }: { warnings: Warning[]; c
         <span className="ml-auto hidden text-[10px] text-muted-foreground group-open:inline">{t("Hide details")}</span>
       </summary>
 
-      <div className="border-t border-warning/20 px-3 py-1" role="region" aria-label={t("Data quality notices")}>
+      <section className="border-t border-warning/20 px-3 py-1" aria-label={t("Data quality notices")}>
         {items.map(({ warning, presentation }) => {
           const count = warning.message.match(/\d+/)?.[0] ?? "0"
           const Icon = presentation.level === "warning" ? CircleAlert : Info
@@ -112,7 +112,7 @@ export function ReportWarnings({ warnings, className }: { warnings: Warning[]; c
             </div>
           )
         })}
-      </div>
+      </section>
     </details>
   )
 }

@@ -250,11 +250,7 @@ function MonthlyContributorChart({ months, contributors }: { months: Month[]; co
               : t("Each color represents a contributor.")}
           </p>
         </div>
-        <div
-          className="ml-auto flex rounded-md border bg-muted/40 p-0.5"
-          role="group"
-          aria-label={t("Activity metric")}
-        >
+        <fieldset className="ml-auto flex rounded-md border bg-muted/40 p-0.5" aria-label={t("Activity metric")}>
           <Button
             type="button"
             size="xs"
@@ -273,7 +269,7 @@ function MonthlyContributorChart({ months, contributors }: { months: Month[]; co
           >
             {t("Churn")}
           </Button>
-        </div>
+        </fieldset>
       </CardHeader>
       <CardContent className="px-2">
         <ChartContainer config={chart.config} className="h-[240px] w-full aspect-auto">
@@ -375,8 +371,8 @@ function LoadingShell() {
       <main className="space-y-4 p-4">
         <Skeleton className="h-8 w-52" />
         <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-16" />
+          {["commits", "contributors", "files", "lines", "days"].map((metric) => (
+            <Skeleton key={metric} className="h-16" />
           ))}
         </div>
         <Skeleton className="h-64" />

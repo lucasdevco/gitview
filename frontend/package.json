@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "format": "biome check --write --linter-enabled=false .",
+    "lint": "biome lint .",
     "test": "vitest run",
     "test:ui": "vitest --ui"
   },
