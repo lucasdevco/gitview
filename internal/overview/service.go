@@ -20,6 +20,10 @@ type Git interface {
 	IsShallow(context.Context) (bool, error)
 }
 
+type directoryGit interface {
+	Directories(context.Context, string) ([]string, error)
+}
+
 type Service struct {
 	git Git
 	now func() time.Time
@@ -33,6 +37,21 @@ type Service struct {
 
 func NewService(git Git) *Service {
 	return &Service{git: git, now: time.Now, cache: map[string]Report{}, factCache: map[string][]commitFact{}}
+}
+
+func (s *Service) Directories(ctx context.Context, parent string) ([]string, error) {
+	repo, err := s.git.Repository(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if repo.Empty {
+		return []string{}, nil
+	}
+	git, ok := s.git.(directoryGit)
+	if !ok {
+		return nil, fmt.Errorf("repository directory listing is unavailable")
+	}
+	return git.Directories(ctx, parent)
 }
 
 func (s *Service) Overview(ctx context.Context, filters Filters) (Report, error) {

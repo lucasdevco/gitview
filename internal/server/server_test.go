@@ -21,6 +21,20 @@ type fakeOverview struct {
 
 type fakeFunctions struct{ err error }
 
+func (f fakeOverview) Directories(context.Context, string) ([]string, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return []string{"frontend", "internal"}, nil
+}
+
+func (f fakeOverview) Commit(context.Context, string) (overview.CommitReviewReport, error) {
+	if f.err != nil {
+		return overview.CommitReviewReport{}, f.err
+	}
+	return overview.CommitReviewReport{Commit: overview.CommitReview{OID: "abc", Subject: "Improve parser", Patch: "+new\n"}}, nil
+}
+
 func (f fakeFunctions) Functions(context.Context, overview.Filters, string, int) (functionanalysis.Report, error) {
 	if f.err != nil {
 		return functionanalysis.Report{}, f.err
@@ -107,6 +121,42 @@ func TestAPI(t *testing.T) {
 	}
 	if payload["schema_version"] != overview.SchemaVersion {
 		t.Fatalf("unexpected schema: %+v", payload)
+	}
+}
+
+func TestPathsAPI(t *testing.T) {
+	api, err := New(fakeOverview{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/paths?parent=internal", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"directories":["frontend","internal"]`) {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestPathsAPIRejectsOutsideRepository(t *testing.T) {
+	api, err := New(fakeOverview{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/paths?parent=../outside", nil))
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_path") {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestCommitAPI(t *testing.T) {
+	api, err := New(fakeOverview{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/commits/abc", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Improve parser") {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
 	}
 }
 

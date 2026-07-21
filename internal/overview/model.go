@@ -79,6 +79,24 @@ type Commit struct {
 	Churn      int    `json:"churn"`
 }
 
+type CommitReview struct {
+	OID         string `json:"oid"`
+	ParentOID   string `json:"parent_oid"`
+	Subject     string `json:"subject"`
+	Author      string `json:"author"`
+	AuthorEmail string `json:"author_email"`
+	AuthoredAt  string `json:"authored_at"`
+	Files       int    `json:"files"`
+	Additions   int    `json:"additions"`
+	Deletions   int    `json:"deletions"`
+	Patch       string `json:"patch"`
+}
+
+type CommitReviewReport struct {
+	Repository Repository   `json:"repository"`
+	Commit     CommitReview `json:"commit"`
+}
+
 type Warning struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

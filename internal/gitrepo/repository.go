@@ -29,6 +29,28 @@ func Open(ctx context.Context, path string) (*Repository, error) {
 
 func (r *Repository) Root() string { return r.root }
 
+func (r *Repository) Directories(ctx context.Context, parent string) ([]string, error) {
+	tree := "HEAD"
+	if parent != "" {
+		tree += ":" + parent
+	}
+	output, err := run(ctx, r.root, "ls-tree", "-d", "-z", "--name-only", tree)
+	if err != nil {
+		return nil, err
+	}
+	directories := []string{}
+	for _, name := range strings.Split(output, "\x00") {
+		if name == "" {
+			continue
+		}
+		if parent != "" {
+			name = parent + "/" + name
+		}
+		directories = append(directories, name)
+	}
+	return directories, nil
+}
+
 func (r *Repository) Repository(ctx context.Context) (overview.Repository, error) {
 	branch, _ := run(ctx, r.root, "symbolic-ref", "--quiet", "--short", "HEAD")
 	head, err := run(ctx, r.root, "rev-parse", "--verify", "HEAD")
@@ -109,6 +131,10 @@ func (r *Repository) GoHistory(ctx context.Context, path string, destination io.
 func (r *Repository) ResolveRevision(ctx context.Context, revision string) (string, error) {
 	value, err := run(ctx, r.root, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
 	return strings.TrimSpace(value), err
+}
+
+func (r *Repository) CommitPatch(ctx context.Context, oid string) (string, error) {
+	return run(ctx, r.root, "show", "--no-color", "--no-ext-diff", "--find-renames", "--format=%x1e%H%x1f%P%x1f%aN%x1f%aE%x1f%aI%x1f%s", "--unified=3", "--end-of-options", oid)
 }
 
 func (r *Repository) CommitsBetween(ctx context.Context, fromOID, toOID, path string, destination io.Writer) error {

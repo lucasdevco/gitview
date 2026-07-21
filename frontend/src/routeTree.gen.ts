@@ -16,6 +16,7 @@ import { Route as FileRouteImport } from './routes/file'
 import { Route as FunctionsRouteImport } from './routes/functions'
 import { Route as HotspotsRouteImport } from './routes/hotspots'
 import { Route as OwnershipRouteImport } from './routes/ownership'
+import { Route as CommitsCommitIdRouteImport } from './routes/commits.$commitId'
 import { Route as ContributorsContributorIdRouteImport } from './routes/contributors.$contributorId'
 import { Route as FunctionsFunctionIdRouteImport } from './routes/functions_.$functionId'
 
@@ -54,6 +55,11 @@ const OwnershipRoute = OwnershipRouteImport.update({
   path: '/ownership',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommitsCommitIdRoute = CommitsCommitIdRouteImport.update({
+  id: '/commits/$commitId',
+  path: '/commits/$commitId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContributorsContributorIdRoute =
   ContributorsContributorIdRouteImport.update({
     id: '/contributors/$contributorId',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/functions': typeof FunctionsRoute
   '/hotspots': typeof HotspotsRoute
   '/ownership': typeof OwnershipRoute
+  '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions/$functionId': typeof FunctionsFunctionIdRoute
 }
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/functions': typeof FunctionsRoute
   '/hotspots': typeof HotspotsRoute
   '/ownership': typeof OwnershipRoute
+  '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions/$functionId': typeof FunctionsFunctionIdRoute
 }
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/functions': typeof FunctionsRoute
   '/hotspots': typeof HotspotsRoute
   '/ownership': typeof OwnershipRoute
+  '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions_/$functionId': typeof FunctionsFunctionIdRoute
 }
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/functions'
     | '/hotspots'
     | '/ownership'
+    | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions/$functionId'
   fileRoutesByTo: FileRoutesByTo
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/functions'
     | '/hotspots'
     | '/ownership'
+    | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions/$functionId'
   id:
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/functions'
     | '/hotspots'
     | '/ownership'
+    | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions_/$functionId'
   fileRoutesById: FileRoutesById
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   FunctionsRoute: typeof FunctionsRoute
   HotspotsRoute: typeof HotspotsRoute
   OwnershipRoute: typeof OwnershipRoute
+  CommitsCommitIdRoute: typeof CommitsCommitIdRoute
   ContributorsContributorIdRoute: typeof ContributorsContributorIdRoute
   FunctionsFunctionIdRoute: typeof FunctionsFunctionIdRoute
 }
@@ -199,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnershipRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/commits/$commitId': {
+      id: '/commits/$commitId'
+      path: '/commits/$commitId'
+      fullPath: '/commits/$commitId'
+      preLoaderRoute: typeof CommitsCommitIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contributors/$contributorId': {
       id: '/contributors/$contributorId'
       path: '/contributors/$contributorId'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   FunctionsRoute: FunctionsRoute,
   HotspotsRoute: HotspotsRoute,
   OwnershipRoute: OwnershipRoute,
+  CommitsCommitIdRoute: CommitsCommitIdRoute,
   ContributorsContributorIdRoute: ContributorsContributorIdRoute,
   FunctionsFunctionIdRoute: FunctionsFunctionIdRoute,
 }

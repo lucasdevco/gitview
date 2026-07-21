@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -51,11 +52,43 @@ func TestRepositoryReadsMailmapAndRootCommit(t *testing.T) {
 	if records := bytes.Count(filtered.Bytes(), []byte{'\x1e'}); records != 1 {
 		t.Fatalf("expected one path-filtered commit, got %d", records)
 	}
+	patch, err := repository.CommitPatch(context.Background(), meta.Head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(patch, "mailmap") || !strings.Contains(patch, "diff --git") {
+		t.Fatalf("unexpected commit patch: %s", patch)
+	}
 }
 
 func TestOpenRejectsNonRepository(t *testing.T) {
 	if _, err := Open(context.Background(), t.TempDir()); err == nil {
 		t.Fatal("expected non-repository error")
+	}
+}
+
+func TestRepositoryListsTrackedDirectories(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, nil, "init", "-b", "main")
+	if err := os.MkdirAll(filepath.Join(dir, "internal", "parser"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "internal", "parser", "parse.go"), []byte("package parser\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "add", ".")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "commit", "-m", "add parser")
+	repository, err := Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := repository.Directories(context.Background(), "")
+	if err != nil || len(root) != 1 || root[0] != "internal" {
+		t.Fatalf("unexpected root directories: %#v, %v", root, err)
+	}
+	children, err := repository.Directories(context.Background(), "internal")
+	if err != nil || len(children) != 1 || children[0] != "internal/parser" {
+		t.Fatalf("unexpected child directories: %#v, %v", children, err)
 	}
 }
 

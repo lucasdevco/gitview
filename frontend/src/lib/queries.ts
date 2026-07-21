@@ -1,5 +1,17 @@
 import { queryOptions } from "@tanstack/react-query"
-import { fetchCompare, fetchContributor, fetchExplain, fetchFile, fetchFiles, fetchFunction, fetchFunctions, fetchOverview, type OverviewFilters } from "@/lib/api"
+import { fetchCommit, fetchCompare, fetchContributor, fetchDirectories, fetchExplain, fetchFile, fetchFiles, fetchFunction, fetchFunctions, fetchOverview, type OverviewFilters } from "@/lib/api"
+
+export function commitQueryOptions(oid: string) {
+  return queryOptions({ queryKey: ["commit", oid], queryFn: ({ signal }) => fetchCommit(oid, signal), staleTime: 5 * 60_000 })
+}
+
+export function directoriesQueryOptions(parent: string) {
+  return queryOptions({
+    queryKey: ["directories", parent],
+    queryFn: ({ signal }) => fetchDirectories(parent, signal),
+    staleTime: 5 * 60_000,
+  })
+}
 
 export function overviewQueryOptions(filters: OverviewFilters) {
   return queryOptions({

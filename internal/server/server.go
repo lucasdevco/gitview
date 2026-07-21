@@ -17,6 +17,8 @@ import (
 )
 
 type OverviewService interface {
+	Directories(context.Context, string) ([]string, error)
+	Commit(context.Context, string) (overview.CommitReviewReport, error)
 	Overview(context.Context, overview.Filters) (overview.Report, error)
 	Contributor(context.Context, overview.Filters, string) (overview.ContributorReport, error)
 	Files(context.Context, overview.Filters, string, int) (overview.FileReport, error)
@@ -52,8 +54,10 @@ func New(overviewService OverviewService, functionServices ...FunctionService) (
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", a.health)
+	mux.HandleFunc("GET /api/v1/paths", a.getPaths)
 	mux.HandleFunc("GET /api/v1/overview", a.getOverview)
 	mux.HandleFunc("GET /api/v1/contributors/{id}", a.getContributor)
+	mux.HandleFunc("GET /api/v1/commits/{oid}", a.getCommit)
 	mux.HandleFunc("GET /api/v1/hotspots", a.getHotspots)
 	mux.HandleFunc("GET /api/v1/ownership", a.getOwnership)
 	mux.HandleFunc("GET /api/v1/file", a.getFile)
@@ -64,6 +68,33 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/api/", notFound)
 	mux.HandleFunc("/", a.spa)
 	return securityHeaders(mux)
+}
+
+func (a *API) getCommit(w http.ResponseWriter, request *http.Request) {
+	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+	defer cancel()
+	report, err := a.overview.Commit(ctx, request.PathValue("oid"))
+	if err != nil {
+		writeAnalysisError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "data": map[string]any{"repository": report.Repository, "commit": report.Commit}})
+}
+
+func (a *API) getPaths(w http.ResponseWriter, request *http.Request) {
+	filters, err := overview.ParseFilters("", "", request.URL.Query().Get("parent"), time.Local)
+	if err != nil {
+		writeFilterError(w, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(request.Context(), 10*time.Second)
+	defer cancel()
+	directories, err := a.overview.Directories(ctx, filters.Path)
+	if err != nil {
+		writeAnalysisError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"parent": filters.Path, "directories": directories}})
 }
 
 func (a *API) getCompare(w http.ResponseWriter, request *http.Request) {

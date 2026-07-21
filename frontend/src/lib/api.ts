@@ -4,7 +4,21 @@ export type Totals = { commits: number; contributors: number; additions: number;
 export type Month = { month: string; commits: number; additions: number; deletions: number; churn: number }
 export type Contributor = { id: string; name: string; is_bot: boolean; commits: number; additions: number; deletions: number; churn: number; last_active: string }
 export type Commit = { oid: string; subject: string; author: string; author_id: string; authored_at: string; additions: number; deletions: number; churn: number }
+export type CommitReview = {
+  oid: string
+  parent_oid: string
+  subject: string
+  author: string
+  author_email: string
+  authored_at: string
+  files: number
+  additions: number
+  deletions: number
+  patch: string
+}
 export type OverviewFilters = { since: string; until: string; path: string }
+export type DirectoryListResponse = { data: { parent: string; directories: string[] } }
+export type CommitReviewResponse = { schema_version: string; data: { repository: Repository; commit: CommitReview } }
 export type PathContribution = { path: string; commits: number; additions: number; deletions: number; churn: number }
 export type ContributorIdentity = { id: string; name: string; is_bot: boolean }
 export type FileMetric = {
@@ -111,6 +125,20 @@ export async function fetchOverview(filters: OverviewFilters, signal?: AbortSign
     throw new Error(message)
   }
   return response.json() as Promise<OverviewResponse>
+}
+
+export async function fetchDirectories(parent: string, signal?: AbortSignal): Promise<DirectoryListResponse> {
+  const query = new URLSearchParams()
+  if (parent) query.set("parent", parent)
+  const response = await fetch(`/api/v1/paths${query.size > 0 ? `?${query.toString()}` : ""}`, { signal, headers: { Accept: "application/json" } })
+  if (!response.ok) throw await responseError(response, "Directory request failed")
+  return response.json() as Promise<DirectoryListResponse>
+}
+
+export async function fetchCommit(oid: string, signal?: AbortSignal): Promise<CommitReviewResponse> {
+  const response = await fetch(`/api/v1/commits/${encodeURIComponent(oid)}`, { signal, headers: { Accept: "application/json" } })
+  if (!response.ok) throw await responseError(response, "Commit request failed")
+  return response.json() as Promise<CommitReviewResponse>
 }
 
 export async function fetchContributor(id: string, filters: OverviewFilters, signal?: AbortSignal): Promise<ContributorResponse> {

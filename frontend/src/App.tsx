@@ -13,24 +13,25 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AppNav } from "@/components/app-nav"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
 import type { OverviewFilters } from "@/lib/api"
 import { overviewQueryOptions } from "@/lib/queries"
 import { filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
-
-const number = new Intl.NumberFormat()
-const chartConfig = {
-  commits: { label: "Commits", color: "var(--chart-1)" },
-  churn: { label: "Churn", color: "var(--chart-2)" },
-} satisfies ChartConfig
+import { useI18n } from "@/lib/i18n"
 
 export function App() {
+  const { t, formatDate, formatNumber } = useI18n()
+  const chartConfig = {
+    commits: { label: t("Commits"), color: "var(--chart-1)" },
+    churn: { label: t("Churn"), color: "var(--chart-2)" },
+  } satisfies ChartConfig
   const search = useSearch({ from: "/" })
   const navigate = useNavigate({ from: "/" })
   const filters = filtersFromSearch(search)
   const query = useQuery({ ...overviewQueryOptions(filters), placeholderData: keepPreviousData })
   const report = query.data
-  const error = query.error instanceof Error ? query.error.message : query.error ? "Unable to load repository overview" : null
+  const error = query.error instanceof Error ? query.error.message : query.error ? t("Unable to load repository overview") : null
   const loading = query.isFetching
 
   const applyFilters = (next: OverviewFilters) => {
@@ -51,34 +52,36 @@ export function App() {
           <div className="truncate text-xs font-semibold">{repository.name}</div>
           <Tooltip><TooltipTrigger asChild><div className="max-w-[44vw] truncate text-[10px] text-muted-foreground">{repository.root}</div></TooltipTrigger><TooltipContent>{repository.root}</TooltipContent></Tooltip>
         </div>
-        <Badge variant="outline" className="ml-1 gap-1 font-mono text-[10px]"><GitBranch className="size-3" />{repository.branch || "detached"}</Badge>
-        <Badge variant="secondary" className="hidden font-mono text-[10px] sm:inline-flex">{repository.head.slice(0, 8) || "empty"}</Badge>
+        <Badge variant="outline" className="ml-1 gap-1 font-mono text-[10px]"><GitBranch className="size-3" />{repository.branch || t("detached")}</Badge>
+        <Badge variant="secondary" className="hidden font-mono text-[10px] sm:inline-flex">{repository.head.slice(0, 8) || t("empty")}</Badge>
         <AppNav search={search} />
-        <Button variant="ghost" size="xs" className="ml-auto" onClick={() => void query.refetch()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />Refresh</Button>
+        <div className="ml-auto" />
+        <LanguageSwitcher />
+        <Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" onClick={() => void query.refetch()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{t("Refresh")}</Button>
       </header>
 
       <main className={`flex-1 space-y-4 p-4 pb-10 transition-opacity ${loading ? "opacity-85" : ""}`}>
         <div className="flex items-end justify-between">
-          <div><h1 className="text-base font-semibold tracking-tight">Repository overview</h1><p className="text-[11px] text-muted-foreground">Contribution activity across reachable HEAD history</p></div>
-          <span className="hidden text-[10px] text-muted-foreground sm:block">Updated {formatDate(report.analysis_context.generated_at)}</span>
+          <div><h1 className="text-base font-semibold tracking-tight">{t("Repository overview")}</h1><p className="text-[11px] text-muted-foreground">{t("Contribution activity across reachable HEAD history")}</p></div>
+          <span className="hidden text-[10px] text-muted-foreground sm:block">{t("Updated {date}", { date: formatDate(report.analysis_context.generated_at) })}</span>
         </div>
 
         <OverviewFilterBar value={filters} loading={loading} onApply={applyFilters} />
 
-        {error && <Alert variant="destructive"><AlertCircle /><AlertTitle>Refresh failed</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-        {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>Data quality warning</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+        {error && <Alert variant="destructive"><AlertCircle /><AlertTitle>{t("Refresh failed")}</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+        {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Data quality warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
 
         <section className="grid grid-cols-2 gap-2 md:grid-cols-5">
-          <MetricCard label="Commits" value={totals.commits} />
-          <MetricCard label="Contributors" value={totals.contributors} />
-          <MetricCard label="Additions" value={totals.additions} tone="text-success" prefix="+" />
-          <MetricCard label="Deletions" value={totals.deletions} tone="text-destructive" prefix="−" />
-          <MetricCard label="Churn" value={totals.churn} />
+          <MetricCard label={t("Commits")} value={totals.commits} />
+          <MetricCard label={t("Contributors")} value={totals.contributors} />
+          <MetricCard label={t("Additions")} value={totals.additions} tone="text-success" prefix="+" />
+          <MetricCard label={t("Deletions")} value={totals.deletions} tone="text-destructive" prefix="−" />
+          <MetricCard label={t("Churn")} value={totals.churn} />
         </section>
 
         {repository.empty ? <EmptyRepository /> : totals.commits === 0 ? <NoMatchingHistory /> : <>
           <Card className="gap-3 rounded-md py-3 shadow-none">
-            <CardHeader className="px-3"><CardTitle className="text-xs">Monthly activity</CardTitle></CardHeader>
+            <CardHeader className="px-3"><CardTitle className="text-xs">{t("Monthly activity")}</CardTitle></CardHeader>
             <CardContent className="px-2">
               <ChartContainer config={chartConfig} className="h-[220px] w-full aspect-auto">
                 <BarChart data={monthly_activity} margin={{ left: 0, right: 8, top: 8 }}>
@@ -95,14 +98,14 @@ export function App() {
           </Card>
 
           <section className="grid gap-3 lg:grid-cols-2">
-            <DataPanel title="Contributors" count={contributors.length}>
-              <Table><TableHeader><TableRow><TableHead>Person</TableHead><TableHead className="text-right">Commits</TableHead><TableHead className="text-right">Churn</TableHead><TableHead className="text-right">Last active</TableHead></TableRow></TableHeader>
-                <TableBody>{contributors.map((person) => <TableRow key={person.id}><TableCell className="max-w-48"><div className="flex min-w-0 items-center gap-1"><Link to="/contributors/$contributorId" params={{ contributorId: person.id }} search={searchFromFilters(filters)} className="truncate font-medium hover:underline">{person.name}</Link>{person.is_bot && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[8px]">bot</Badge>}</div></TableCell><NumericCell>{person.commits}</NumericCell><NumericCell>{number.format(person.churn)}</NumericCell><TableCell className="text-right text-[10px] text-muted-foreground">{formatDate(person.last_active)}</TableCell></TableRow>)}</TableBody>
+            <DataPanel title={t("Contributors")} count={contributors.length}>
+              <Table><TableHeader><TableRow><TableHead>{t("Person")}</TableHead><TableHead className="text-right">{t("Commits")}</TableHead><TableHead className="text-right">{t("Churn")}</TableHead><TableHead className="text-right">{t("Last active")}</TableHead></TableRow></TableHeader>
+                <TableBody>{contributors.map((person) => <TableRow key={person.id}><TableCell className="max-w-48"><div className="flex min-w-0 items-center gap-1"><Link to="/contributors/$contributorId" params={{ contributorId: person.id }} search={searchFromFilters(filters)} className="truncate font-medium hover:underline">{person.name}</Link>{person.is_bot && <Badge variant="outline" className="h-4 shrink-0 px-1 text-[8px]">{t("bot")}</Badge>}</div></TableCell><NumericCell>{person.commits}</NumericCell><NumericCell>{formatNumber(person.churn)}</NumericCell><TableCell className="text-right text-[10px] text-muted-foreground">{formatDate(person.last_active)}</TableCell></TableRow>)}</TableBody>
               </Table>
             </DataPanel>
-            <DataPanel title="Recent commits" count={recent_commits.length}>
-              <Table><TableHeader><TableRow><TableHead>Commit</TableHead><TableHead>Author</TableHead><TableHead className="text-right">Churn</TableHead></TableRow></TableHeader>
-                <TableBody>{recent_commits.map((commit) => <TableRow key={commit.oid}><TableCell className="max-w-[22rem]"><div className="truncate font-medium">{commit.subject || "(no subject)"}</div><div className="font-mono text-[9px] text-muted-foreground">{commit.oid.slice(0, 8)} · {formatDate(commit.authored_at)}</div></TableCell><TableCell className="max-w-28 truncate text-muted-foreground">{commit.author}</TableCell><NumericCell>{number.format(commit.churn)}</NumericCell></TableRow>)}</TableBody>
+            <DataPanel title={t("Recent commits")} count={recent_commits.length}>
+              <Table><TableHeader><TableRow><TableHead>{t("Commit")}</TableHead><TableHead>{t("Author")}</TableHead><TableHead className="text-right">{t("Churn")}</TableHead></TableRow></TableHeader>
+                <TableBody>{recent_commits.map((commit) => <TableRow key={commit.oid}><TableCell className="max-w-[22rem]"><Link to="/commits/$commitId" params={{ commitId: commit.oid }} search={searchFromFilters(filters)} className="block truncate font-medium hover:underline" title={t("Review commit")}>{commit.subject || t("No subject")}</Link><div className="font-mono text-[9px] text-muted-foreground">{commit.oid.slice(0, 8)} · {formatDate(commit.authored_at)}</div></TableCell><TableCell className="max-w-28 truncate text-muted-foreground">{commit.author}</TableCell><NumericCell>{formatNumber(commit.churn)}</NumericCell></TableRow>)}</TableBody>
               </Table>
             </DataPanel>
           </section>
@@ -110,13 +113,14 @@ export function App() {
       </main>
 
       <footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center gap-2 border-t bg-card/95 px-3 text-[10px] text-muted-foreground backdrop-blur">
-        <span className="flex items-center gap-1 text-success"><span className="size-1.5 rounded-full bg-success" />Ready</span><span>·</span><span>{totals.commits} commits</span><span>·</span><span>{report.analysis_context.timezone}</span><span className="ml-auto hidden font-mono sm:inline">schema {report.schema_version}</span>
+        <span className="flex items-center gap-1 text-success"><span className="size-1.5 rounded-full bg-success" />{t("Ready")}</span><span>·</span><span>{t("{count} commits", { count: totals.commits })}</span><span>·</span><span>{report.analysis_context.timezone}</span><span className="ml-auto hidden font-mono sm:inline">{t("schema")} {report.schema_version}</span>
       </footer>
     </div>
   )
 }
 function MetricCard({ label, value, tone = "text-foreground", prefix = "" }: { label: string; value: number; tone?: string; prefix?: string }) {
-  return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold tabular-nums ${tone}`}>{prefix}{number.format(value)}</div><div className="text-[10px] font-medium text-muted-foreground">{label}</div></Card>
+  const { formatNumber } = useI18n()
+  return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold tabular-nums ${tone}`}>{prefix}{formatNumber(value)}</div><div className="text-[10px] font-medium text-muted-foreground">{label}</div></Card>
 }
 
 function DataPanel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -124,14 +128,14 @@ function DataPanel({ title, count, children }: { title: string; count: number; c
 }
 
 function NumericCell({ children }: { children: React.ReactNode }) { return <TableCell className="text-right font-mono tabular-nums">{children}</TableCell> }
-function formatDate(value: string) { return value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value)) : "—" }
-
 function EmptyRepository() {
-  return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><GitCommitHorizontal className="size-8 text-muted-foreground" /><CardTitle className="text-sm">No commits yet</CardTitle><p className="text-xs text-muted-foreground">Create the first commit, then refresh this page.</p></Card>
+  const { t } = useI18n()
+  return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><GitCommitHorizontal className="size-8 text-muted-foreground" /><CardTitle className="text-sm">{t("No commits yet")}</CardTitle><p className="text-xs text-muted-foreground">{t("Create the first commit, then refresh this page.")}</p></Card>
 }
 
 function NoMatchingHistory() {
-  return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><FilterX className="size-8 text-muted-foreground" /><CardTitle className="text-sm">No matching history</CardTitle><p className="text-xs text-muted-foreground">Adjust or clear the current date and path filters.</p></Card>
+  const { t } = useI18n()
+  return <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none"><FilterX className="size-8 text-muted-foreground" /><CardTitle className="text-sm">{t("No matching history")}</CardTitle><p className="text-xs text-muted-foreground">{t("Adjust or clear the current date and path filters.")}</p></Card>
 }
 
 function LoadingShell() {
@@ -139,5 +143,6 @@ function LoadingShell() {
 }
 
 function FatalError({ message, retry }: { message: string; retry: () => void }) {
-  return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertCircle /><AlertTitle>Unable to analyze repository</AlertTitle><AlertDescription className="space-y-3"><p>{message}</p><Button size="sm" variant="outline" onClick={retry}>Retry</Button></AlertDescription></Alert></main>
+  const { t } = useI18n()
+  return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertCircle /><AlertTitle>{t("Unable to analyze repository")}</AlertTitle><AlertDescription className="space-y-3"><p>{message}</p><Button size="sm" variant="outline" onClick={retry}>{t("Retry")}</Button></AlertDescription></Alert></main>
 }
