@@ -1,9 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { ArrowLeft, RefreshCw, TriangleAlert } from "lucide-react"
+import { ArrowLeft, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -33,7 +34,7 @@ export function FunctionDetailPage({ functionId, search }: { functionId: string;
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t("Function history")}</h1><p className="font-mono text-[10px] text-muted-foreground">{fn.signature}</p></div>
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ search: searchFromFilters(next) })} />
-      {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Analysis warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+      <ReportWarnings warnings={report.warnings} />
       <section className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-7"><Metric label={t("Hotspot")} value={fn.hotspot_score.toFixed(1)} /><Metric label={t("Changes")} value={formatNumber(fn.changes)} /><Metric label={t("Churn")} value={formatNumber(fn.churn)} /><Metric label={t("Complexity")} value={formatNumber(fn.complexity)} /><Metric label={t("Lines")} value={formatNumber(fn.lines)} /><Metric label={t("Owner")} value={fn.owner.name || "—"} compact /><Metric label={t("Owner share")} value={`${(fn.owner_share * 100).toFixed(1)}%`} /></section>
       <Card className="overflow-hidden rounded-md py-0 shadow-none"><div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{t("Attributed commits")}</h2><Badge variant="secondary" className="ml-auto">{history.length}</Badge></div>{history.length === 0 ? <div className="p-12 text-center text-xs text-muted-foreground">{t("No history hunks overlap this function in the selected window.")}</div> : <Table><TableHeader><TableRow><TableHead>{t("Commit")}</TableHead><TableHead>{t("Author")}</TableHead><TableHead className="text-right">{t("Additions")}</TableHead><TableHead className="text-right">{t("Deletions")}</TableHead><TableHead className="text-right">{t("Churn")}</TableHead><TableHead>{t("Confidence")}</TableHead></TableRow></TableHeader><TableBody>{history.map((change) => <TableRow key={change.oid}><TableCell className="max-w-[34rem]"><div className="truncate font-medium">{change.subject}</div><div className="font-mono text-[9px] text-muted-foreground">{change.oid.slice(0,8)} · {formatDate(change.authored_at)}</div></TableCell><TableCell><Link to="/contributors/$contributorId" params={{ contributorId: change.author_id }} search={search} className="hover:underline">{change.author}</Link></TableCell><NumberCell tone="text-success">+{formatNumber(change.additions)}</NumberCell><NumberCell tone="text-destructive">−{formatNumber(change.deletions)}</NumberCell><NumberCell>{formatNumber(change.churn)}</NumberCell><TableCell><Badge variant="outline">{change.confidence}</Badge></TableCell></TableRow>)}</TableBody></Table>}</Card>
     </main><footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center gap-2 border-t bg-card/95 px-3 text-[10px] text-muted-foreground"><span className="text-success">● {t("Ready")}</span><span>·</span><span>{analyzer_version}</span><span className="ml-auto">{t("schema")} {report.schema_version}</span></footer>

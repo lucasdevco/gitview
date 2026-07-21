@@ -1,8 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { RefreshCw, TriangleAlert } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
 import { RepositoryContext } from "@/components/repository-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,7 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t(isHotspot ? "File hotspots" : "File ownership")}</h1><p className="text-[11px] text-muted-foreground">{isHotspot ? t("Change frequency and churn with direct evidence") : t("Historical and recent ({days}d) knowledge concentration", { days: recent_days })}</p></div>
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ to: isHotspot ? "/hotspots" : "/ownership", search: searchFromFilters(next) })} />
-      {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Data quality warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+      <ReportWarnings warnings={report.warnings} />
       <Card className="overflow-hidden rounded-md py-0 shadow-none">
         <div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{t("Ranked files")}</h2><Badge variant="secondary" className="ml-auto">{files.length}</Badge></div>
         {files.length === 0 ? <div className="p-12 text-center text-xs text-muted-foreground">{t("No files match the current filters.")}</div> : <Table>

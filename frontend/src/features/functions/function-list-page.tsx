@@ -1,8 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { RefreshCw, TriangleAlert } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
 import { RepositoryContext } from "@/components/repository-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,7 @@ export function FunctionListPage({ search }: { search: FunctionRouteSearch }) {
       <div><h1 className="text-base font-semibold">{t("Function hotspots")}</h1><p className="text-[11px] text-muted-foreground">{t("Current Tree-sitter symbols with explainable history attribution")}</p></div>
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ search: { ...searchFromFilters(next), sort: sort === "hotspot" ? undefined : sort } })} />
       <div className="flex items-center gap-1"><span className="mr-1 text-[10px] text-muted-foreground">{t("Sort by")}</span>{sorts.map((value) => <Button key={value} size="xs" variant={sort === value ? "secondary" : "ghost"} onClick={() => void navigate({ search: { ...search, sort: value === "hotspot" ? undefined : value } })}>{t(value)}</Button>)}</div>
-      {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Analysis warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+      <ReportWarnings warnings={report.warnings} />
       <Card className="overflow-hidden rounded-md py-0 shadow-none"><div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{t("Ranked functions")}</h2><Badge variant="secondary" className="ml-auto">{functions.length}</Badge></div>{functions.length === 0 ? <div className="p-12 text-center text-xs text-muted-foreground">{t("No functions match the current filters.")}</div> : <Table><TableHeader><TableRow><TableHead>{t("Function")}</TableHead><TableHead>{t("Owner")}</TableHead><TableHead className="text-right">{t("Hotspot")}</TableHead><TableHead className="text-right">{t("Changes")}</TableHead><TableHead className="text-right">{t("Churn")}</TableHead><TableHead className="text-right">{t("Complexity")}</TableHead></TableRow></TableHeader><TableBody>{functions.map((fn) => <TableRow key={fn.id}><TableCell className="max-w-[32rem]"><Link to="/functions/$functionId" params={{ functionId: fn.id }} search={searchFromFilters(filters)} className="block truncate font-mono text-[11px] font-medium hover:underline">{fn.qualified_name}</Link><div className="truncate font-mono text-[9px] text-muted-foreground">{fn.language} · {fn.path}:{fn.start_line}–{fn.end_line} · {t("{count} lines", { count: fn.lines })}</div></TableCell><TableCell className="max-w-40"><div className="truncate text-xs">{fn.owner.name || "—"}</div><div className="text-[9px] text-muted-foreground">{(fn.owner_share * 100).toFixed(1)}%</div></TableCell><NumberCell>{fn.hotspot_score.toFixed(1)}</NumberCell><NumberCell>{fn.changes}</NumberCell><NumberCell>{formatNumber(fn.churn)}</NumberCell><NumberCell>{fn.complexity}</NumberCell></TableRow>)}</TableBody></Table>}</Card>
     </main><footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center gap-2 border-t bg-card/95 px-3 text-[10px] text-muted-foreground"><span className="text-success">● {t("Ready")}</span><span>·</span><span>{analyzer_version}</span><span className="ml-auto">{t("schema")} {report.schema_version}</span></footer>
   </div>

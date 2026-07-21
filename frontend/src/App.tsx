@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
-import { AlertCircle, FilterX, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
+import { AlertCircle, FilterX, GitCommitHorizontal, RefreshCw } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
 import { RepositoryContext } from "@/components/repository-context"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
 import type { Contributor, Month, OverviewFilters } from "@/lib/api"
@@ -56,7 +57,7 @@ export function App() {
         <OverviewFilterBar value={filters} loading={loading} onApply={applyFilters} />
 
         {error && <Alert variant="destructive"><AlertCircle /><AlertTitle>{t("Refresh failed")}</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-        {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Data quality warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+        <ReportWarnings warnings={report.warnings} />
 
         <section className="grid grid-cols-2 gap-2 md:grid-cols-5">
           <MetricCard label={t("Commits")} value={totals.commits} />

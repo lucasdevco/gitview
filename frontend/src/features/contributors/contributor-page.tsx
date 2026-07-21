@@ -1,10 +1,11 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { ArrowLeft, Bot, RefreshCw, TriangleAlert } from "lucide-react"
+import { ArrowLeft, Bot, RefreshCw } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
@@ -37,7 +38,7 @@ export function ContributorPage({ contributorId, search }: { contributorId: stri
       <main className="flex-1 space-y-4 p-4 pb-10">
         <div><h1 className="text-base font-semibold tracking-tight">{t("Contributor activity")}</h1><p className="text-[11px] text-muted-foreground">{t("Author-time activity, paths, and supporting commits")}</p></div>
         <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ search: searchFromFilters(next) })} />
-        {report.warnings.map((warning) => <Alert key={warning.code}><TriangleAlert className="text-warning" /><AlertTitle>{t("Data quality warning")}</AlertTitle><AlertDescription>{warning.message}</AlertDescription></Alert>)}
+        <ReportWarnings warnings={report.warnings} />
         <section className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Metric label={t("Commits")} value={contributor.commits} />
           <Metric label={t("Additions")} value={contributor.additions} tone="text-success" prefix="+" />
