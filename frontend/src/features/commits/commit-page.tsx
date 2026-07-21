@@ -5,7 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { commitQueryOptions } from "@/lib/queries"
@@ -20,14 +20,12 @@ export function CommitPage({ commitId, search }: { commitId: string; search: Ove
   if (!report && query.isPending) return <Loading />
   if (!report) return <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load commit")} />
   const { repository, commit } = report.data
-  return <div className="flex min-h-screen flex-col bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="sticky top-0 z-40 flex h-11 items-center gap-2 border-b bg-card/95 px-4 backdrop-blur">
-      <Button variant="ghost" size="icon-xs" asChild><Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}><ArrowLeft /></Link></Button>
-      <GitCommitHorizontal className="size-4 text-muted-foreground" />
-      <div className="min-w-0"><div className="truncate text-xs font-semibold">{commit.subject || commit.oid.slice(0, 8)}</div><div className="truncate font-mono text-[9px] text-muted-foreground">{repository.name} · {commit.oid}</div></div>
-      <div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
-    </header>
+  return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<><Button variant="ghost" size="icon-xs" asChild><Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}><ArrowLeft /></Link></Button><GitCommitHorizontal className="size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="truncate text-xs font-semibold">{commit.subject || commit.oid.slice(0, 8)}</div><div className="truncate font-mono text-[9px] text-muted-foreground">{repository.name} · {commit.oid}</div></div></>}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t("Commit review")}</h1><p className="text-[11px] text-muted-foreground">{t("Code changes introduced by this commit")}</p></div>
       <Card className="gap-3 rounded-md p-3 shadow-none">
@@ -49,5 +47,5 @@ export function CommitPage({ commitId, search }: { commitId: string; search: Ove
 }
 
 function Metric({ label, value, tone = "text-foreground" }: { label: string; value: string; tone?: string }) { return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold ${tone}`}>{value}</div><div className="text-[10px] text-muted-foreground">{label}</div></Card> }
-function Loading() { return <main className="min-h-screen space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-24" /><Skeleton className="h-16" /><Skeleton className="h-[32rem]" /></main> }
-function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load commit")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }
+function Loading() { return <main className="min-h-[calc(100dvh-2.75rem)] space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-24" /><Skeleton className="h-16" /><Skeleton className="h-[32rem]" /></main> }
+function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load commit")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }

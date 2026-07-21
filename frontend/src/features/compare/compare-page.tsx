@@ -3,8 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { GitCompareArrows, RefreshCw, TriangleAlert } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AppNav } from "@/components/app-nav"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -27,9 +26,12 @@ export function ComparePage({ search }: { search: CompareRouteSearch }) {
   const query = useQuery({ ...compareQueryOptions(from, to, filters), placeholderData: keepPreviousData })
   const report = query.data
   const applyRefs = () => { if (draftFrom.trim() && draftTo.trim()) void navigate({ search: { ...search, from: draftFrom.trim(), to: draftTo.trim() } }) }
-  return <div className="flex min-h-screen flex-col bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur"><div className="flex size-6 items-center justify-center rounded bg-primary text-primary-foreground"><GitCompareArrows className="size-3.5" /></div><div className="min-w-0"><div className="truncate text-xs font-semibold">{report?.data.repository.name ?? t("Revision comparison")}</div><div className="text-[10px] text-muted-foreground">{t("Git revision range")}</div></div><AppNav search={searchFromFilters(filters)} /><div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={!report || query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button></header>
+  return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<><GitCompareArrows className="size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="truncate text-xs font-semibold">{report?.data.repository.name ?? t("Revision comparison")}</div><div className="truncate text-[10px] text-muted-foreground">{t("Git revision range")}</div></div></>}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={!report || query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t("Compare revisions")}</h1><p className="text-[11px] text-muted-foreground">{t("Commits reachable from “to” but not “from”, with file and contributor evidence")}</p></div>
       <Card className="grid gap-3 rounded-md p-3 shadow-none sm:grid-cols-[1fr_1fr_auto]"><div className="space-y-1"><Label htmlFor="from-ref" className="text-[10px]">{t("From revision")}</Label><Input id="from-ref" value={draftFrom} onChange={(event) => setDraftFrom(event.target.value)} placeholder="v1.0.0" onKeyDown={(event) => { if (event.key === "Enter") applyRefs() }} /></div><div className="space-y-1"><Label htmlFor="to-ref" className="text-[10px]">{t("To revision")}</Label><Input id="to-ref" value={draftTo} onChange={(event) => setDraftTo(event.target.value)} placeholder="v2.0.0" onKeyDown={(event) => { if (event.key === "Enter") applyRefs() }} /></div><Button className="self-end" disabled={!draftFrom.trim() || !draftTo.trim()} onClick={applyRefs}>{t("Compare")}</Button></Card>

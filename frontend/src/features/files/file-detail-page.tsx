@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Bot, RefreshCw, TriangleAlert } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -30,13 +30,12 @@ export function FileDetailPage({ search }: { search: FileRouteSearch }) {
   const { repository, contributors, recent_commits, recent_days } = report.data
   const metric = report.data.file
   const listSearch = searchFromFilters(filters)
-  return <div className="flex min-h-screen flex-col bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="sticky top-0 z-40 flex h-11 items-center gap-2 border-b bg-card/95 px-4 backdrop-blur">
-      <Button variant="ghost" size="icon-xs" asChild><Link to="/hotspots" search={listSearch} aria-label={t("Back to file hotspots")} title={t("Back to file hotspots")}><ArrowLeft /></Link></Button>
-      <div className="min-w-0"><div className="truncate font-mono text-[11px] font-semibold">{metric.path}</div><div className="text-[10px] text-muted-foreground">{t("{repository} file evidence", { repository: repository.name })}</div></div>
-      <div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
-    </header>
+  return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<><Button variant="ghost" size="icon-xs" asChild><Link to="/hotspots" search={listSearch} aria-label={t("Back to file hotspots")} title={t("Back to file hotspots")}><ArrowLeft /></Link></Button><div className="min-w-0"><div className="truncate font-mono text-[11px] font-semibold">{metric.path}</div><div className="truncate text-[10px] text-muted-foreground">{t("{repository} file evidence", { repository: repository.name })}</div></div></>}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t("File analysis")}</h1><p className="text-[11px] text-muted-foreground">{t("Change evidence and knowledge concentration for the selected history")}</p></div>
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ search: { ...searchFromFilters(next), file } })} />
@@ -66,5 +65,5 @@ function Metric({ label, value }: { label: string; value: string }) { return <Ca
 function OwnershipCard({ title, name, share }: { title: string; name: string; share: number }) { const { t } = useI18n(); return <Card className="gap-2 rounded-md px-3 py-3 shadow-none"><div className="flex items-center"><div><div className="text-[10px] text-muted-foreground">{title}</div><div className="text-sm font-semibold">{name || t("No recent activity")}</div></div><Badge variant="secondary" className="ml-auto font-mono">{(share * 100).toFixed(1)}%</Badge></div><Progress value={share * 100} className="h-1.5" /></Card> }
 function Panel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) { return <Card className="gap-2 overflow-hidden rounded-md py-0 shadow-none"><div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{title}</h2><Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[9px]">{count}</Badge></div><ScrollArea className="h-[360px]">{children}</ScrollArea></Card> }
 function NumberCell({ children }: { children: React.ReactNode }) { return <TableCell className="text-right font-mono tabular-nums">{children}</TableCell> }
-function Loading() { return <main className="min-h-screen space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-16" /><Skeleton className="h-20" /><Skeleton className="h-[24rem]" /></main> }
-function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load file")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }
+function Loading() { return <main className="min-h-[calc(100dvh-2.75rem)] space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-16" /><Skeleton className="h-20" /><Skeleton className="h-[24rem]" /></main> }
+function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load file")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }

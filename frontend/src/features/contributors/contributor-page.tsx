@@ -4,7 +4,7 @@ import { ArrowLeft, Bot, RefreshCw, TriangleAlert } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
@@ -25,17 +25,15 @@ export function ContributorPage({ contributorId, search }: { contributorId: stri
   const report = query.data
 
   if (!report && query.isPending) return <ContributorLoading />
-  if (!report) return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load contributor")}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert></main>
+  if (!report) return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load contributor")}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert></main>
 
   const { contributor, monthly_activity, top_paths, recent_commits, repository } = report.data
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 flex h-11 items-center gap-2 border-b bg-card/95 px-4 backdrop-blur">
-        <Button variant="ghost" size="icon-xs" asChild><Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}><ArrowLeft /></Link></Button>
-        <div className="min-w-0"><div className="truncate text-xs font-semibold">{contributor.name}</div><div className="truncate text-[10px] text-muted-foreground">{t("{repository} contributor detail", { repository: repository.name })}</div></div>
-        {contributor.is_bot && <Badge variant="outline" className="gap-1"><Bot className="size-3" />{t("bot")}</Badge>}
-        <div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
-      </header>
+    <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+      <PageHeader
+        context={<><Button variant="ghost" size="icon-xs" asChild><Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}><ArrowLeft /></Link></Button><div className="min-w-0"><div className="truncate text-xs font-semibold">{contributor.name}</div><div className="truncate text-[10px] text-muted-foreground">{t("{repository} contributor detail", { repository: repository.name })}</div></div>{contributor.is_bot && <Badge variant="outline" className="shrink-0 gap-1"><Bot className="size-3" />{t("bot")}</Badge>}</>}
+        actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+      />
       <main className="flex-1 space-y-4 p-4 pb-10">
         <div><h1 className="text-base font-semibold tracking-tight">{t("Contributor activity")}</h1><p className="text-[11px] text-muted-foreground">{t("Author-time activity, paths, and supporting commits")}</p></div>
         <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ search: searchFromFilters(next) })} />
@@ -59,4 +57,4 @@ export function ContributorPage({ contributorId, search }: { contributorId: stri
 
 function Metric({ label, value, tone = "text-foreground", prefix = "" }: { label: string; value: number; tone?: string; prefix?: string }) { const { formatNumber } = useI18n(); return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold ${tone}`}>{prefix}{formatNumber(value)}</div><div className="text-[10px] text-muted-foreground">{label}</div></Card> }
 function Panel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) { return <Card className="gap-2 overflow-hidden rounded-md py-0 shadow-none"><div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{title}</h2><Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[9px]">{count}</Badge></div><ScrollArea className="h-[330px]">{children}</ScrollArea></Card> }
-function ContributorLoading() { return <main className="min-h-screen space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-20" /><Skeleton className="h-56" /><Skeleton className="h-80" /></main> }
+function ContributorLoading() { return <main className="min-h-[calc(100dvh-2.75rem)] space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-20" /><Skeleton className="h-56" /><Skeleton className="h-80" /></main> }

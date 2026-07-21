@@ -2,8 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { RefreshCw, TriangleAlert } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AppNav } from "@/components/app-nav"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { RepositoryContext } from "@/components/repository-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,16 +22,15 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
   const query = useQuery({ ...filesQueryOptions(mode, filters), placeholderData: keepPreviousData })
   const report = query.data
   if (!report && query.isPending) return <Loading />
-  if (!report) return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive"><AlertTitle>{t("Unable to load {mode}", { mode: t(mode === "hotspots" ? "Hotspots" : "Ownership") })}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert></main>
+  if (!report) return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive"><AlertTitle>{t("Unable to load {mode}", { mode: t(mode === "hotspots" ? "Hotspots" : "Ownership") })}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert></main>
   const { files, repository, recent_days } = report.data
   const isHotspot = mode === "hotspots"
-  return <div className="flex min-h-screen flex-col bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
-      <RepositoryContext repository={repository} />
-      <AppNav search={search} />
-      <div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
-    </header>
+  return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<RepositoryContext repository={repository} />}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
     <main className="flex-1 space-y-4 p-4 pb-10">
       <div><h1 className="text-base font-semibold">{t(isHotspot ? "File hotspots" : "File ownership")}</h1><p className="text-[11px] text-muted-foreground">{isHotspot ? t("Change frequency and churn with direct evidence") : t("Historical and recent ({days}d) knowledge concentration", { days: recent_days })}</p></div>
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ to: isHotspot ? "/hotspots" : "/ownership", search: searchFromFilters(next) })} />
@@ -54,4 +52,4 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
 
 function NumberCell({ children }: { children: React.ReactNode }) { return <TableCell className="text-right font-mono tabular-nums">{children}</TableCell> }
 function OwnerCell({ name, share }: { name: string; share: number }) { return <TableCell className="max-w-40"><div className="truncate text-xs">{name}</div><div className="text-[9px] text-muted-foreground">{(share * 100).toFixed(1)}%</div></TableCell> }
-function Loading() { return <main className="min-h-screen space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-16" /><Skeleton className="h-[32rem]" /></main> }
+function Loading() { return <main className="min-h-[calc(100dvh-2.75rem)] space-y-4 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-16" /><Skeleton className="h-[32rem]" /></main> }

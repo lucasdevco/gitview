@@ -55,6 +55,9 @@ func TestOverviewAggregatesHistory(t *testing.T) {
 	if len(report.MonthlyActivity) != 2 || report.MonthlyActivity[0].Month != "2026-01" {
 		t.Fatalf("unexpected months: %+v", report.MonthlyActivity)
 	}
+	if len(report.MonthlyActivity[0].Contributors) != 1 || report.MonthlyActivity[0].Contributors[0].Name != "Ada" || report.MonthlyActivity[0].Contributors[0].Churn != 5 {
+		t.Fatalf("unexpected monthly contributors: %+v", report.MonthlyActivity[0].Contributors)
+	}
 	if len(report.RecentCommits) != 2 || report.RecentCommits[0].OID != "bbb" {
 		t.Fatalf("unexpected recent commits: %+v", report.RecentCommits)
 	}

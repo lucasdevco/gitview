@@ -1,7 +1,8 @@
 export type Warning = { code: string; message: string }
 export type Repository = { name: string; root: string; branch: string; head: string; empty: boolean }
 export type Totals = { commits: number; contributors: number; additions: number; deletions: number; churn: number }
-export type Month = { month: string; commits: number; additions: number; deletions: number; churn: number }
+export type ContributorActivity = { id: string; name: string; is_bot: boolean; commits: number; additions: number; deletions: number; churn: number }
+export type Month = { month: string; commits: number; additions: number; deletions: number; churn: number; contributors: ContributorActivity[] }
 export type Contributor = { id: string; name: string; is_bot: boolean; commits: number; additions: number; deletions: number; churn: number; last_active: string }
 export type Commit = { oid: string; subject: string; author: string; author_id: string; authored_at: string; additions: number; deletions: number; churn: number }
 export type CommitReview = {
@@ -44,7 +45,7 @@ export type FileMetric = {
 }
 export type FileContributor = { contributor: ContributorIdentity; commits: number; churn: number; share: number; last_active: string }
 export type FunctionMetric = {
-  id: string; name: string; qualified_name: string; signature: string; path: string; start_line: number; end_line: number; lines: number
+  id: string; name: string; qualified_name: string; signature: string; language: string; path: string; start_line: number; end_line: number; lines: number
   complexity: number; changes: number; additions: number; deletions: number; churn: number; hotspot_score: number
   owner: ContributorIdentity; owner_share: number; lineage_confidence: "exact" | "probable" | "unknown"
 }

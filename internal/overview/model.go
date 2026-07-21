@@ -50,7 +50,18 @@ type Totals struct {
 }
 
 type Month struct {
-	Month     string `json:"month"`
+	Month        string                `json:"month"`
+	Commits      int                   `json:"commits"`
+	Additions    int                   `json:"additions"`
+	Deletions    int                   `json:"deletions"`
+	Churn        int                   `json:"churn"`
+	Contributors []ContributorActivity `json:"contributors"`
+}
+
+type ContributorActivity struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	IsBot     bool   `json:"is_bot"`
 	Commits   int    `json:"commits"`
 	Additions int    `json:"additions"`
 	Deletions int    `json:"deletions"`

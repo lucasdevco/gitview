@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { AlertCircle, FilterX, GitCommitHorizontal, RefreshCw, TriangleAlert } from "lucide-react"
@@ -11,21 +12,16 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AppNav } from "@/components/app-nav"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { RepositoryContext } from "@/components/repository-context"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import type { OverviewFilters } from "@/lib/api"
+import type { Contributor, Month, OverviewFilters } from "@/lib/api"
 import { overviewQueryOptions } from "@/lib/queries"
 import { filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
 
 export function App() {
   const { t, formatDate, formatNumber } = useI18n()
-  const chartConfig = {
-    commits: { label: t("Commits"), color: "var(--chart-1)" },
-    churn: { label: t("Churn"), color: "var(--chart-2)" },
-  } satisfies ChartConfig
   const search = useSearch({ from: "/" })
   const navigate = useNavigate({ from: "/" })
   const filters = filtersFromSearch(search)
@@ -44,15 +40,12 @@ export function App() {
 
   const { repository, totals, monthly_activity, contributors, recent_commits } = report.data
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {loading && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-      <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
-        <RepositoryContext repository={repository} />
-        <AppNav search={search} />
-        <div className="ml-auto" />
-        <LanguageSwitcher />
-        <Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" onClick={() => void query.refetch()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{t("Refresh")}</Button>
-      </header>
+    <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+      {loading && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+      <PageHeader
+        context={<RepositoryContext repository={repository} />}
+        actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" onClick={() => void query.refetch()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+      />
 
       <main className={`flex-1 space-y-4 p-4 pb-10 transition-opacity ${loading ? "opacity-85" : ""}`}>
         <div className="flex items-end justify-between">
@@ -74,22 +67,7 @@ export function App() {
         </section>
 
         {repository.empty ? <EmptyRepository /> : totals.commits === 0 ? <NoMatchingHistory /> : <>
-          <Card className="gap-3 rounded-md py-3 shadow-none">
-            <CardHeader className="px-3"><CardTitle className="text-xs">{t("Monthly activity")}</CardTitle></CardHeader>
-            <CardContent className="px-2">
-              <ChartContainer config={chartConfig} className="h-[220px] w-full aspect-auto">
-                <BarChart data={monthly_activity} margin={{ left: 0, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={24} />
-                  <YAxis yAxisId="commits" width={28} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis yAxisId="churn" orientation="right" width={42} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar yAxisId="commits" dataKey="commits" fill="var(--color-commits)" radius={[2, 2, 0, 0]} />
-                  <Bar yAxisId="churn" dataKey="churn" fill="var(--color-churn)" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          <MonthlyContributorChart months={monthly_activity} contributors={contributors} />
 
           <section className="grid gap-3 lg:grid-cols-2">
             <DataPanel title={t("Contributors")} count={contributors.length}>
@@ -112,6 +90,62 @@ export function App() {
     </div>
   )
 }
+
+const CONTRIBUTOR_COLORS = [
+  "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
+  "oklch(0.62 0.16 210)", "oklch(0.66 0.17 340)", "oklch(0.64 0.13 115)",
+]
+
+function MonthlyContributorChart({ months, contributors }: { months: Month[]; contributors: Contributor[] }) {
+  const { t } = useI18n()
+  const [metric, setMetric] = useState<"commits" | "churn">("commits")
+  const chart = useMemo(() => {
+    const visible = [...contributors]
+      .sort((a, b) => b[metric] - a[metric] || a.name.localeCompare(b.name))
+      .slice(0, CONTRIBUTOR_COLORS.length)
+    const visibleIDs = new Set(visible.map((person) => person.id))
+    const hasOther = contributors.length > visible.length
+    const series = visible.map((person, index) => ({ id: person.id, name: person.name, color: CONTRIBUTOR_COLORS[index] }))
+    if (hasOther) series.push({ id: "other", name: t("Other contributors"), color: "var(--muted-foreground)" })
+    const data = months.map((month) => {
+      const row: Record<string, string | number> = { month: month.month }
+      for (const person of month.contributors) {
+        const key = visibleIDs.has(person.id) ? person.id : "other"
+        row[key] = Number(row[key] ?? 0) + person[metric]
+      }
+      return row
+    })
+    const config = Object.fromEntries(series.map((item) => [item.id, { label: item.name, color: item.color }])) satisfies ChartConfig
+    return { data, series, config, hasOther }
+  }, [contributors, metric, months, t])
+
+  return <Card className="gap-3 rounded-md py-3 shadow-none">
+    <CardHeader className="flex-row items-center gap-3 px-3">
+      <div className="min-w-0">
+        <CardTitle className="text-xs">{t("Monthly activity by contributor")}</CardTitle>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">{chart.hasOther ? t("Showing the top 8 contributors; the rest are grouped as Other.") : t("Each color represents a contributor.")}</p>
+      </div>
+      <div className="ml-auto flex rounded-md border bg-muted/40 p-0.5" role="group" aria-label={t("Activity metric")}>
+        <Button type="button" size="xs" variant={metric === "commits" ? "secondary" : "ghost"} aria-pressed={metric === "commits"} onClick={() => setMetric("commits")}>{t("Commits")}</Button>
+        <Button type="button" size="xs" variant={metric === "churn" ? "secondary" : "ghost"} aria-pressed={metric === "churn"} onClick={() => setMetric("churn")}>{t("Churn")}</Button>
+      </div>
+    </CardHeader>
+    <CardContent className="px-2">
+      <ChartContainer config={chart.config} className="h-[240px] w-full aspect-auto">
+        <BarChart data={chart.data} margin={{ left: 0, right: 8, top: 8 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={24} />
+          <YAxis width={42} tickLine={false} axisLine={false} allowDecimals={metric !== "commits"} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          {chart.series.map((item, index) => <Bar key={item.id} dataKey={item.id} stackId="contributors" fill={`var(--color-${item.id})`} radius={index === chart.series.length - 1 ? [2, 2, 0, 0] : 0} />)}
+        </BarChart>
+      </ChartContainer>
+      <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 px-2">
+        {chart.series.map((item) => <span key={item.id} className="flex max-w-40 items-center gap-1 text-[10px] text-muted-foreground"><span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} /><span className="truncate" title={item.name}>{item.name}</span></span>)}
+      </div>
+    </CardContent>
+  </Card>
+}
 function MetricCard({ label, value, tone = "text-foreground", prefix = "" }: { label: string; value: number; tone?: string; prefix?: string }) {
   const { formatNumber } = useI18n()
   return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold tabular-nums ${tone}`}>{prefix}{formatNumber(value)}</div><div className="text-[10px] font-medium text-muted-foreground">{label}</div></Card>
@@ -133,10 +167,10 @@ function NoMatchingHistory() {
 }
 
 function LoadingShell() {
-  return <div className="min-h-screen bg-background"><div className="h-11 border-b bg-card" /><main className="space-y-4 p-4"><Skeleton className="h-8 w-52" /><div className="grid grid-cols-2 gap-2 md:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-16" />)}</div><Skeleton className="h-64" /><div className="grid gap-3 lg:grid-cols-2"><Skeleton className="h-80" /><Skeleton className="h-80" /></div></main></div>
+  return <div className="min-h-[calc(100dvh-2.75rem)] bg-background"><main className="space-y-4 p-4"><Skeleton className="h-8 w-52" /><div className="grid grid-cols-2 gap-2 md:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-16" />)}</div><Skeleton className="h-64" /><div className="grid gap-3 lg:grid-cols-2"><Skeleton className="h-80" /><Skeleton className="h-80" /></div></main></div>
 }
 
 function FatalError({ message, retry }: { message: string; retry: () => void }) {
   const { t } = useI18n()
-  return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertCircle /><AlertTitle>{t("Unable to analyze repository")}</AlertTitle><AlertDescription className="space-y-3"><p>{message}</p><Button size="sm" variant="outline" onClick={retry}>{t("Retry")}</Button></AlertDescription></Alert></main>
+  return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertCircle /><AlertTitle>{t("Unable to analyze repository")}</AlertTitle><AlertDescription className="space-y-3"><p>{message}</p><Button size="sm" variant="outline" onClick={retry}>{t("Retry")}</Button></AlertDescription></Alert></main>
 }

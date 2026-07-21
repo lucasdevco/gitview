@@ -386,6 +386,7 @@ func parseLog(reader io.Reader) ([]commitFact, error) {
 
 func (r *Report) aggregate(facts []commitFact) {
 	months := map[string]*Month{}
+	monthlyContributors := map[string]map[string]*ContributorActivity{}
 	contributors := map[string]*Contributor{}
 	nameIdentities := map[string]map[string]struct{}{}
 	binaryFiles := 0
@@ -400,8 +401,9 @@ func (r *Report) aggregate(facts []commitFact) {
 		monthKey := fact.Authored.In(time.Local).Format("2006-01")
 		month := months[monthKey]
 		if month == nil {
-			month = &Month{Month: monthKey}
+			month = &Month{Month: monthKey, Contributors: []ContributorActivity{}}
 			months[monthKey] = month
+			monthlyContributors[monthKey] = map[string]*ContributorActivity{}
 		}
 		month.Commits++
 		month.Additions += fact.Additions
@@ -409,9 +411,20 @@ func (r *Report) aggregate(facts []commitFact) {
 		month.Churn += churn
 
 		key := identityKey(fact)
+		id := personID(key)
+		monthlyPerson := monthlyContributors[monthKey][key]
+		if monthlyPerson == nil {
+			monthlyPerson = &ContributorActivity{ID: id, Name: fact.Name, IsBot: isBot(fact.Name, fact.Email)}
+			monthlyContributors[monthKey][key] = monthlyPerson
+		}
+		monthlyPerson.Commits++
+		monthlyPerson.Additions += fact.Additions
+		monthlyPerson.Deletions += fact.Deletions
+		monthlyPerson.Churn += churn
+
 		person := contributors[key]
 		if person == nil {
-			person = &Contributor{ID: personID(key), Name: fact.Name, IsBot: isBot(fact.Name, fact.Email), LastActive: fact.Authored.Format(time.RFC3339)}
+			person = &Contributor{ID: id, Name: fact.Name, IsBot: isBot(fact.Name, fact.Email), LastActive: fact.Authored.Format(time.RFC3339)}
 			contributors[key] = person
 		}
 		nameKey := strings.ToLower(strings.TrimSpace(fact.Name))
@@ -437,6 +450,15 @@ func (r *Report) aggregate(facts []commitFact) {
 	}
 
 	for _, month := range months {
+		for _, contributor := range monthlyContributors[month.Month] {
+			month.Contributors = append(month.Contributors, *contributor)
+		}
+		sort.Slice(month.Contributors, func(i, j int) bool {
+			if month.Contributors[i].Commits == month.Contributors[j].Commits {
+				return strings.ToLower(month.Contributors[i].Name) < strings.ToLower(month.Contributors[j].Name)
+			}
+			return month.Contributors[i].Commits > month.Contributors[j].Commits
+		})
 		r.MonthlyActivity = append(r.MonthlyActivity, *month)
 	}
 	sort.Slice(r.MonthlyActivity, func(i, j int) bool { return r.MonthlyActivity[i].Month < r.MonthlyActivity[j].Month })

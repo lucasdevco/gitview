@@ -8,7 +8,6 @@ export function RepositoryContext({ repository }: { repository: Repository }) {
   const { t } = useI18n()
 
   return <>
-    <div className="flex size-6 shrink-0 items-center justify-center rounded bg-primary font-mono text-[10px] font-bold text-primary-foreground">GV</div>
     <div className="min-w-0">
       <div className="truncate text-xs font-semibold">{repository.name}</div>
       <Tooltip>

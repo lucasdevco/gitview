@@ -3,8 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { CalendarSearch, RefreshCw, TriangleAlert } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AppNav } from "@/components/app-nav"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -26,9 +25,12 @@ export function ExplainPage({ search }: { search: ExplainRouteSearch }) {
   const query = useQuery({ ...explainQueryOptions(month, path), placeholderData: keepPreviousData })
   const report = query.data
   const apply = () => { if (draftMonth) void navigate({ search: { month: draftMonth, path: draftPath.trim() || undefined } }) }
-  return <div className="flex min-h-screen flex-col bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="sticky top-0 z-40 flex h-11 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur"><div className="flex size-6 items-center justify-center rounded bg-primary text-primary-foreground"><CalendarSearch className="size-3.5" /></div><div className="min-w-0"><div className="truncate text-xs font-semibold">{report?.data.repository.name ?? t("Monthly explanation")}</div><div className="text-[10px] text-muted-foreground">{t("Evidence-backed month review")}</div></div><AppNav search={{ path: path || undefined }} /><div className="ml-auto" /><LanguageSwitcher /><Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={!report || query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button></header>
+  return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<><CalendarSearch className="size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="truncate text-xs font-semibold">{report?.data.repository.name ?? t("Monthly explanation")}</div><div className="truncate text-[10px] text-muted-foreground">{t("Evidence-backed month review")}</div></div></>}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={!report || query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
     <main className="flex-1 space-y-4 p-4 pb-10"><div><h1 className="text-base font-semibold">{t("Explain a month")}</h1><p className="text-[11px] text-muted-foreground">{t("A structured summary backed by contributors, paths, and commits")}</p></div><Card className="grid gap-3 rounded-md p-3 shadow-none sm:grid-cols-[14rem_1fr_auto]"><div className="space-y-1"><Label htmlFor="explain-month" className="text-[10px]">{t("Calendar month")}</Label><Input id="explain-month" type="month" value={draftMonth} onChange={(event) => setDraftMonth(event.target.value)} /></div><div className="space-y-1"><Label htmlFor="explain-path" className="text-[10px]">{t("Repository path · optional")}</Label><Input id="explain-path" value={draftPath} placeholder="internal/parser" onChange={(event) => setDraftPath(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") apply() }} /></div><Button className="self-end" disabled={!draftMonth} onClick={apply}>{t("Explain")}</Button></Card>{!month ? <Empty message={t("Select a calendar month to explain.")} /> : query.isPending && !report ? <Empty message={t("Building monthly evidence…")} /> : !report ? <Alert variant="destructive"><AlertTitle>{t("Unable to explain month")}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert> : <Results report={report} />}</main>
     {report && <footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center gap-2 border-t bg-card/95 px-3 text-[10px] text-muted-foreground"><span className="text-success">● {t("Ready")}</span><span>·</span><span>{report.data.month}</span><span className="ml-auto">{t("schema")} {report.schema_version}</span></footer>}
   </div>

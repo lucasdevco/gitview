@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ExternalLink, FileCode2, GitBranch, GitCommitHorizontal, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AppNav } from "@/components/app-nav"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { PageHeader } from "@/components/page-header"
 import { RepositoryContext } from "@/components/repository-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -56,14 +55,12 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
   const trackedBranch = branches.find((item) => branch ? item.name === branch : item.current)
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" })
 
-  return <div className="flex h-screen min-h-[36rem] flex-col overflow-hidden bg-background">
-    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-0 z-50 h-0.5 rounded-none" />}
-    <header className="flex h-11 shrink-0 items-center gap-3 border-b bg-card/95 px-4">
-      <RepositoryContext repository={repository} />
-      <AppNav search={{ since: "", until: "", path: "" }} />
-      <div className="ml-auto" /><LanguageSwitcher />
-      <Button variant="ghost" size="xs" className="w-[4.5rem] shrink-0" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>
-    </header>
+  return <div className="flex h-[calc(100dvh-2.75rem)] min-h-[33.25rem] flex-col overflow-hidden bg-background">
+    {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
+    <PageHeader
+      context={<RepositoryContext repository={repository} />}
+      actions={<Button variant="ghost" size="xs" className="w-[4.5rem]" disabled={query.isFetching} onClick={() => void query.refetch()}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />{t("Refresh")}</Button>}
+    />
 
     <div className="flex h-10 shrink-0 items-center gap-2 border-b bg-muted/20 px-3 text-xs">
       <select className="h-7 min-w-44 rounded border bg-background px-2 text-xs" value={branch} onChange={(event) => void navigate({ search: { branch: event.target.value || undefined } })}>
@@ -156,5 +153,5 @@ function layoutGraph(commits: BranchCommit[]) {
 }
 
 function EmptyPreview({ text }: { text: string }) { return <div className="flex h-full items-center justify-center text-xs text-muted-foreground"><GitCommitHorizontal className="mr-2 size-4" />{text}</div> }
-function Loading() { return <main className="min-h-screen space-y-3 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-80" /><Skeleton className="h-60" /></main> }
-function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-screen items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load branch history")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }
+function Loading() { return <main className="min-h-[calc(100dvh-2.75rem)] space-y-3 bg-background p-4"><Skeleton className="h-10" /><Skeleton className="h-10" /><Skeleton className="h-80" /><Skeleton className="h-60" /></main> }
+function ErrorPage({ message }: { message: string }) { const { t } = useI18n(); return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive" className="max-w-lg"><AlertTitle>{t("Unable to load branch history")}</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></main> }
