@@ -1,6 +1,7 @@
 package gitrepo
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -53,16 +54,20 @@ func (r *Repository) Directories(ctx context.Context, parent string) ([]string, 
 }
 
 func (r *Repository) Repository(ctx context.Context) (overview.Repository, error) {
-	branch, _ := run(ctx, r.root, "symbolic-ref", "--quiet", "--short", "HEAD")
+	fullBranch, _ := run(ctx, r.root, "symbolic-ref", "--quiet", "HEAD")
+	branch := strings.TrimPrefix(strings.TrimSpace(fullBranch), "refs/heads/")
 	head, err := run(ctx, r.root, "rev-parse", "--verify", "HEAD")
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return overview.Repository{Name: filepath.Base(r.root), Root: r.root, Branch: strings.TrimSpace(branch), Empty: true}, nil
+		if strings.TrimSpace(fullBranch) != "" {
+			_, refErr := run(ctx, r.root, "show-ref", "--verify", "--quiet", strings.TrimSpace(fullBranch))
+			var exitErr *exec.ExitError
+			if errors.As(refErr, &exitErr) && exitErr.ExitCode() == 1 {
+				return overview.Repository{Name: filepath.Base(r.root), Root: r.root, Branch: branch, Empty: true}, nil
+			}
 		}
 		return overview.Repository{}, err
 	}
-	return overview.Repository{Name: filepath.Base(r.root), Root: r.root, Branch: strings.TrimSpace(branch), Head: strings.TrimSpace(head)}, nil
+	return overview.Repository{Name: filepath.Base(r.root), Root: r.root, Branch: branch, Head: strings.TrimSpace(head)}, nil
 }
 
 func (r *Repository) Commits(ctx context.Context, path string, destination io.Writer) error {
@@ -91,25 +96,133 @@ func (r *Repository) IsShallow(ctx context.Context) (bool, error) {
 }
 
 func (r *Repository) SourceFiles(ctx context.Context, path string) ([]functionanalysis.SourceFile, error) {
-	output, err := run(ctx, r.root, "ls-tree", "-r", "-z", "--name-only", "HEAD")
+	args := []string{"ls-tree", "-r", "-z", "HEAD"}
+	if path != "" {
+		args = append(args, "--", ":(literal)"+path)
+	}
+	output, err := run(ctx, r.root, args...)
 	if err != nil {
 		return nil, err
 	}
-	files := []functionanalysis.SourceFile{}
-	for _, candidate := range strings.Split(output, "\x00") {
-		if candidate == "" || !functionanalysis.IsSupportedSource(candidate) || !withinPath(candidate, path) {
+	type sourceObject struct {
+		oid  string
+		path string
+	}
+	objects := []sourceObject{}
+	excluded := []functionanalysis.SourceFile{}
+	uniqueOIDs := []string{}
+	seenOIDs := map[string]struct{}{}
+	for _, entry := range strings.Split(output, "\x00") {
+		metadataAndPath := strings.SplitN(entry, "\t", 2)
+		if len(metadataAndPath) != 2 {
 			continue
 		}
-		content, readErr := run(ctx, r.root, "show", "HEAD:"+candidate)
-		if readErr != nil {
-			return nil, fmt.Errorf("read %s: %w", candidate, readErr)
+		metadata := strings.Fields(metadataAndPath[0])
+		candidate := metadataAndPath[1]
+		if len(metadata) != 3 || metadata[1] != "blob" || !functionanalysis.IsSupportedSource(candidate) || !withinPath(candidate, path) {
+			continue
 		}
-		files = append(files, functionanalysis.SourceFile{Path: candidate, Content: []byte(content)})
+		if functionanalysis.IsExcludedSource(candidate) {
+			excluded = append(excluded, functionanalysis.SourceFile{Path: candidate})
+			continue
+		}
+		oid := metadata[2]
+		objects = append(objects, sourceObject{oid: oid, path: candidate})
+		if _, exists := seenOIDs[oid]; !exists {
+			seenOIDs[oid] = struct{}{}
+			uniqueOIDs = append(uniqueOIDs, oid)
+		}
 	}
+	blobs, err := r.readBlobs(ctx, uniqueOIDs)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]functionanalysis.SourceFile, 0, len(objects))
+	for _, object := range objects {
+		content, exists := blobs[object.oid]
+		if !exists {
+			return nil, fmt.Errorf("read %s: Git did not return blob %s", object.path, object.oid)
+		}
+		files = append(files, functionanalysis.SourceFile{Path: object.path, Content: content})
+	}
+	files = append(files, excluded...)
 	return files, nil
 }
 
+func (r *Repository) readBlobs(ctx context.Context, oids []string) (map[string][]byte, error) {
+	if len(oids) == 0 {
+		return map[string][]byte{}, nil
+	}
+	input := strings.NewReader(strings.Join(oids, "\n") + "\n")
+	batchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	cmd := exec.CommandContext(batchCtx, "git", "-C", r.root, "cat-file", "--batch")
+	cmd.Stdin = input
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("read Git blob batch: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return nil, commandError(cmd, err)
+	}
+	fail := func(readErr error) (map[string][]byte, error) {
+		cancel()
+		_ = cmd.Wait()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, readErr
+	}
+	reader := bufio.NewReader(stdout)
+	blobs := make(map[string][]byte, len(oids))
+	const maxBlobBytes = 32 << 20
+	const maxTotalBytes = 512 << 20
+	totalBytes := 0
+	for _, requestedOID := range oids {
+		headerLine, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			return fail(fmt.Errorf("read Git blob batch header for %s: %w", requestedOID, readErr))
+		}
+		header := strings.Fields(strings.TrimSuffix(headerLine, "\n"))
+		if len(header) != 3 || header[0] != requestedOID || header[1] != "blob" {
+			return fail(fmt.Errorf("read Git blob batch: invalid header %q", strings.TrimSpace(headerLine)))
+		}
+		size, parseErr := strconv.Atoi(header[2])
+		if parseErr != nil || size < 0 {
+			return fail(fmt.Errorf("read Git blob batch: invalid size %q", header[2]))
+		}
+		if size > maxBlobBytes {
+			return fail(fmt.Errorf("read Git blob batch: source blob %s is %d bytes; maximum is %d bytes", requestedOID, size, maxBlobBytes))
+		}
+		totalBytes += size
+		if totalBytes > maxTotalBytes {
+			return fail(fmt.Errorf("read Git blob batch: source snapshot exceeds the %d byte memory limit", maxTotalBytes))
+		}
+		content := make([]byte, size)
+		if _, readErr := io.ReadFull(reader, content); readErr != nil {
+			return fail(fmt.Errorf("read Git blob batch content for %s: %w", requestedOID, readErr))
+		}
+		separator, readErr := reader.ReadByte()
+		if readErr != nil || separator != '\n' {
+			return fail(fmt.Errorf("read Git blob batch: truncated content for %s", requestedOID))
+		}
+		blobs[requestedOID] = content
+	}
+	if err := cmd.Wait(); err != nil {
+		if message := strings.TrimSpace(stderr.String()); message != "" {
+			return nil, fmt.Errorf("git failed: %s: %w", message, err)
+		}
+		return nil, commandError(cmd, err)
+	}
+	return blobs, nil
+}
+
 func (r *Repository) FunctionHistory(ctx context.Context, path string, destination io.Writer) error {
+	if path != "" && functionanalysis.IsExcludedSource(path) {
+		return nil
+	}
 	args := []string{"-C", r.root, "log", "HEAD", "--root", "--use-mailmap", "--date=iso-strict", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%aI%x1f%s", "-p", "--unified=0", "--no-renames", "--no-prefix", "--"}
 	if path != "" {
 		args = append(args, ":(literal)"+path)
@@ -117,6 +230,7 @@ func (r *Repository) FunctionHistory(ctx context.Context, path string, destinati
 		for _, extension := range functionanalysis.SupportedExtensions() {
 			args = append(args, "*"+extension)
 		}
+		args = append(args, ":(exclude)vendor/**", ":(exclude)**/vendor/**", ":(exclude)node_modules/**", ":(exclude)**/node_modules/**")
 	}
 	cmd := exec.CommandContext(ctx, "git", args...)
 	var stderr bytes.Buffer
@@ -206,7 +320,7 @@ func (r *Repository) BranchCommits(ctx context.Context, revision string, limit i
 }
 
 func (r *Repository) WorkingTree(ctx context.Context) (overview.WorkingTree, error) {
-	status, err := run(ctx, r.root, "status", "--porcelain=v1", "-z")
+	status, err := run(ctx, r.root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return overview.WorkingTree{}, err
 	}
@@ -241,7 +355,7 @@ func (r *Repository) WorkingTree(ctx context.Context) (overview.WorkingTree, err
 		}
 		patch += untrackedDiff
 	}
-	return overview.WorkingTree{Dirty: len(files) > 0, Files: files, Patch: patch}, nil
+	return overview.WorkingTree{Dirty: len(files) > 0, Files: files, Patch: patch, PatchFiles: overview.ParsePatchFiles(patch)}, nil
 }
 
 func (r *Repository) untrackedPatch(ctx context.Context, file string) (string, error) {

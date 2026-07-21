@@ -2,7 +2,7 @@ package overview
 
 import "time"
 
-const SchemaVersion = "2"
+const SchemaVersion = "3"
 
 type Report struct {
 	Repository      Repository    `json:"repository"`
@@ -91,16 +91,25 @@ type Commit struct {
 }
 
 type CommitReview struct {
-	OID         string `json:"oid"`
-	ParentOID   string `json:"parent_oid"`
-	Subject     string `json:"subject"`
-	Author      string `json:"author"`
-	AuthorEmail string `json:"author_email"`
-	AuthoredAt  string `json:"authored_at"`
-	Files       int    `json:"files"`
-	Additions   int    `json:"additions"`
-	Deletions   int    `json:"deletions"`
-	Patch       string `json:"patch"`
+	OID         string      `json:"oid"`
+	ParentOID   string      `json:"parent_oid"`
+	Subject     string      `json:"subject"`
+	Author      string      `json:"author"`
+	AuthorEmail string      `json:"author_email"`
+	AuthoredAt  string      `json:"authored_at"`
+	Files       int         `json:"files"`
+	Additions   int         `json:"additions"`
+	Deletions   int         `json:"deletions"`
+	Patch       string      `json:"patch"`
+	PatchFiles  []PatchFile `json:"patch_files"`
+}
+
+type PatchFile struct {
+	Path    string `json:"path"`
+	OldPath string `json:"old_path,omitempty"`
+	NewPath string `json:"new_path,omitempty"`
+	Status  string `json:"status"`
+	Patch   string `json:"patch"`
 }
 
 type CommitReviewReport struct {
@@ -129,9 +138,10 @@ type BranchCommit struct {
 }
 
 type WorkingTree struct {
-	Dirty bool     `json:"dirty"`
-	Files []string `json:"files"`
-	Patch string   `json:"patch"`
+	Dirty      bool        `json:"dirty"`
+	Files      []string    `json:"files"`
+	Patch      string      `json:"patch"`
+	PatchFiles []PatchFile `json:"patch_files"`
 }
 
 type BranchReport struct {
@@ -195,6 +205,9 @@ type FileReport struct {
 	Files           []FileMetric `json:"files"`
 	Warnings        []Warning    `json:"warnings"`
 	RecentDays      int          `json:"recent_days"`
+	Total           int          `json:"total"`
+	Limit           int          `json:"limit"`
+	HasMore         bool         `json:"has_more"`
 }
 
 type FileMetric struct {
@@ -249,6 +262,9 @@ type CompareReport struct {
 	Totals          Totals        `json:"totals"`
 	Contributors    []Contributor `json:"contributors"`
 	Files           []FileMetric  `json:"files"`
+	FilesTotal      int           `json:"files_total"`
+	FilesLimit      int           `json:"files_limit"`
+	FilesHasMore    bool          `json:"files_has_more"`
 	Commits         []Commit      `json:"commits"`
 	Warnings        []Warning     `json:"warnings"`
 }
@@ -266,7 +282,6 @@ type ExplainReport struct {
 }
 
 type Insight struct {
-	Kind    string `json:"kind"`
-	Title   string `json:"title"`
-	Summary string `json:"summary"`
+	Kind   string         `json:"kind"`
+	Values map[string]any `json:"values"`
 }

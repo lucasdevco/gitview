@@ -35,10 +35,11 @@ func (s *Service) Files(ctx context.Context, filters Filters, sortBy string, lim
 	s.appendShallowWarning(ctx, &base)
 	metrics, _ := buildFileMetrics(facts, s.now(), ownershipRecentDays)
 	sortFileMetrics(metrics, sortBy)
+	total := len(metrics)
 	if limit > 0 && len(metrics) > limit {
 		metrics = metrics[:limit]
 	}
-	return FileReport{Repository: repo, AnalysisContext: base.AnalysisContext, Files: metrics, Warnings: base.Warnings, RecentDays: ownershipRecentDays}, nil
+	return FileReport{Repository: repo, AnalysisContext: base.AnalysisContext, Files: metrics, Warnings: base.Warnings, RecentDays: ownershipRecentDays, Total: total, Limit: limit, HasMore: len(metrics) < total}, nil
 }
 
 func (s *Service) File(ctx context.Context, filters Filters, filePath string) (FileDetailReport, error) {

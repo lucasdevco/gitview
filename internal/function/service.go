@@ -26,15 +26,30 @@ type Git interface {
 }
 
 type Service struct {
-	git   Git
-	now   func() time.Time
-	mu    sync.Mutex
-	cache map[string]analysis
+	git       Git
+	now       func() time.Time
+	mu        sync.Mutex
+	cache     map[string]analysis
+	facts     map[string]functionFacts
+	factOrder []string
+	loads     map[string]*factLoad
 }
 
 type analysis struct {
 	report  Report
 	history map[string][]Change
+}
+
+type functionFacts struct {
+	metrics  []Metric
+	history  map[string][]Change
+	warnings []overview.Warning
+}
+
+type factLoad struct {
+	done  chan struct{}
+	facts functionFacts
+	err   error
 }
 
 type contribution struct {
@@ -43,13 +58,11 @@ type contribution struct {
 }
 
 type symbol struct {
-	metric       Metric
-	contributors map[string]*contribution
-	seenCommits  map[string]struct{}
+	metric Metric
 }
 
 func NewService(git Git) *Service {
-	return &Service{git: git, now: time.Now, cache: map[string]analysis{}}
+	return &Service{git: git, now: time.Now, cache: map[string]analysis{}, facts: map[string]functionFacts{}, loads: map[string]*factLoad{}}
 }
 
 func (s *Service) Functions(ctx context.Context, filters overview.Filters, sortBy string, limit int) (Report, error) {
@@ -59,9 +72,12 @@ func (s *Service) Functions(ctx context.Context, filters overview.Filters, sortB
 	}
 	report := result.report
 	sortMetrics(report.Functions, sortBy)
+	report.Total = len(report.Functions)
+	report.Limit = limit
 	if limit > 0 && len(report.Functions) > limit {
 		report.Functions = report.Functions[:limit]
 	}
+	report.HasMore = len(report.Functions) < report.Total
 	return report, nil
 }
 
@@ -98,28 +114,80 @@ func (s *Service) analyze(ctx context.Context, filters overview.Filters) (analys
 	if repo.Empty {
 		return analysis{report: Report{Repository: repo, AnalysisContext: contextValue, Functions: []Metric{}, Warnings: []overview.Warning{}, AnalyzerVersion: AnalyzerVersion}, history: map[string][]Change{}}, nil
 	}
-	files, err := s.git.SourceFiles(ctx, filters.Path)
+	facts, err := s.loadFunctionFacts(ctx, repo.Head, filters.Path)
 	if err != nil {
-		return analysis{}, fmt.Errorf("read source snapshot: %w", err)
+		return analysis{}, err
+	}
+	history := filterHistory(facts.history, facts.metrics, filters)
+	metrics := aggregateMetrics(facts.metrics, history)
+	result := analysis{report: Report{Repository: repo, AnalysisContext: contextValue, Functions: metrics, Warnings: append([]overview.Warning{}, facts.warnings...), AnalyzerVersion: AnalyzerVersion}, history: history}
+	s.mu.Lock()
+	s.cache[key] = result
+	s.mu.Unlock()
+	return cloneAnalysis(result), nil
+}
+
+func (s *Service) loadFunctionFacts(ctx context.Context, head, path string) (functionFacts, error) {
+	key := head + "\x00" + path
+	s.mu.Lock()
+	if facts, ok := s.facts[key]; ok {
+		s.mu.Unlock()
+		return facts, nil
+	}
+	if load, ok := s.loads[key]; ok {
+		s.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return functionFacts{}, ctx.Err()
+		case <-load.done:
+			return load.facts, load.err
+		}
+	}
+	load := &factLoad{done: make(chan struct{})}
+	s.loads[key] = load
+	s.mu.Unlock()
+
+	facts, err := s.buildFunctionFacts(ctx, path)
+	s.mu.Lock()
+	load.facts, load.err = facts, err
+	delete(s.loads, key)
+	if err == nil {
+		s.facts[key] = facts
+		s.factOrder = append(s.factOrder, key)
+		for len(s.factOrder) > 8 {
+			oldest := s.factOrder[0]
+			s.factOrder = s.factOrder[1:]
+			delete(s.facts, oldest)
+		}
+	}
+	close(load.done)
+	s.mu.Unlock()
+	return facts, err
+}
+
+func (s *Service) buildFunctionFacts(ctx context.Context, path string) (functionFacts, error) {
+	files, err := s.git.SourceFiles(ctx, path)
+	if err != nil {
+		return functionFacts{}, fmt.Errorf("read source snapshot: %w", err)
 	}
 	symbols, parseFailures, vendorExcluded := parseFiles(files)
 	reader, writer := io.Pipe()
 	done := make(chan error, 1)
 	go func() {
-		commandErr := s.git.FunctionHistory(ctx, filters.Path, writer)
+		commandErr := s.git.FunctionHistory(ctx, path, writer)
 		_ = writer.CloseWithError(commandErr)
 		done <- commandErr
 	}()
-	history, historyErr := attributeHistory(reader, symbols, filters)
+	history, historyErr := attributeHistory(reader, symbols)
 	_ = reader.Close()
 	commandErr := <-done
 	if commandErr != nil {
-		return analysis{}, fmt.Errorf("read function history: %w", commandErr)
+		return functionFacts{}, fmt.Errorf("read function history: %w", commandErr)
 	}
 	if historyErr != nil {
-		return analysis{}, fmt.Errorf("parse function history: %w", historyErr)
+		return functionFacts{}, fmt.Errorf("parse function history: %w", historyErr)
 	}
-	metrics := finalize(symbols)
+	metrics := baseMetrics(symbols)
 	warnings := []overview.Warning{{Code: "function_lineage_probable", Message: "Function history is mapped from Git hunks to current Tree-sitter ranges; moves, renames, and boundary changes may be incomplete."}}
 	if parseFailures > 0 {
 		warnings = append(warnings, overview.Warning{Code: "source_parse_failed", Message: fmt.Sprintf("%d source file(s) contained parse errors; recoverable functions were still analyzed.", parseFailures)})
@@ -130,16 +198,12 @@ func (s *Service) analyze(ctx context.Context, filters overview.Filters) (analys
 	if shallow, shallowErr := s.git.IsShallow(ctx); shallowErr == nil && shallow {
 		warnings = append(warnings, overview.Warning{Code: "shallow_repository", Message: "Repository history is shallow; function history may be incomplete."})
 	}
-	result := analysis{report: Report{Repository: repo, AnalysisContext: contextValue, Functions: metrics, Warnings: warnings, AnalyzerVersion: AnalyzerVersion}, history: history}
-	s.mu.Lock()
-	s.cache[key] = result
-	s.mu.Unlock()
-	return cloneAnalysis(result), nil
+	return functionFacts{metrics: metrics, history: history, warnings: warnings}, nil
 }
 
 var hunkPattern = regexp.MustCompile(`^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@`)
 
-func attributeHistory(reader io.Reader, symbols map[string][]*symbol, filters overview.Filters) (map[string][]Change, error) {
+func attributeHistory(reader io.Reader, symbols map[string][]*symbol) (map[string][]Change, error) {
 	history := map[string][]Change{}
 	var commit Change
 	var authored time.Time
@@ -167,7 +231,7 @@ func attributeHistory(reader io.Reader, symbols map[string][]*symbol, filters ov
 			continue
 		}
 		matches := hunkPattern.FindStringSubmatch(line)
-		if len(matches) == 0 || filePath == "" || !includes(filters, authored) {
+		if len(matches) == 0 || filePath == "" {
 			continue
 		}
 		oldCount := countValue(matches[2])
@@ -177,20 +241,6 @@ func attributeHistory(reader io.Reader, symbols map[string][]*symbol, filters ov
 			if !overlaps(candidate.metric.StartLine, candidate.metric.EndLine, newStart, newCount) {
 				continue
 			}
-			candidate.metric.Additions += newCount
-			candidate.metric.Deletions += oldCount
-			candidate.metric.Churn += newCount + oldCount
-			if _, seen := candidate.seenCommits[commit.OID]; !seen {
-				candidate.metric.Changes++
-				candidate.seenCommits[commit.OID] = struct{}{}
-			}
-			key := commit.AuthorID
-			entry := candidate.contributors[key]
-			if entry == nil {
-				entry = &contribution{identity: overview.ContributorIdentity{ID: key, Name: commit.Author, IsBot: isBot(commit.Author)}}
-				candidate.contributors[key] = entry
-			}
-			entry.weight += newCount + oldCount
 			changes := history[candidate.metric.ID]
 			if len(changes) == 0 || changes[len(changes)-1].OID != commit.OID {
 				changes = append(changes, commit)
@@ -204,27 +254,63 @@ func attributeHistory(reader io.Reader, symbols map[string][]*symbol, filters ov
 	return history, scanner.Err()
 }
 
-func finalize(symbols map[string][]*symbol) []Metric {
+func baseMetrics(symbols map[string][]*symbol) []Metric {
 	metrics := []Metric{}
-	maxChanges, maxChurn := 0, 0
 	for _, fileSymbols := range symbols {
 		for _, item := range fileSymbols {
-			var owner *contribution
-			total := 0
-			for _, value := range item.contributors {
-				total += value.weight
-				if owner == nil || value.weight > owner.weight {
-					owner = value
-				}
-			}
-			if owner != nil {
-				item.metric.Owner = owner.identity
-				item.metric.OwnerShare = float64(owner.weight) / float64(total)
-			}
-			maxChanges = max(maxChanges, item.metric.Changes)
-			maxChurn = max(maxChurn, item.metric.Churn)
 			metrics = append(metrics, item.metric)
 		}
+	}
+	return metrics
+}
+
+func filterHistory(source map[string][]Change, metrics []Metric, filters overview.Filters) map[string][]Change {
+	result := make(map[string][]Change, len(metrics))
+	for _, metric := range metrics {
+		result[metric.ID] = []Change{}
+	}
+	for id, changes := range source {
+		for _, change := range changes {
+			authored, err := time.Parse(time.RFC3339, change.AuthoredAt)
+			if err == nil && includes(filters, authored) {
+				result[id] = append(result[id], change)
+			}
+		}
+	}
+	return result
+}
+
+func aggregateMetrics(base []Metric, history map[string][]Change) []Metric {
+	metrics := append([]Metric{}, base...)
+	maxChanges, maxChurn := 0, 0
+	for index := range metrics {
+		contributors := map[string]*contribution{}
+		for _, change := range history[metrics[index].ID] {
+			metrics[index].Changes++
+			metrics[index].Additions += change.Additions
+			metrics[index].Deletions += change.Deletions
+			metrics[index].Churn += change.Churn
+			entry := contributors[change.AuthorID]
+			if entry == nil {
+				entry = &contribution{identity: overview.ContributorIdentity{ID: change.AuthorID, Name: change.Author, IsBot: isBot(change.Author)}}
+				contributors[change.AuthorID] = entry
+			}
+			entry.weight += change.Churn
+		}
+		var owner *contribution
+		total := 0
+		for _, value := range contributors {
+			total += value.weight
+			if owner == nil || value.weight > owner.weight || value.weight == owner.weight && value.identity.Name < owner.identity.Name {
+				owner = value
+			}
+		}
+		if owner != nil && total > 0 {
+			metrics[index].Owner = owner.identity
+			metrics[index].OwnerShare = float64(owner.weight) / float64(total)
+		}
+		maxChanges = max(maxChanges, metrics[index].Changes)
+		maxChurn = max(maxChurn, metrics[index].Churn)
 	}
 	for index := range metrics {
 		metrics[index].HotspotScore = math.Sqrt(ratio(metrics[index].Changes, maxChanges)*ratio(metrics[index].Churn, maxChurn)) * 100

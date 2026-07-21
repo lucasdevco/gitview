@@ -16,13 +16,15 @@ export type CommitReview = {
   additions: number
   deletions: number
   patch: string
+  patch_files: PatchFile[]
 }
+export type PatchFile = { path: string; old_path?: string; new_path?: string; status: "added" | "deleted" | "renamed" | "modified"; patch: string }
 export type OverviewFilters = { since: string; until: string; path: string }
 export type DirectoryListResponse = { data: { parent: string; directories: string[] } }
 export type CommitReviewResponse = { schema_version: string; data: { repository: Repository; commit: CommitReview } }
 export type BranchRef = { name: string; full_name: string; oid: string; remote: boolean; current: boolean; upstream?: string; ahead: number; behind: number }
 export type BranchCommit = { oid: string; parents: string[]; subject: string; author: string; authored_at: string; refs: string[] }
-export type WorkingTree = { dirty: boolean; files: string[]; patch: string }
+export type WorkingTree = { dirty: boolean; files: string[]; patch: string; patch_files: PatchFile[] }
 export type BranchResponse = { schema_version: string; data: { repository: Repository; branches: BranchRef[]; commits: BranchCommit[]; working_tree: WorkingTree } }
 export type PathContribution = { path: string; commits: number; additions: number; deletions: number; churn: number }
 export type ContributorIdentity = { id: string; name: string; is_bot: boolean }
@@ -50,7 +52,7 @@ export type FunctionMetric = {
   owner: ContributorIdentity; owner_share: number; lineage_confidence: "exact" | "probable" | "unknown"
 }
 export type FunctionChange = { oid: string; subject: string; author: string; author_id: string; authored_at: string; additions: number; deletions: number; churn: number; confidence: "exact" | "probable" | "unknown" }
-export type Insight = { kind: string; title: string; summary: string }
+export type Insight = { kind: "summary" | "contributor" | "path" | "commit"; values: Record<string, string | number> }
 
 export type OverviewResponse = {
   schema_version: string
@@ -89,7 +91,7 @@ export type FileListResponse = {
   schema_version: string
   analysis_context: OverviewResponse["analysis_context"]
   warnings: Warning[]
-  data: { repository: Repository; files: FileMetric[]; recent_days: number }
+  data: { repository: Repository; files: FileMetric[]; recent_days: number; total: number; limit: number; has_more: boolean }
 }
 
 export type FileDetailResponse = {
@@ -100,7 +102,7 @@ export type FileDetailResponse = {
 }
 export type FunctionListResponse = {
   schema_version: string; analysis_context: OverviewResponse["analysis_context"]; warnings: Warning[]
-  data: { repository: Repository; functions: FunctionMetric[]; analyzer_version: string }
+  data: { repository: Repository; functions: FunctionMetric[]; analyzer_version: string; total: number; limit: number; has_more: boolean }
 }
 export type FunctionDetailResponse = {
   schema_version: string; analysis_context: OverviewResponse["analysis_context"]; warnings: Warning[]
@@ -108,7 +110,7 @@ export type FunctionDetailResponse = {
 }
 export type CompareResponse = {
   schema_version: string; analysis_context: OverviewResponse["analysis_context"]; warnings: Warning[]
-  data: { repository: Repository; from_ref: string; to_ref: string; from_revision: string; to_revision: string; totals: Totals; contributors: Contributor[]; files: FileMetric[]; commits: Commit[] }
+  data: { repository: Repository; from_ref: string; to_ref: string; from_revision: string; to_revision: string; totals: Totals; contributors: Contributor[]; files: FileMetric[]; files_total: number; files_limit: number; files_has_more: boolean; commits: Commit[] }
 }
 export type ExplainResponse = {
   schema_version: string; analysis_context: OverviewResponse["analysis_context"]; warnings: Warning[]

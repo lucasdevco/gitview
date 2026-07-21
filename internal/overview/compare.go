@@ -63,10 +63,12 @@ func (s *Service) Compare(ctx context.Context, filters Filters, fromRef, toRef s
 	s.appendShallowWarning(ctx, &base)
 	files, _ := buildFileMetrics(selected, s.now(), ownershipRecentDays)
 	sortFileMetrics(files, "hotspot")
+	filesTotal := len(files)
+	filesLimit := 20
 	if len(files) > 20 {
 		files = files[:20]
 	}
-	return CompareReport{Repository: repo, AnalysisContext: base.AnalysisContext, FromRef: fromRef, ToRef: toRef, FromRevision: fromOID, ToRevision: toOID, Totals: base.Totals, Contributors: base.Contributors, Files: files, Commits: base.RecentCommits, Warnings: base.Warnings}, nil
+	return CompareReport{Repository: repo, AnalysisContext: base.AnalysisContext, FromRef: fromRef, ToRef: toRef, FromRevision: fromOID, ToRevision: toOID, Totals: base.Totals, Contributors: base.Contributors, Files: files, FilesTotal: filesTotal, FilesLimit: filesLimit, FilesHasMore: len(files) < filesTotal, Commits: base.RecentCommits, Warnings: base.Warnings}, nil
 }
 
 func (s *Service) Explain(ctx context.Context, path, month string, location *time.Location) (ExplainReport, error) {
@@ -107,12 +109,12 @@ func (s *Service) Explain(ctx context.Context, path, month string, location *tim
 }
 
 func buildInsights(totals Totals, contributors []Contributor, paths []PathContribution, commits []Commit) []Insight {
-	insights := []Insight{{Kind: "summary", Title: "Monthly activity", Summary: fmt.Sprintf("%d commits from %d contributors produced %d lines of churn.", totals.Commits, totals.Contributors, totals.Churn)}}
+	insights := []Insight{{Kind: "summary", Values: map[string]any{"commits": totals.Commits, "contributors": totals.Contributors, "churn": totals.Churn}}}
 	if len(contributors) > 0 {
-		insights = append(insights, Insight{Kind: "contributor", Title: "Most active contributor", Summary: fmt.Sprintf("%s led the month with %d commits and %d lines of churn.", contributors[0].Name, contributors[0].Commits, contributors[0].Churn)})
+		insights = append(insights, Insight{Kind: "contributor", Values: map[string]any{"name": contributors[0].Name, "commits": contributors[0].Commits, "churn": contributors[0].Churn}})
 	}
 	if len(paths) > 0 {
-		insights = append(insights, Insight{Kind: "path", Title: "Most changed path", Summary: fmt.Sprintf("%s had the most churn (%d) across %d commits.", paths[0].Path, paths[0].Churn, paths[0].Commits)})
+		insights = append(insights, Insight{Kind: "path", Values: map[string]any{"path": paths[0].Path, "churn": paths[0].Churn, "commits": paths[0].Commits}})
 	}
 	if len(commits) > 0 {
 		largest := commits[0]
@@ -121,7 +123,7 @@ func buildInsights(totals Totals, contributors []Contributor, paths []PathContri
 				largest = commit
 			}
 		}
-		insights = append(insights, Insight{Kind: "commit", Title: "Largest recent change", Summary: fmt.Sprintf("%s changed %d lines in commit %s.", largest.Subject, largest.Churn, largest.OID[:min(8, len(largest.OID))])})
+		insights = append(insights, Insight{Kind: "commit", Values: map[string]any{"subject": largest.Subject, "churn": largest.Churn, "oid": largest.OID[:min(8, len(largest.OID))]}})
 	}
 	return insights
 }

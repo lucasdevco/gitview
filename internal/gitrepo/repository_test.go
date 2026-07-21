@@ -73,10 +73,14 @@ func TestRepositoryReadsSupportedFunctionSourcesAndHistory(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "vendor", "lib"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, content := range map[string]string{
-		"main.go":    "package main\nfunc main() {}\n",
-		"web/app.ts": "export function load() {}\n",
-		"notes.txt":  "not source code\n",
+		"main.go":                  "package main\nfunc main() {}\n",
+		"web/app.ts":               "export function load() {}\n",
+		"vendor/lib/dependency.go": "package lib\nfunc Dependency() {}\n",
+		"notes.txt":                "not source code\n",
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)
@@ -89,14 +93,19 @@ func TestRepositoryReadsSupportedFunctionSourcesAndHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	files, err := repository.SourceFiles(context.Background(), "")
-	if err != nil || len(files) != 2 {
+	if err != nil || len(files) != 3 {
 		t.Fatalf("unexpected source files: %#v, %v", files, err)
+	}
+	for _, file := range files {
+		if file.Path == "vendor/lib/dependency.go" && len(file.Content) != 0 {
+			t.Fatalf("excluded dependency content should not be loaded: %#v", file)
+		}
 	}
 	var history bytes.Buffer
 	if err := repository.FunctionHistory(context.Background(), "", &history); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(history.String(), "main.go") || !strings.Contains(history.String(), "web/app.ts") || strings.Contains(history.String(), "notes.txt") {
+	if !strings.Contains(history.String(), "main.go") || !strings.Contains(history.String(), "web/app.ts") || strings.Contains(history.String(), "notes.txt") || strings.Contains(history.String(), "dependency.go") {
 		t.Fatalf("unexpected function history: %s", history.String())
 	}
 }
@@ -139,7 +148,11 @@ func TestRepositoryReadsBranchGraphAndWorkingTree(t *testing.T) {
 	if err := os.WriteFile(file, []byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "new.go"), []byte("package main\n"), 0o600); err != nil {
+	newDirectory := filepath.Join(dir, "new directory")
+	if err := os.MkdirAll(newDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(newDirectory, "new file.go"), []byte("package main\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	repository, err := Open(context.Background(), dir)
@@ -155,8 +168,11 @@ func TestRepositoryReadsBranchGraphAndWorkingTree(t *testing.T) {
 		t.Fatalf("unexpected commits: %#v, %v", commits, err)
 	}
 	workingTree, err := repository.WorkingTree(context.Background())
-	if err != nil || !workingTree.Dirty || len(workingTree.Files) != 2 || !strings.Contains(workingTree.Patch, "+func main()") || !strings.Contains(workingTree.Patch, "new.go") {
+	if err != nil || !workingTree.Dirty || len(workingTree.Files) != 2 || !strings.Contains(workingTree.Patch, "+func main()") || !strings.Contains(workingTree.Patch, "new file.go") {
 		t.Fatalf("unexpected working tree: %#v, %v", workingTree, err)
+	}
+	if len(workingTree.PatchFiles) != 2 || workingTree.PatchFiles[1].Path != "new directory/new file.go" || workingTree.PatchFiles[1].Status != "added" {
+		t.Fatalf("unexpected structured working tree patches: %#v", workingTree.PatchFiles)
 	}
 }
 
@@ -229,9 +245,24 @@ func TestRepositoryRecognizesUnbornHEADAsEmpty(t *testing.T) {
 	}
 }
 
+func TestRepositoryDoesNotTreatCorruptHEADAsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, nil, "init", "-b", "main")
+	repository, err := Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("not-a-valid-head\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Repository(context.Background()); err == nil {
+		t.Fatal("expected corrupt HEAD to return an error")
+	}
+}
+
 func runGit(t *testing.T, dir string, env []string, args ...string) {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", dir, "-c", "commit.gpgsign=false"}, args...)...)
 	cmd.Env = append(os.Environ(), env...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, output)
@@ -240,7 +271,7 @@ func runGit(t *testing.T, dir string, env []string, args ...string) {
 
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	output, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+	output, err := exec.Command("git", append([]string{"-C", dir, "-c", "commit.gpgsign=false"}, args...)...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, output)
 	}

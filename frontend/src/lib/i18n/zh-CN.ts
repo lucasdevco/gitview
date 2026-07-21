@@ -212,6 +212,17 @@ export const zhCN = {
   "Clear sorting": "清除排序",
   "View table full screen": "全屏查看表格",
   "Exit full screen": "退出全屏",
+  "Showing {shown} of {total}": "显示 {shown} / 共 {total}",
+  "Contributor insight": "贡献者洞察",
+  "Path insight": "路径洞察",
+  "Commit insight": "提交洞察",
+  "Most active contributor": "最活跃贡献者",
+  "Most changed path": "变更最多的路径",
+  "Largest recent change": "近期最大变更",
+  "{commits} commits from {contributors} contributors produced {churn} lines of churn.": "{contributors} 位贡献者通过 {commits} 次提交产生了 {churn} 行变更。",
+  "{name} led the month with {commits} commits and {churn} lines of churn.": "{name} 本月最活跃，共有 {commits} 次提交和 {churn} 行变更。",
+  "{path} had the most churn ({churn}) across {commits} commits.": "{path} 的变更量最高，在 {commits} 次提交中产生了 {churn} 行变更。",
+  "{subject} changed {churn} lines in commit {oid}.": "提交 {oid}（{subject}）变更了 {churn} 行。",
 } as const
 
 export type TranslationKey = keyof typeof zhCN

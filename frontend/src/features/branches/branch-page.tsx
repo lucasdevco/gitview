@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { readPanelLayout, ResizableHandle, ResizablePanel, ResizablePanelGroup, savePanelLayout } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DiffView, diffFiles } from "@/features/commits/diff-view"
+import { DiffView } from "@/features/commits/diff-view"
 import type { BranchCommit } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 import { branchesQueryOptions, commitQueryOptions } from "@/lib/queries"
@@ -41,9 +41,10 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
     if (!valid) setSelected(report.data.working_tree.dirty ? workingTreeID : (report.data.commits[0]?.oid ?? ""))
   }, [report, selected])
 
-  const patch = selected === workingTreeID ? (report?.data.working_tree.patch ?? "") : (review.data?.data.commit.patch ?? "")
-  const files = selected === workingTreeID ? (report?.data.working_tree.files ?? []) : diffFiles(patch)
-  useEffect(() => setSelectedFile(files[0] ?? ""), [selected, patch])
+  const patchFiles = selected === workingTreeID ? (report?.data.working_tree.patch_files ?? []) : (review.data?.data.commit.patch_files ?? [])
+  const files = selected === workingTreeID ? (report?.data.working_tree.files ?? []) : patchFiles.map((file) => file.path)
+  const patch = patchFiles.find((file) => file.path === selectedFile)?.patch ?? ""
+  useEffect(() => setSelectedFile(files[0] ?? ""), [selected, patchFiles])
 
   const graph = useMemo(() => layoutGraph(report?.data.commits ?? []), [report?.data.commits])
   if (!report && query.isPending) return <Loading />
@@ -110,7 +111,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
         <div className="h-full min-w-0 overflow-hidden">
           {!selected ? <EmptyPreview text={t("Select a commit to preview its changes.")} />
             : review.isPending && selected !== workingTreeID ? <div className="space-y-2 p-3"><Skeleton className="h-5 w-48" /><Skeleton className="h-64 w-full" /></div>
-              : patch ? <DiffView patch={patch} file={selectedFile} className="h-full" />
+              : patch ? <DiffView patch={patch} className="h-full" />
                 : <EmptyPreview text={t("No diff available")} />}
         </div>
         </ResizablePanel>

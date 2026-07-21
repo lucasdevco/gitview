@@ -15,6 +15,9 @@ type Report struct {
 	Functions       []Metric            `json:"functions"`
 	Warnings        []overview.Warning  `json:"warnings"`
 	AnalyzerVersion string              `json:"analyzer_version"`
+	Total           int                 `json:"total"`
+	Limit           int                 `json:"limit"`
+	HasMore         bool                `json:"has_more"`
 }
 
 type DetailReport struct {

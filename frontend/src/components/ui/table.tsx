@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { ArrowDown, ArrowUp, ArrowUpDown, Maximize2, Minimize2, RotateCcw } from "lucide-react"
 
 import { useI18n } from "@/lib/i18n"
+import { compareSortValues } from "@/lib/table-sort"
 import { cn } from "@/lib/utils"
 
 type SortDirection = "ascending" | "descending"
@@ -180,10 +181,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
 function compareRows(left: React.ReactNode, right: React.ReactNode, column: number, collator: Intl.Collator) {
   const leftValue = getCellValue(left, column)
   const rightValue = getCellValue(right, column)
-  const leftNumber = parseNumericValue(leftValue)
-  const rightNumber = parseNumericValue(rightValue)
-  if (leftNumber !== null && rightNumber !== null) return leftNumber - rightNumber
-  return collator.compare(leftValue, rightValue)
+  return compareSortValues(leftValue, rightValue, collator)
 }
 
 function countTableHeads(nodes: React.ReactNode): number {
@@ -222,13 +220,6 @@ function collectText(node: React.ReactNode): string {
     if (typeof props[key] === "string" || typeof props[key] === "number") return String(props[key])
   }
   return ""
-}
-
-function parseNumericValue(value: string) {
-  const normalized = value.trim().replaceAll(",", "").replace("−", "-").replace(/%$/, "")
-  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(normalized)) return null
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : null
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {

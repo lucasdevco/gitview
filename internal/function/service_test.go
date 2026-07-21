@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,15 +12,36 @@ import (
 )
 
 type fakeGit struct {
-	files   []SourceFile
-	history string
+	files         []SourceFile
+	history       string
+	sourceCalls   *atomic.Int32
+	historyCalls  *atomic.Int32
+	sourceStarted chan<- struct{}
+	sourceRelease <-chan struct{}
 }
 
 func (f fakeGit) Repository(context.Context) (overview.Repository, error) {
 	return overview.Repository{Name: "fixture", Head: "head"}, nil
 }
-func (f fakeGit) SourceFiles(context.Context, string) ([]SourceFile, error) { return f.files, nil }
+func (f fakeGit) SourceFiles(context.Context, string) ([]SourceFile, error) {
+	if f.sourceCalls != nil {
+		f.sourceCalls.Add(1)
+	}
+	if f.sourceStarted != nil {
+		select {
+		case f.sourceStarted <- struct{}{}:
+		default:
+		}
+	}
+	if f.sourceRelease != nil {
+		<-f.sourceRelease
+	}
+	return f.files, nil
+}
 func (f fakeGit) FunctionHistory(_ context.Context, _ string, output io.Writer) error {
+	if f.historyCalls != nil {
+		f.historyCalls.Add(1)
+	}
 	_, err := io.Copy(output, bytes.NewBufferString(f.history))
 	return err
 }
@@ -101,6 +123,17 @@ func TestEmptyFunctionResultUsesEmptySlice(t *testing.T) {
 	}
 }
 
+func TestFunctionReportIncludesTruncationMetadata(t *testing.T) {
+	service := NewService(fakeGit{files: []SourceFile{{Path: "parser.go", Content: []byte("package sample\nfunc One() {}\nfunc Two() {}\n")}}})
+	report, err := service.Functions(context.Background(), overview.Filters{}, "hotspot", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Functions) != 1 || report.Total != 2 || report.Limit != 1 || !report.HasMore {
+		t.Fatalf("unexpected truncation metadata: %+v", report)
+	}
+}
+
 func TestDateFilterUsesInclusiveAuthorDates(t *testing.T) {
 	source := "package sample\nfunc Parse() {}\n"
 	history := "\x1eold\x1fAda\x1fa@example.com\x1f2026-06-30T10:00:00+08:00\x1fold\n+++ parser.go\n@@ -1 +1 @@\n" +
@@ -112,5 +145,59 @@ func TestDateFilterUsesInclusiveAuthorDates(t *testing.T) {
 	}
 	if report.Functions[0].Changes != 1 {
 		t.Fatalf("unexpected filtered metric: %+v", report.Functions[0])
+	}
+}
+
+func TestDateFiltersReuseSnapshotAndHistoryFacts(t *testing.T) {
+	source := "package sample\nfunc Parse() {}\n"
+	history := "\x1eold\x1fAda\x1fa@example.com\x1f2026-06-30T10:00:00Z\x1fold\n+++ parser.go\n@@ -2 +2 @@\n" +
+		"\x1enew\x1fAda\x1fa@example.com\x1f2026-07-01T10:00:00Z\x1fnew\n+++ parser.go\n@@ -2 +2 @@\n"
+	var sourceCalls, historyCalls atomic.Int32
+	service := NewService(fakeGit{
+		files: []SourceFile{{Path: "parser.go", Content: []byte(source)}}, history: history,
+		sourceCalls: &sourceCalls, historyCalls: &historyCalls,
+	})
+	first, err := service.Functions(context.Background(), overview.Filters{Since: "2026-06-01", Until: "2026-06-30"}, "hotspot", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.Functions(context.Background(), overview.Filters{Since: "2026-07-01", Until: "2026-07-31"}, "hotspot", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Functions[0].Changes != 1 || second.Functions[0].Changes != 1 {
+		t.Fatalf("unexpected filtered results: %+v %+v", first.Functions[0], second.Functions[0])
+	}
+	if sourceCalls.Load() != 1 || historyCalls.Load() != 1 {
+		t.Fatalf("expected facts to be loaded once, got source=%d history=%d", sourceCalls.Load(), historyCalls.Load())
+	}
+}
+
+func TestConcurrentFunctionRequestsShareFactLoad(t *testing.T) {
+	var sourceCalls, historyCalls atomic.Int32
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	service := NewService(fakeGit{
+		files:       []SourceFile{{Path: "parser.go", Content: []byte("package sample\nfunc Parse() {}\n")}},
+		sourceCalls: &sourceCalls, historyCalls: &historyCalls, sourceStarted: started, sourceRelease: release,
+	})
+	errors := make(chan error, 2)
+	go func() {
+		_, err := service.Functions(context.Background(), overview.Filters{}, "hotspot", 20)
+		errors <- err
+	}()
+	<-started
+	go func() {
+		_, err := service.Functions(context.Background(), overview.Filters{}, "hotspot", 20)
+		errors <- err
+	}()
+	close(release)
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if sourceCalls.Load() != 1 || historyCalls.Load() != 1 {
+		t.Fatalf("expected one shared load, got source=%d history=%d", sourceCalls.Load(), historyCalls.Load())
 	}
 }

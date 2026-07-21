@@ -49,7 +49,7 @@ func parseFiles(files []SourceFile) (map[string][]*symbol, int, int) {
 		if !ok {
 			continue
 		}
-		if isExcludedSource(file.Path) {
+		if IsExcludedSource(file.Path) {
 			excluded++
 			continue
 		}
@@ -78,7 +78,7 @@ func parseFiles(files []SourceFile) (map[string][]*symbol, int, int) {
 func collectFunctions(node *treesitter.Node, file SourceFile, spec languageSpec, byPath map[string][]*symbol) {
 	if _, ok := spec.functionKinds[node.Kind()]; ok {
 		if metric, found := functionMetric(node, file, spec); found {
-			byPath[file.Path] = append(byPath[file.Path], &symbol{metric: metric, contributors: map[string]*contribution{}, seenCommits: map[string]struct{}{}})
+			byPath[file.Path] = append(byPath[file.Path], &symbol{metric: metric})
 		}
 	}
 	for index := uint(0); index < node.NamedChildCount(); index++ {
@@ -236,7 +236,7 @@ func set(values ...string) map[string]struct{} {
 	return result
 }
 
-func isExcludedSource(path string) bool {
+func IsExcludedSource(path string) bool {
 	normalized := "/" + strings.Trim(filepath.ToSlash(path), "/") + "/"
 	return strings.Contains(normalized, "/vendor/") || strings.Contains(normalized, "/node_modules/")
 }

@@ -62,7 +62,7 @@ func writeFile(t *testing.T, path, content string) {
 
 func runGit(t *testing.T, dir string, env []string, args ...string) {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	command := exec.Command("git", append([]string{"-C", dir, "-c", "commit.gpgsign=false"}, args...)...)
 	command.Env = append(os.Environ(), env...)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, output)

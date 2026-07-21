@@ -18,6 +18,9 @@ func TestCompareAggregatesRevisionRangeWithEvidence(t *testing.T) {
 	if len(report.Files) != 1 || report.Files[0].Path != "internal/a.go" || len(report.Commits) != 1 {
 		t.Fatalf("missing comparison evidence: %+v", report)
 	}
+	if report.FilesTotal != 1 || report.FilesLimit != 20 || report.FilesHasMore {
+		t.Fatalf("unexpected comparison file metadata: %+v", report)
+	}
 }
 
 func TestExplainBuildsStructuredMonthlyEvidence(t *testing.T) {
@@ -29,6 +32,9 @@ func TestExplainBuildsStructuredMonthlyEvidence(t *testing.T) {
 	}
 	if report.Month != "2026-06" || report.Totals.Commits != 1 || len(report.Paths) != 1 || len(report.Insights) != 4 {
 		t.Fatalf("unexpected explanation: %+v", report)
+	}
+	if report.Insights[0].Kind != "summary" || report.Insights[0].Values["commits"] != 1 {
+		t.Fatalf("unexpected structured insights: %+v", report.Insights)
 	}
 }
 

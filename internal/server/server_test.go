@@ -46,7 +46,7 @@ func (f fakeFunctions) Functions(context.Context, overview.Filters, string, int)
 	if f.err != nil {
 		return functionanalysis.Report{}, f.err
 	}
-	return functionanalysis.Report{Functions: []functionanalysis.Metric{{ID: "fn-1", QualifiedName: "Parse"}}, AnalyzerVersion: functionanalysis.AnalyzerVersion}, nil
+	return functionanalysis.Report{Functions: []functionanalysis.Metric{{ID: "fn-1", QualifiedName: "Parse"}}, AnalyzerVersion: functionanalysis.AnalyzerVersion, Total: 3, Limit: 1, HasMore: true}, nil
 }
 func (f fakeFunctions) Function(context.Context, overview.Filters, string) (functionanalysis.DetailReport, error) {
 	if f.err != nil {
@@ -76,7 +76,7 @@ func (f fakeOverview) Files(context.Context, overview.Filters, string, int) (ove
 	if f.err != nil {
 		return overview.FileReport{}, f.err
 	}
-	return overview.FileReport{Files: []overview.FileMetric{{Path: "internal/a.go"}}, RecentDays: 180}, nil
+	return overview.FileReport{Files: []overview.FileMetric{{Path: "internal/a.go"}}, RecentDays: 180, Total: 3, Limit: 1, HasMore: true}, nil
 }
 
 func (f fakeOverview) File(context.Context, overview.Filters, string) (overview.FileDetailReport, error) {
@@ -89,13 +89,13 @@ func (f fakeOverview) Compare(context.Context, overview.Filters, string, string)
 	if f.err != nil {
 		return overview.CompareReport{}, f.err
 	}
-	return overview.CompareReport{FromRef: "v1", ToRef: "v2", Totals: overview.Totals{Commits: 2}}, nil
+	return overview.CompareReport{FromRef: "v1", ToRef: "v2", Totals: overview.Totals{Commits: 2}, FilesTotal: 3, FilesLimit: 20}, nil
 }
 func (f fakeOverview) Explain(context.Context, string, string, *time.Location) (overview.ExplainReport, error) {
 	if f.err != nil {
 		return overview.ExplainReport{}, f.err
 	}
-	return overview.ExplainReport{Month: "2026-06", Insights: []overview.Insight{{Title: "Monthly activity"}}}, nil
+	return overview.ExplainReport{Month: "2026-06", Insights: []overview.Insight{{Kind: "summary", Values: map[string]any{"commits": 2}}}}, nil
 }
 
 func TestAPIReturnsStableTimeoutError(t *testing.T) {
@@ -247,6 +247,11 @@ func TestHotspotsAndFileAPI(t *testing.T) {
 			t.Fatalf("%s: unexpected response %d: %s", target, response.Code, response.Body.String())
 		}
 	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/hotspots?limit=1", nil))
+	if !strings.Contains(response.Body.String(), `"total":3`) || !strings.Contains(response.Body.String(), `"has_more":true`) {
+		t.Fatalf("missing ranking metadata: %s", response.Body.String())
+	}
 }
 
 func TestHotspotsRejectInvalidLimit(t *testing.T) {
@@ -272,6 +277,11 @@ func TestFunctionAPIs(t *testing.T) {
 		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Parse") {
 			t.Fatalf("%s: unexpected response %d: %s", target, response.Code, response.Body.String())
 		}
+	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/functions?limit=1", nil))
+	if !strings.Contains(response.Body.String(), `"total":3`) || !strings.Contains(response.Body.String(), `"has_more":true`) {
+		t.Fatalf("missing function ranking metadata: %s", response.Body.String())
 	}
 }
 

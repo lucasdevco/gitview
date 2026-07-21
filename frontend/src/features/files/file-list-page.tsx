@@ -24,7 +24,7 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
   const report = query.data
   if (!report && query.isPending) return <Loading />
   if (!report) return <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6"><Alert variant="destructive"><AlertTitle>{t("Unable to load {mode}", { mode: t(mode === "hotspots" ? "Hotspots" : "Ownership") })}</AlertTitle><AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription></Alert></main>
-  const { files, repository, recent_days } = report.data
+  const { files, repository, recent_days, total } = report.data
   const isHotspot = mode === "hotspots"
   return <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
     {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
@@ -37,7 +37,7 @@ export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership";
       <OverviewFilterBar value={filters} loading={query.isFetching} onApply={(next) => void navigate({ to: isHotspot ? "/hotspots" : "/ownership", search: searchFromFilters(next) })} />
       <ReportWarnings warnings={report.warnings} />
       <Card className="overflow-hidden rounded-md py-0 shadow-none">
-        <div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{t("Ranked files")}</h2><Badge variant="secondary" className="ml-auto">{files.length}</Badge></div>
+        <div className="flex items-center border-b px-3 py-2"><h2 className="text-xs font-semibold">{t("Ranked files")}</h2><Badge variant="secondary" className="ml-auto">{t("Showing {shown} of {total}", { shown: files.length, total })}</Badge></div>
         {files.length === 0 ? <div className="p-12 text-center text-xs text-muted-foreground">{t("No files match the current filters.")}</div> : <Table>
           <TableHeader><TableRow><TableHead>{t("Path")}</TableHead>{isHotspot ? <><TableHead className="text-right">{t("Score")}</TableHead><TableHead className="text-right">{t("Commits")}</TableHead><TableHead className="text-right">{t("Churn")}</TableHead></> : <><TableHead>{t("Historical owner")}</TableHead><TableHead>{t("Recent owner")}</TableHead><TableHead className="text-right">{t("Bus factor 80%")}</TableHead><TableHead className="text-right">{t("Risk")}</TableHead></>}</TableRow></TableHeader>
           <TableBody>{files.map((file) => <TableRow key={file.path}>

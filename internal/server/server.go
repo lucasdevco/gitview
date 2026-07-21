@@ -128,7 +128,7 @@ func (a *API) getCompare(w http.ResponseWriter, request *http.Request) {
 		writeAnalysisError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "from_ref": report.FromRef, "to_ref": report.ToRef, "from_revision": report.FromRevision, "to_revision": report.ToRevision, "totals": report.Totals, "contributors": report.Contributors, "files": report.Files, "commits": report.Commits}})
+	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "from_ref": report.FromRef, "to_ref": report.ToRef, "from_revision": report.FromRevision, "to_revision": report.ToRevision, "totals": report.Totals, "contributors": report.Contributors, "files": report.Files, "files_total": report.FilesTotal, "files_limit": report.FilesLimit, "files_has_more": report.FilesHasMore, "commits": report.Commits}})
 }
 
 func (a *API) getExplain(w http.ResponseWriter, request *http.Request) {
@@ -177,7 +177,7 @@ func (a *API) getFunctions(w http.ResponseWriter, request *http.Request) {
 		writeAnalysisError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "functions": report.Functions, "analyzer_version": report.AnalyzerVersion}})
+	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "functions": report.Functions, "analyzer_version": report.AnalyzerVersion, "total": report.Total, "limit": report.Limit, "has_more": report.HasMore}})
 }
 
 func (a *API) getFunction(w http.ResponseWriter, request *http.Request) {
@@ -228,7 +228,7 @@ func (a *API) getFiles(w http.ResponseWriter, request *http.Request, sortBy stri
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings,
-		"data": map[string]any{"repository": report.Repository, "files": report.Files, "recent_days": report.RecentDays},
+		"data": map[string]any{"repository": report.Repository, "files": report.Files, "recent_days": report.RecentDays, "total": report.Total, "limit": report.Limit, "has_more": report.HasMore},
 	})
 }
 

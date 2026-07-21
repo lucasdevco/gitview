@@ -1,9 +1,21 @@
 package overview
 
 import (
+	"context"
 	"testing"
 	"time"
 )
+
+func TestFilesReportsTruncationMetadata(t *testing.T) {
+	service := NewService(fakeGit{repository: Repository{Name: "sample", Head: "head"}, log: "\x1eabc\x1fAda\x1fa@example.com\x1f2026-07-01T10:00:00Z\x1fchange\n1\t0\ta.go\n1\t0\tb.go\n"})
+	report, err := service.Files(context.Background(), Filters{}, "hotspot", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Files) != 1 || report.Total != 2 || report.Limit != 1 || !report.HasMore {
+		t.Fatalf("unexpected truncation metadata: %+v", report)
+	}
+}
 
 func TestBuildFileMetricsShowsHotspotAndOwnershipComponents(t *testing.T) {
 	facts := []commitFact{
