@@ -13,3 +13,18 @@ When designing module functionality, function names, and public APIs, prioritize
 - Before adding a public interface, consider whether an existing interface can be reused or simplified.
 
 The goal of interface design is to reduce the cost of understanding, usage, testing, and communication—not merely to make the internal implementation convenient.
+
+## Required Frontend Checks
+
+After changing any code or configuration under `frontend/`, run all of the following commands before handing off or committing the change:
+
+```bash
+cd frontend
+npm run format
+npm run lint
+npm run check
+npm test
+npm run build
+```
+
+All commands must pass. Run `npm run format` first and include any formatting or import-order changes it produces. Do not skip these checks because a change appears small.
