@@ -24,6 +24,12 @@ type directoryGit interface {
 	Directories(context.Context, string) ([]string, error)
 }
 
+type branchGit interface {
+	Branches(context.Context) ([]BranchRef, error)
+	BranchCommits(context.Context, string, int) ([]BranchCommit, error)
+	WorkingTree(context.Context) (WorkingTree, error)
+}
+
 type Service struct {
 	git Git
 	now func() time.Time
@@ -52,6 +58,55 @@ func (s *Service) Directories(ctx context.Context, parent string) ([]string, err
 		return nil, fmt.Errorf("repository directory listing is unavailable")
 	}
 	return git.Directories(ctx, parent)
+}
+
+func (s *Service) Branches(ctx context.Context, selected string, limit int) (BranchReport, error) {
+	repo, err := s.git.Repository(ctx)
+	if err != nil {
+		return BranchReport{}, err
+	}
+	if repo.Empty {
+		return BranchReport{Repository: repo, Branches: []BranchRef{}, Commits: []BranchCommit{}}, nil
+	}
+	git, ok := s.git.(branchGit)
+	if !ok {
+		return BranchReport{}, fmt.Errorf("branch history is unavailable")
+	}
+	branches, err := git.Branches(ctx)
+	if err != nil {
+		return BranchReport{}, err
+	}
+	revision := ""
+	if selected != "" {
+		for _, branch := range branches {
+			if branch.Name == selected {
+				revision = branch.FullName
+				break
+			}
+		}
+		if revision == "" {
+			return BranchReport{}, &NotFoundError{Entity: "branch"}
+		}
+	}
+	commits, err := git.BranchCommits(ctx, revision, limit)
+	if err != nil {
+		return BranchReport{}, err
+	}
+	refsByOID := map[string][]string{}
+	for _, branch := range branches {
+		refsByOID[branch.OID] = append(refsByOID[branch.OID], branch.Name)
+	}
+	for index := range commits {
+		commits[index].Refs = refsByOID[commits[index].OID]
+		if commits[index].Refs == nil {
+			commits[index].Refs = []string{}
+		}
+	}
+	workingTree, err := git.WorkingTree(ctx)
+	if err != nil {
+		return BranchReport{}, err
+	}
+	return BranchReport{Repository: repo, Branches: branches, Commits: commits, WorkingTree: workingTree}, nil
 }
 
 func (s *Service) Overview(ctx context.Context, filters Filters) (Report, error) {

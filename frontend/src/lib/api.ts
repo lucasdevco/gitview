@@ -19,6 +19,10 @@ export type CommitReview = {
 export type OverviewFilters = { since: string; until: string; path: string }
 export type DirectoryListResponse = { data: { parent: string; directories: string[] } }
 export type CommitReviewResponse = { schema_version: string; data: { repository: Repository; commit: CommitReview } }
+export type BranchRef = { name: string; full_name: string; oid: string; remote: boolean; current: boolean }
+export type BranchCommit = { oid: string; parents: string[]; subject: string; author: string; authored_at: string; refs: string[] }
+export type WorkingTree = { dirty: boolean; files: string[]; patch: string }
+export type BranchResponse = { schema_version: string; data: { repository: Repository; branches: BranchRef[]; commits: BranchCommit[]; working_tree: WorkingTree } }
 export type PathContribution = { path: string; commits: number; additions: number; deletions: number; churn: number }
 export type ContributorIdentity = { id: string; name: string; is_bot: boolean }
 export type FileMetric = {
@@ -139,6 +143,14 @@ export async function fetchCommit(oid: string, signal?: AbortSignal): Promise<Co
   const response = await fetch(`/api/v1/commits/${encodeURIComponent(oid)}`, { signal, headers: { Accept: "application/json" } })
   if (!response.ok) throw await responseError(response, "Commit request failed")
   return response.json() as Promise<CommitReviewResponse>
+}
+
+export async function fetchBranches(branch: string, signal?: AbortSignal): Promise<BranchResponse> {
+  const query = new URLSearchParams()
+  if (branch) query.set("branch", branch)
+  const response = await fetch(`/api/v1/branches${query.size ? `?${query}` : ""}`, { signal, headers: { Accept: "application/json" } })
+  if (!response.ok) throw await responseError(response, "Branch history request failed")
+  return response.json() as Promise<BranchResponse>
 }
 
 export async function fetchContributor(id: string, filters: OverviewFilters, signal?: AbortSignal): Promise<ContributorResponse> {

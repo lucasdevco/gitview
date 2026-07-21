@@ -21,6 +21,13 @@ type fakeOverview struct {
 
 type fakeFunctions struct{ err error }
 
+func (f fakeOverview) Branches(context.Context, string, int) (overview.BranchReport, error) {
+	if f.err != nil {
+		return overview.BranchReport{}, f.err
+	}
+	return overview.BranchReport{Branches: []overview.BranchRef{{Name: "main", OID: "abc", Current: true}}, Commits: []overview.BranchCommit{{OID: "abc", Parents: []string{}, Subject: "Initial commit", Refs: []string{"main"}}}}, nil
+}
+
 func (f fakeOverview) Directories(context.Context, string) ([]string, error) {
 	if f.err != nil {
 		return nil, f.err
@@ -132,6 +139,18 @@ func TestPathsAPI(t *testing.T) {
 	response := httptest.NewRecorder()
 	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/paths?parent=internal", nil))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"directories":["frontend","internal"]`) {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBranchesAPI(t *testing.T) {
+	api, err := New(fakeOverview{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/branches", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"name":"main"`) || !strings.Contains(response.Body.String(), `"subject":"Initial commit"`) {
 		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
 	}
 }

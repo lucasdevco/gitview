@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { commitQueryOptions } from "@/lib/queries"
 import { useI18n } from "@/lib/i18n"
 import type { OverviewRouteSearch } from "@/lib/url-filters"
+import { DiffView } from "@/features/commits/diff-view"
 
 export function CommitPage({ commitId, search }: { commitId: string; search: OverviewRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
@@ -45,38 +46,6 @@ export function CommitPage({ commitId, search }: { commitId: string; search: Ove
     </main>
     <footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center gap-2 border-t bg-card/95 px-3 text-[10px] text-muted-foreground"><span className="text-success">● {t("Ready")}</span><span>·</span><span className="font-mono">{commit.oid.slice(0, 12)}</span><span className="ml-auto">{t("schema")} {report.schema_version}</span></footer>
   </div>
-}
-
-function DiffView({ patch }: { patch: string }) {
-  return <div className="max-h-[calc(100vh-19rem)] overflow-auto bg-muted/20 font-mono text-[11px] leading-5">
-    <pre className="min-w-max py-2">{parseDiffLines(patch).map((line, index) => <div key={index} className={lineClass(line.text)}><span className="inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">{line.oldLine ?? ""}</span><span className="mr-3 inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">{line.newLine ?? ""}</span><span className="pr-4">{line.text || " "}</span></div>)}</pre>
-  </div>
-}
-
-function parseDiffLines(patch: string) {
-  let oldLine: number | undefined
-  let newLine: number | undefined
-  return patch.split("\n").map((text) => {
-    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text)
-    if (hunk) {
-      oldLine = Number(hunk[1])
-      newLine = Number(hunk[2])
-      return { text }
-    }
-    if (oldLine === undefined || newLine === undefined || text.startsWith("\\")) return { text }
-    if (text.startsWith("+") && !text.startsWith("+++")) return { text, newLine: newLine++ }
-    if (text.startsWith("-") && !text.startsWith("---")) return { text, oldLine: oldLine++ }
-    if (text.startsWith(" ")) return { text, oldLine: oldLine++, newLine: newLine++ }
-    return { text }
-  })
-}
-
-function lineClass(line: string) {
-  if (line.startsWith("diff --git ")) return "bg-primary/10 font-semibold text-primary"
-  if (line.startsWith("@@")) return "bg-chart-3/10 text-chart-3"
-  if (line.startsWith("+") && !line.startsWith("+++")) return "bg-success/10 text-success"
-  if (line.startsWith("-") && !line.startsWith("---")) return "bg-destructive/10 text-destructive"
-  return "text-foreground"
 }
 
 function Metric({ label, value, tone = "text-foreground" }: { label: string; value: string; tone?: string }) { return <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none"><div className={`font-mono text-xl font-semibold ${tone}`}>{value}</div><div className="text-[10px] text-muted-foreground">{label}</div></Card> }

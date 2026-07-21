@@ -10,6 +10,7 @@ export function AppNav({ search }: { search: OverviewRouteSearch }) {
     <Link to="/hotspots" search={search} className={linkClass}>{t("Hotspots")}</Link>
     <Link to="/ownership" search={search} className={linkClass}>{t("Ownership")}</Link>
     <Link to="/functions" search={search} className={linkClass}>{t("Functions")}</Link>
+    <Link to="/branches" search={{ branch: undefined }} className={linkClass}>{t("Branches")}</Link>
     <Link to="/compare" search={search} className={linkClass}>{t("Compare")}</Link>
     <Link to="/explain" search={{ path: search.path }} className={linkClass}>{t("Explain")}</Link>
   </nav>

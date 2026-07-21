@@ -18,6 +18,7 @@ import (
 
 type OverviewService interface {
 	Directories(context.Context, string) ([]string, error)
+	Branches(context.Context, string, int) (overview.BranchReport, error)
 	Commit(context.Context, string) (overview.CommitReviewReport, error)
 	Overview(context.Context, overview.Filters) (overview.Report, error)
 	Contributor(context.Context, overview.Filters, string) (overview.ContributorReport, error)
@@ -55,6 +56,7 @@ func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", a.health)
 	mux.HandleFunc("GET /api/v1/paths", a.getPaths)
+	mux.HandleFunc("GET /api/v1/branches", a.getBranches)
 	mux.HandleFunc("GET /api/v1/overview", a.getOverview)
 	mux.HandleFunc("GET /api/v1/contributors/{id}", a.getContributor)
 	mux.HandleFunc("GET /api/v1/commits/{oid}", a.getCommit)
@@ -68,6 +70,22 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("/api/", notFound)
 	mux.HandleFunc("/", a.spa)
 	return securityHeaders(mux)
+}
+
+func (a *API) getBranches(w http.ResponseWriter, request *http.Request) {
+	limit, err := parseLimit(request, 200)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_limit", "message": err.Error()}})
+		return
+	}
+	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+	defer cancel()
+	report, err := a.overview.Branches(ctx, request.URL.Query().Get("branch"), limit)
+	if err != nil {
+		writeAnalysisError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "data": map[string]any{"repository": report.Repository, "branches": report.Branches, "commits": report.Commits, "working_tree": report.WorkingTree}})
 }
 
 func (a *API) getCommit(w http.ResponseWriter, request *http.Request) {

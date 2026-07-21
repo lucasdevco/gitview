@@ -97,6 +97,36 @@ type CommitReviewReport struct {
 	Commit     CommitReview `json:"commit"`
 }
 
+type BranchRef struct {
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+	OID      string `json:"oid"`
+	Remote   bool   `json:"remote"`
+	Current  bool   `json:"current"`
+}
+
+type BranchCommit struct {
+	OID        string   `json:"oid"`
+	Parents    []string `json:"parents"`
+	Subject    string   `json:"subject"`
+	Author     string   `json:"author"`
+	AuthoredAt string   `json:"authored_at"`
+	Refs       []string `json:"refs"`
+}
+
+type WorkingTree struct {
+	Dirty bool     `json:"dirty"`
+	Files []string `json:"files"`
+	Patch string   `json:"patch"`
+}
+
+type BranchReport struct {
+	Repository  Repository     `json:"repository"`
+	Branches    []BranchRef    `json:"branches"`
+	Commits     []BranchCommit `json:"commits"`
+	WorkingTree WorkingTree    `json:"working_tree"`
+}
+
 type Warning struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

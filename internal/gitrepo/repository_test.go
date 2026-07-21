@@ -92,6 +92,40 @@ func TestRepositoryListsTrackedDirectories(t *testing.T) {
 	}
 }
 
+func TestRepositoryReadsBranchGraphAndWorkingTree(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, nil, "init", "-b", "main")
+	file := filepath.Join(dir, "app.go")
+	if err := os.WriteFile(file, []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "add", "app.go")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "commit", "-m", "add app")
+	runGit(t, dir, nil, "branch", "feature/parser")
+	if err := os.WriteFile(file, []byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "new.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	repository, err := Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	branches, err := repository.Branches(context.Background())
+	if err != nil || len(branches) != 2 || !branches[1].Current {
+		t.Fatalf("unexpected branches: %#v, %v", branches, err)
+	}
+	commits, err := repository.BranchCommits(context.Background(), "refs/heads/feature/parser", 20)
+	if err != nil || len(commits) != 1 || commits[0].Subject != "add app" {
+		t.Fatalf("unexpected commits: %#v, %v", commits, err)
+	}
+	workingTree, err := repository.WorkingTree(context.Background())
+	if err != nil || !workingTree.Dirty || len(workingTree.Files) != 2 || !strings.Contains(workingTree.Patch, "+func main()") || !strings.Contains(workingTree.Patch, "new.go") {
+		t.Fatalf("unexpected working tree: %#v, %v", workingTree, err)
+	}
+}
+
 func TestRepositoryRecognizesUnbornHEADAsEmpty(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, nil, "init", "-b", "main")

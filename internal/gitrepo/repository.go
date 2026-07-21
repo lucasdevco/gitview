@@ -137,6 +137,110 @@ func (r *Repository) CommitPatch(ctx context.Context, oid string) (string, error
 	return run(ctx, r.root, "show", "--no-color", "--no-ext-diff", "--find-renames", "--format=%x1e%H%x1f%P%x1f%aN%x1f%aE%x1f%aI%x1f%s", "--unified=3", "--end-of-options", oid)
 }
 
+func (r *Repository) Branches(ctx context.Context) ([]overview.BranchRef, error) {
+	output, err := run(ctx, r.root, "for-each-ref", "--sort=refname", "--format=%(refname)%09%(objectname)%09%(HEAD)%09%(symref)", "refs/heads", "refs/remotes")
+	if err != nil {
+		return nil, err
+	}
+	branches := []overview.BranchRef{}
+	for _, line := range strings.Split(strings.TrimSuffix(output, "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 || fields[3] != "" {
+			continue
+		}
+		fullName := fields[0]
+		remote := strings.HasPrefix(fullName, "refs/remotes/")
+		name := strings.TrimPrefix(fullName, "refs/heads/")
+		name = strings.TrimPrefix(name, "refs/remotes/")
+		branches = append(branches, overview.BranchRef{Name: name, FullName: fullName, OID: fields[1], Remote: remote, Current: fields[2] == "*"})
+	}
+	return branches, nil
+}
+
+func (r *Repository) BranchCommits(ctx context.Context, revision string, limit int) ([]overview.BranchCommit, error) {
+	args := []string{"log", "--date=iso-strict", fmt.Sprintf("--max-count=%d", limit), "--format=%H%x09%P%x09%aN%x09%aI%x09%s"}
+	if revision == "" {
+		args = append(args, "--all")
+	} else {
+		args = append(args, "--end-of-options", revision)
+	}
+	output, err := run(ctx, r.root, args...)
+	if err != nil {
+		return nil, err
+	}
+	commits := []overview.BranchCommit{}
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if line == "" {
+			continue
+		}
+		fields := strings.SplitN(line, "\t", 5)
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("parse branch commit: expected 5 fields")
+		}
+		parents := strings.Fields(fields[1])
+		if parents == nil {
+			parents = []string{}
+		}
+		commits = append(commits, overview.BranchCommit{OID: fields[0], Parents: parents, Author: fields[2], AuthoredAt: fields[3], Subject: fields[4], Refs: []string{}})
+	}
+	return commits, nil
+}
+
+func (r *Repository) WorkingTree(ctx context.Context) (overview.WorkingTree, error) {
+	status, err := run(ctx, r.root, "status", "--porcelain=v1", "-z")
+	if err != nil {
+		return overview.WorkingTree{}, err
+	}
+	files := []string{}
+	untracked := []string{}
+	entries := strings.Split(status, "\x00")
+	for index := 0; index < len(entries); index++ {
+		entry := entries[index]
+		if len(entry) < 4 {
+			continue
+		}
+		file := entry[3:]
+		files = append(files, file)
+		if entry[:2] == "??" {
+			untracked = append(untracked, file)
+		}
+		if (entry[0] == 'R' || entry[0] == 'C' || entry[1] == 'R' || entry[1] == 'C') && index+1 < len(entries) {
+			index++
+		}
+	}
+	patch, err := run(ctx, r.root, "diff", "HEAD", "--no-color", "--no-ext-diff", "--find-renames", "--unified=3")
+	if err != nil {
+		return overview.WorkingTree{}, err
+	}
+	for _, file := range untracked {
+		untrackedDiff, diffErr := r.untrackedPatch(ctx, file)
+		if diffErr != nil {
+			return overview.WorkingTree{}, diffErr
+		}
+		if patch != "" && !strings.HasSuffix(patch, "\n") {
+			patch += "\n"
+		}
+		patch += untrackedDiff
+	}
+	return overview.WorkingTree{Dirty: len(files) > 0, Files: files, Patch: patch}, nil
+}
+
+func (r *Repository) untrackedPatch(ctx context.Context, file string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", r.root, "diff", "--no-index", "--no-color", "--no-ext-diff", "--unified=3", "--", "/dev/null", file)
+	output, err := cmd.Output()
+	if err == nil {
+		return string(output), nil
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+		return string(output), nil
+	}
+	return "", commandError(cmd, err)
+}
+
 func (r *Repository) CommitsBetween(ctx context.Context, fromOID, toOID, path string, destination io.Writer) error {
 	args := []string{"-C", r.root, "log", fromOID + ".." + toOID, "--use-mailmap", "--date=iso-strict", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%aI%x1f%s", "--numstat"}
 	if path != "" {

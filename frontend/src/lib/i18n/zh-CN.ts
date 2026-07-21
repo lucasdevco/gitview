@@ -159,6 +159,23 @@ export const zhCN = {
   "Unable to explain activity": "无法解读活动",
   "Summary": "摘要",
   "Supporting commits": "相关提交",
+  "Branches": "分支",
+  "Branch history": "分支历史",
+  "SourceTree-style commit graph and change preview": "SourceTree 风格的提交图与改动预览",
+  "All branches": "所有分支",
+  "Show remote branches": "显示远程分支",
+  "Sort by date": "按日期排序",
+  "Graph": "图表",
+  "Description": "描述",
+  "Date": "日期",
+  "Uncommitted changes": "未提交改动",
+  "Local branches": "本地分支",
+  "Remote branches": "远程分支",
+  "Changed files": "改动文件",
+  "Select a commit to preview its changes.": "选择一条提交以预览改动。",
+  "No diff available": "没有可显示的差异",
+  "Unable to load branch history": "无法加载分支历史",
+  "Open full review": "打开完整审查",
 } as const
 
 export type TranslationKey = keyof typeof zhCN
