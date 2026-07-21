@@ -126,6 +126,54 @@ func TestRepositoryReadsBranchGraphAndWorkingTree(t *testing.T) {
 	}
 }
 
+func TestRepositoryReadsAheadAndBehindFromUpstream(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, nil, "init", "-b", "main")
+	file := filepath.Join(dir, "app.go")
+	if err := os.WriteFile(file, []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-01T10:00:00Z"), "add", "app.go")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-01T10:00:00Z"), "commit", "-m", "base")
+	runGit(t, dir, nil, "branch", "remote-work")
+	runGit(t, dir, nil, "checkout", "remote-work")
+	if err := os.WriteFile(filepath.Join(dir, "remote.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "add", "remote.go")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "commit", "-m", "remote")
+	remoteOID := strings.TrimSpace(gitOutput(t, dir, "rev-parse", "HEAD"))
+	runGit(t, dir, nil, "checkout", "main")
+	if err := os.WriteFile(filepath.Join(dir, "local.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-03T10:00:00Z"), "add", "local.go")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-03T10:00:00Z"), "commit", "-m", "local")
+	runGit(t, dir, nil, "update-ref", "refs/remotes/origin/main", remoteOID)
+	runGit(t, dir, nil, "branch", "-D", "remote-work")
+	runGit(t, dir, nil, "remote", "add", "origin", dir)
+	runGit(t, dir, nil, "config", "branch.main.remote", "origin")
+	runGit(t, dir, nil, "config", "branch.main.merge", "refs/heads/main")
+
+	repository, err := Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	branches, err := repository.Branches(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, branch := range branches {
+		if branch.Name == "main" {
+			if branch.Upstream != "origin/main" || branch.Ahead != 1 || branch.Behind != 1 {
+				t.Fatalf("unexpected tracking status: %+v", branch)
+			}
+			return
+		}
+	}
+	t.Fatal("main branch not found")
+}
+
 func TestRepositoryRecognizesUnbornHEADAsEmpty(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, nil, "init", "-b", "main")
@@ -154,6 +202,15 @@ func runGit(t *testing.T, dir string, env []string, args ...string) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, output)
 	}
+}
+
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	output, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, output)
+	}
+	return string(output)
 }
 
 func authorEnv(name, email, date string) []string {

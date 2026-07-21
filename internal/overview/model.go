@@ -103,6 +103,9 @@ type BranchRef struct {
 	OID      string `json:"oid"`
 	Remote   bool   `json:"remote"`
 	Current  bool   `json:"current"`
+	Upstream string `json:"upstream,omitempty"`
+	Ahead    int    `json:"ahead"`
+	Behind   int    `json:"behind"`
 }
 
 type BranchCommit struct {

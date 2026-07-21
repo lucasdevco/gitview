@@ -164,6 +164,8 @@ export const zhCN = {
   "SourceTree-style commit graph and change preview": "SourceTree 风格的提交图与改动预览",
   "All branches": "所有分支",
   "Show remote branches": "显示远程分支",
+  "Ahead": "超前",
+  "Behind": "落后",
   "Sort by date": "按日期排序",
   "Graph": "图表",
   "Description": "描述",

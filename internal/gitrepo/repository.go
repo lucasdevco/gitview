@@ -8,6 +8,7 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	functionanalysis "gitview/internal/function"
@@ -138,7 +139,7 @@ func (r *Repository) CommitPatch(ctx context.Context, oid string) (string, error
 }
 
 func (r *Repository) Branches(ctx context.Context) ([]overview.BranchRef, error) {
-	output, err := run(ctx, r.root, "for-each-ref", "--sort=refname", "--format=%(refname)%09%(objectname)%09%(HEAD)%09%(symref)", "refs/heads", "refs/remotes")
+	output, err := run(ctx, r.root, "for-each-ref", "--sort=refname", "--format=%(refname)%09%(objectname)%09%(HEAD)%09%(symref)%09%(upstream)", "refs/heads", "refs/remotes")
 	if err != nil {
 		return nil, err
 	}
@@ -147,15 +148,28 @@ func (r *Repository) Branches(ctx context.Context) ([]overview.BranchRef, error)
 		if line == "" {
 			continue
 		}
-		fields := strings.SplitN(line, "\t", 4)
-		if len(fields) != 4 || fields[3] != "" {
+		fields := strings.SplitN(line, "\t", 5)
+		if len(fields) != 5 || fields[3] != "" {
 			continue
 		}
 		fullName := fields[0]
 		remote := strings.HasPrefix(fullName, "refs/remotes/")
 		name := strings.TrimPrefix(fullName, "refs/heads/")
 		name = strings.TrimPrefix(name, "refs/remotes/")
-		branches = append(branches, overview.BranchRef{Name: name, FullName: fullName, OID: fields[1], Remote: remote, Current: fields[2] == "*"})
+		branch := overview.BranchRef{Name: name, FullName: fullName, OID: fields[1], Remote: remote, Current: fields[2] == "*"}
+		if upstream := fields[4]; !remote && upstream != "" {
+			branch.Upstream = strings.TrimPrefix(upstream, "refs/remotes/")
+			branch.Upstream = strings.TrimPrefix(branch.Upstream, "refs/heads/")
+			counts, countErr := run(ctx, r.root, "rev-list", "--left-right", "--count", fullName+"..."+upstream)
+			if countErr == nil {
+				values := strings.Fields(counts)
+				if len(values) == 2 {
+					branch.Ahead, _ = strconv.Atoi(values[0])
+					branch.Behind, _ = strconv.Atoi(values[1])
+				}
+			}
+		}
+		branches = append(branches, branch)
 	}
 	return branches, nil
 }
