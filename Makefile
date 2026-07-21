@@ -1,4 +1,4 @@
-.PHONY: build frontend test check clean
+.PHONY: build frontend watch test check clean
 
 frontend:
 	cd frontend && npm run build
@@ -8,6 +8,9 @@ frontend:
 
 build: frontend
 	go build -o gitview ./cmd/gitview
+
+watch:
+	go tool air
 
 test:
 	go test ./...

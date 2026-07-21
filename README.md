@@ -21,6 +21,12 @@ make build
 
 开发时可以分别运行 Go 服务和 `frontend/` 中的 Vite dev server；Vite 会把 `/api` 代理到 `127.0.0.1:8080`。
 
+也可以使用项目内置的 [Air](https://github.com/air-verse/air) 监听源码变更。连续变更停止 2 秒后会执行一次 `make build`：
+
+```text
+make watch
+```
+
 ## 目录结构
 
 目录职责参考 agentsview，并按当前 MVP 范围精简：
