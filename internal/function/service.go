@@ -405,11 +405,11 @@ func ratio(value, total int) float64 {
 }
 func cloneAnalysis(source analysis) analysis {
 	result := source
-	result.report.Functions = append([]Metric(nil), source.report.Functions...)
-	result.report.Warnings = append([]overview.Warning(nil), source.report.Warnings...)
+	result.report.Functions = append([]Metric{}, source.report.Functions...)
+	result.report.Warnings = append([]overview.Warning{}, source.report.Warnings...)
 	result.history = map[string][]Change{}
 	for key, values := range source.history {
-		result.history[key] = append([]Change(nil), values...)
+		result.history[key] = append([]Change{}, values...)
 	}
 	return result
 }

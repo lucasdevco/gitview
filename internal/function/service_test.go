@@ -62,6 +62,17 @@ func TestMethodIdentityIncludesReceiver(t *testing.T) {
 	}
 }
 
+func TestEmptyFunctionResultUsesEmptySlice(t *testing.T) {
+	service := NewService(fakeGit{files: []SourceFile{}, history: ""})
+	report, err := service.Functions(context.Background(), overview.Filters{}, "hotspot", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Functions == nil || len(report.Functions) != 0 {
+		t.Fatalf("expected an empty function slice, got %#v", report.Functions)
+	}
+}
+
 func TestDateFilterUsesInclusiveAuthorDates(t *testing.T) {
 	source := "package sample\nfunc Parse() {}\n"
 	history := "\x1eold\x1fAda\x1fa@example.com\x1f2026-06-30T10:00:00+08:00\x1fold\n+++ parser.go\n@@ -1 +1 @@\n" +
