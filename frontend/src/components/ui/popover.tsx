@@ -1,5 +1,5 @@
-import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
+import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -38,13 +38,7 @@ function PopoverAnchor({ ...props }: React.ComponentProps<typeof PopoverPrimitiv
 }
 
 function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="popover-header"
-      className={cn("flex flex-col gap-1 text-sm", className)}
-      {...props}
-    />
-  )
+  return <div data-slot="popover-header" className={cn("flex flex-col gap-1 text-sm", className)} {...props} />
 }
 
 function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
@@ -52,21 +46,7 @@ function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
 }
 
 function PopoverDescription({ className, ...props }: React.ComponentProps<"p">) {
-  return (
-    <p
-      data-slot="popover-description"
-      className={cn("text-muted-foreground", className)}
-      {...props}
-    />
-  )
+  return <p data-slot="popover-description" className={cn("text-muted-foreground", className)} {...props} />
 }
 
-export {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverAnchor,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverDescription,
-}
+export { Popover, PopoverAnchor, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger }

@@ -29,12 +29,7 @@ export function validateFileSearch(search: Record<string, unknown>): FileRouteSe
 
 export function validateFunctionSearch(search: Record<string, unknown>): FunctionRouteSearch {
   const result: FunctionRouteSearch = validateOverviewSearch(search)
-  if (
-    search.sort === "churn" ||
-    search.sort === "changes" ||
-    search.sort === "complexity" ||
-    search.sort === "hotspot"
-  )
+  if (search.sort === "churn" || search.sort === "changes" || search.sort === "complexity" || search.sort === "hotspot")
     result.sort = search.sort
   return result
 }

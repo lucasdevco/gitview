@@ -55,13 +55,7 @@ const fallbackPresentation: WarningPresentation = {
   description: "Data quality notice",
 }
 
-export function ReportWarnings({
-  warnings,
-  className,
-}: {
-  warnings: Warning[]
-  className?: string
-}) {
+export function ReportWarnings({ warnings, className }: { warnings: Warning[]; className?: string }) {
   const { t } = useI18n()
   if (warnings.length === 0) return null
 
@@ -73,42 +67,27 @@ export function ReportWarnings({
 
   return (
     <details
-      className={cn(
-        "group overflow-hidden rounded-md border border-warning/30 bg-warning/[0.045]",
-        className,
-      )}
+      className={cn("group overflow-hidden rounded-md border border-warning/30 bg-warning/[0.045]", className)}
       open={attentionCount > 0}
     >
       <summary className="flex min-h-9 cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs marker:hidden select-none [&::-webkit-details-marker]:hidden">
         <TriangleAlert className="size-3.5 shrink-0 text-warning" />
-        <span className="font-medium">
-          {t("Data notices ({count})", { count: warnings.length })}
-        </span>
+        <span className="font-medium">{t("Data notices ({count})", { count: warnings.length })}</span>
         {attentionCount > 0 && (
           <Badge variant="outline" className="h-4 border-warning/40 px-1.5 text-[9px] text-warning">
             {t("{count} need attention", { count: attentionCount })}
           </Badge>
         )}
-        <span className="ml-auto text-[10px] text-muted-foreground group-open:hidden">
-          {t("Show details")}
-        </span>
-        <span className="ml-auto hidden text-[10px] text-muted-foreground group-open:inline">
-          {t("Hide details")}
-        </span>
+        <span className="ml-auto text-[10px] text-muted-foreground group-open:hidden">{t("Show details")}</span>
+        <span className="ml-auto hidden text-[10px] text-muted-foreground group-open:inline">{t("Hide details")}</span>
       </summary>
 
-      <div
-        className="border-t border-warning/20 px-3 py-1"
-        role="region"
-        aria-label={t("Data quality notices")}
-      >
+      <div className="border-t border-warning/20 px-3 py-1" role="region" aria-label={t("Data quality notices")}>
         {items.map(({ warning, presentation }) => {
           const count = warning.message.match(/\d+/)?.[0] ?? "0"
           const Icon = presentation.level === "warning" ? CircleAlert : Info
           const description =
-            presentation === fallbackPresentation
-              ? warning.message
-              : t(presentation.description, { count })
+            presentation === fallbackPresentation ? warning.message : t(presentation.description, { count })
 
           return (
             <div
@@ -128,9 +107,7 @@ export function ReportWarnings({
                     {t(presentation.level === "warning" ? "Needs attention" : "Analysis note")}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-                  {description}
-                </p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{description}</p>
               </div>
             </div>
           )

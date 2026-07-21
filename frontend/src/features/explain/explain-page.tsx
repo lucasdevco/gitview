@@ -2,27 +2,20 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { CalendarSearch, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { ExplainResponse, Insight } from "@/lib/api"
+import { useI18n } from "@/lib/i18n"
 import { explainQueryOptions } from "@/lib/queries"
 import type { ExplainRouteSearch } from "@/lib/url-filters"
-import { useI18n } from "@/lib/i18n"
 
 export function ExplainPage({ search }: { search: ExplainRouteSearch }) {
   const { t } = useI18n()
@@ -38,14 +31,11 @@ export function ExplainPage({ search }: { search: ExplainRouteSearch }) {
   const query = useQuery({ ...explainQueryOptions(month, path), placeholderData: keepPreviousData })
   const report = query.data
   const apply = () => {
-    if (draftMonth)
-      void navigate({ search: { month: draftMonth, path: draftPath.trim() || undefined } })
+    if (draftMonth) void navigate({ search: { month: draftMonth, path: draftPath.trim() || undefined } })
   }
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={
           <>
@@ -54,9 +44,7 @@ export function ExplainPage({ search }: { search: ExplainRouteSearch }) {
               <div className="truncate text-xs font-semibold">
                 {report?.data.repository.name ?? t("Monthly explanation")}
               </div>
-              <div className="truncate text-[10px] text-muted-foreground">
-                {t("Evidence-backed month review")}
-              </div>
+              <div className="truncate text-[10px] text-muted-foreground">{t("Evidence-backed month review")}</div>
             </div>
           </>
         }
@@ -154,9 +142,7 @@ function Results({ report }: { report: ExplainResponse }) {
                 {presentation.label}
               </Badge>
               <h2 className="text-xs font-semibold">{presentation.title}</h2>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {presentation.summary}
-              </p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{presentation.summary}</p>
             </Card>
           )
         })}
@@ -180,9 +166,7 @@ function Results({ report }: { report: ExplainResponse }) {
             <TableBody>
               {paths.map((entry) => (
                 <TableRow key={entry.path}>
-                  <TableCell className="max-w-60 truncate font-mono text-[10px]">
-                    {entry.path}
-                  </TableCell>
+                  <TableCell className="max-w-60 truncate font-mono text-[10px]">{entry.path}</TableCell>
                   <NumberCell>{formatNumber(entry.churn)}</NumberCell>
                 </TableRow>
               ))}
@@ -220,9 +204,7 @@ function Results({ report }: { report: ExplainResponse }) {
                 <TableRow key={commit.oid}>
                   <TableCell className="max-w-72">
                     <div className="truncate">{commit.subject}</div>
-                    <div className="font-mono text-[9px] text-muted-foreground">
-                      {commit.oid.slice(0, 8)}
-                    </div>
+                    <div className="font-mono text-[9px] text-muted-foreground">{commit.oid.slice(0, 8)}</div>
                   </TableCell>
                   <NumberCell>{formatNumber(commit.churn)}</NumberCell>
                 </TableRow>
@@ -241,10 +223,7 @@ function insightPresentation(insight: Insight, t: ReturnType<typeof useI18n>["t"
       return {
         label: t("Contributor insight"),
         title: t("Most active contributor"),
-        summary: t(
-          "{name} led the month with {commits} commits and {churn} lines of churn.",
-          insight.values,
-        ),
+        summary: t("{name} led the month with {commits} commits and {churn} lines of churn.", insight.values),
       }
     case "path":
       return {
@@ -278,15 +257,7 @@ function Metric({ label, value }: { label: string; value: number }) {
     </Card>
   )
 }
-function Panel({
-  title,
-  count,
-  children,
-}: {
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
+function Panel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <Card className="overflow-hidden rounded-md py-0 shadow-none">
       <div className="flex items-center border-b px-3 py-2">
@@ -303,7 +274,5 @@ function NumberCell({ children }: { children: React.ReactNode }) {
   return <TableCell className="text-right font-mono tabular-nums">{children}</TableCell>
 }
 function Empty({ message }: { message: string }) {
-  return (
-    <Card className="p-14 text-center text-xs text-muted-foreground shadow-none">{message}</Card>
-  )
+  return <Card className="p-14 text-center text-xs text-muted-foreground shadow-none">{message}</Card>
 }

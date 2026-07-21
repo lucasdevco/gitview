@@ -1,15 +1,8 @@
-import { useEffect, useState } from "react"
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  FilterX,
-  FolderOpen,
-  FolderTree,
-} from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { format, parse, startOfYear, subDays } from "date-fns"
 import { enUS, zhCN } from "date-fns/locale"
+import { CalendarDays, ChevronLeft, ChevronRight, FilterX, FolderOpen, FolderTree } from "lucide-react"
+import { useEffect, useState } from "react"
 import type { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -17,9 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { OverviewFilters } from "@/lib/api"
-import { emptyFilters, sameFilters } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
 import { directoriesQueryOptions } from "@/lib/queries"
+import { emptyFilters, sameFilters } from "@/lib/url-filters"
 
 type Props = {
   value: OverviewFilters
@@ -57,8 +50,7 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
       setCalendarOpen(false)
       return
     }
-    const since =
-      preset === "year" ? startOfYear(today) : subDays(today, preset === "30d" ? 29 : 89)
+    const since = preset === "year" ? startOfYear(today) : subDays(today, preset === "30d" ? 29 : 89)
     setDraft((current) => ({
       ...current,
       since: format(since, dateFormat),
@@ -67,8 +59,7 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
     setCalendarOpen(false)
   }
 
-  const rangeLabel =
-    draft.since || draft.until ? `${draft.since || "…"} → ${draft.until || "…"}` : t("All history")
+  const rangeLabel = draft.since || draft.until ? `${draft.since || "…"} → ${draft.until || "…"}` : t("All history")
   const hasDateFilter = Boolean(draft.since || draft.until)
   const hasPathFilter = Boolean(draft.path)
   const hasChanges = !sameFilters(draft, value)
@@ -114,11 +105,7 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
                   className="flex-1"
                   onClick={() => applyPreset(preset)}
                 >
-                  {t(
-                    (
-                      { all: "All", "30d": "30 days", "90d": "90 days", year: "This year" } as const
-                    )[preset],
-                  )}
+                  {t(({ all: "All", "30d": "30 days", "90d": "90 days", year: "This year" } as const)[preset])}
                 </Button>
               ))}
             </div>
@@ -158,9 +145,7 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
             <Input
               id="path-filter"
               value={draft.path}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, path: event.target.value }))
-              }
+              onChange={(event) => setDraft((current) => ({ ...current, path: event.target.value }))}
               placeholder={t("e.g. internal/parser")}
               className="h-9 rounded-none border-0 bg-transparent pl-9 text-xs shadow-none focus-visible:ring-0 dark:bg-transparent"
               autoComplete="off"
@@ -217,17 +202,11 @@ export function OverviewFilterBar({ value, loading, onApply }: Props) {
               </div>
               <div className="max-h-56 overflow-y-auto p-1.5">
                 {directories.isPending ? (
-                  <div className="px-2 py-8 text-center text-xs text-muted-foreground">
-                    {t("Loading folders…")}
-                  </div>
+                  <div className="px-2 py-8 text-center text-xs text-muted-foreground">{t("Loading folders…")}</div>
                 ) : directories.isError ? (
-                  <div className="px-2 py-8 text-center text-xs text-destructive">
-                    {t("Unable to load folders")}
-                  </div>
+                  <div className="px-2 py-8 text-center text-xs text-destructive">{t("Unable to load folders")}</div>
                 ) : directories.data.data.directories.length === 0 ? (
-                  <div className="px-2 py-8 text-center text-xs text-muted-foreground">
-                    {t("No subfolders")}
-                  </div>
+                  <div className="px-2 py-8 text-center text-xs text-muted-foreground">{t("No subfolders")}</div>
                 ) : (
                   directories.data.data.directories.map((directory) => {
                     const name = directory.split("/").at(-1) ?? directory

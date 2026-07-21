@@ -1,61 +1,42 @@
-import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ArrowLeft, FileCode2, GitCommitHorizontal, RefreshCw } from "lucide-react"
+import { useEffect, useState } from "react"
+import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { PageHeader } from "@/components/page-header"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { commitQueryOptions } from "@/lib/queries"
-import { useI18n } from "@/lib/i18n"
-import type { PatchFile } from "@/lib/api"
-import type { OverviewRouteSearch } from "@/lib/url-filters"
 import { DiffView } from "@/features/commits/diff-view"
+import type { PatchFile } from "@/lib/api"
+import { useI18n } from "@/lib/i18n"
+import { commitQueryOptions } from "@/lib/queries"
+import type { OverviewRouteSearch } from "@/lib/url-filters"
 
-export function CommitPage({
-  commitId,
-  search,
-}: {
-  commitId: string
-  search: OverviewRouteSearch
-}) {
+export function CommitPage({ commitId, search }: { commitId: string; search: OverviewRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
   const query = useQuery(commitQueryOptions(commitId))
   const report = query.data
   if (!report && query.isPending) return <Loading />
   if (!report)
-    return (
-      <ErrorPage
-        message={query.error instanceof Error ? query.error.message : t("Unable to load commit")}
-      />
-    )
+    return <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load commit")} />
   const { repository, commit } = report.data
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={
           <>
             <Button variant="ghost" size="icon-xs" asChild>
-              <Link
-                to="/"
-                search={search}
-                aria-label={t("Back to overview")}
-                title={t("Back to overview")}
-              >
+              <Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}>
                 <ArrowLeft />
               </Link>
             </Button>
             <GitCommitHorizontal className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
-              <div className="truncate text-xs font-semibold">
-                {commit.subject || commit.oid.slice(0, 8)}
-              </div>
+              <div className="truncate text-xs font-semibold">{commit.subject || commit.oid.slice(0, 8)}</div>
               <div className="truncate font-mono text-[9px] text-muted-foreground">
                 {repository.name} · {commit.oid}
               </div>
@@ -78,9 +59,7 @@ export function CommitPage({
       <main className="flex-1 space-y-4 p-4 pb-10">
         <div>
           <h1 className="text-base font-semibold">{t("Commit review")}</h1>
-          <p className="text-[11px] text-muted-foreground">
-            {t("Code changes introduced by this commit")}
-          </p>
+          <p className="text-[11px] text-muted-foreground">{t("Code changes introduced by this commit")}</p>
         </div>
         <Card className="gap-3 rounded-md p-3 shadow-none">
           <div className="flex flex-wrap items-center gap-2">
@@ -103,16 +82,8 @@ export function CommitPage({
         </Card>
         <section className="grid grid-cols-3 gap-2">
           <Metric label={t("Files changed")} value={formatNumber(commit.files)} />
-          <Metric
-            label={t("Additions")}
-            value={`+${formatNumber(commit.additions)}`}
-            tone="text-success"
-          />
-          <Metric
-            label={t("Deletions")}
-            value={`−${formatNumber(commit.deletions)}`}
-            tone="text-destructive"
-          />
+          <Metric label={t("Additions")} value={`+${formatNumber(commit.additions)}`} tone="text-success" />
+          <Metric label={t("Deletions")} value={`−${formatNumber(commit.deletions)}`} tone="text-destructive" />
         </section>
         <CommitChanges patch={commit.patch} patchFiles={commit.patch_files} />
       </main>
@@ -138,9 +109,7 @@ function CommitChanges({ patch, patchFiles }: { patch: string; patchFiles: Patch
     return (
       <Card className="gap-0 overflow-hidden rounded-md py-0 shadow-none">
         <div className="border-b px-3 py-2 text-xs font-semibold">{t("Unified diff")}</div>
-        <div className="p-12 text-center text-xs text-muted-foreground">
-          {t("No textual changes in this commit.")}
-        </div>
+        <div className="p-12 text-center text-xs text-muted-foreground">{t("No textual changes in this commit.")}</div>
       </Card>
     )
 
@@ -178,15 +147,7 @@ function CommitChanges({ patch, patchFiles }: { patch: string; patchFiles: Patch
   )
 }
 
-function Metric({
-  label,
-  value,
-  tone = "text-foreground",
-}: {
-  label: string
-  value: string
-  tone?: string
-}) {
+function Metric({ label, value, tone = "text-foreground" }: { label: string; value: string; tone?: string }) {
   return (
     <Card className="gap-1 rounded-md px-3 py-2.5 shadow-none">
       <div className={`font-mono text-xl font-semibold ${tone}`}>{value}</div>

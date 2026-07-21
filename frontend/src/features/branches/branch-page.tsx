@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ExternalLink, FileCode2, GitBranch, GitCommitHorizontal, RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useEffect, useMemo, useState } from "react"
 import { PageHeader } from "@/components/page-header"
 import { RepositoryContext } from "@/components/repository-context"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import {
-  readPanelLayout,
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
+  readPanelLayout,
   savePanelLayout,
 } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -50,10 +50,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
       selected === workingTreeID
         ? report.data.working_tree.dirty
         : report.data.commits.some((commit) => commit.oid === selected)
-    if (!valid)
-      setSelected(
-        report.data.working_tree.dirty ? workingTreeID : (report.data.commits[0]?.oid ?? ""),
-      )
+    if (!valid) setSelected(report.data.working_tree.dirty ? workingTreeID : (report.data.commits[0]?.oid ?? ""))
   }, [report, selected])
 
   const patchFiles =
@@ -61,9 +58,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
       ? (report?.data.working_tree.patch_files ?? [])
       : (review.data?.data.commit.patch_files ?? [])
   const files =
-    selected === workingTreeID
-      ? (report?.data.working_tree.files ?? [])
-      : patchFiles.map((file) => file.path)
+    selected === workingTreeID ? (report?.data.working_tree.files ?? []) : patchFiles.map((file) => file.path)
   const patch = patchFiles.find((file) => file.path === selectedFile)?.patch ?? ""
   useEffect(() => setSelectedFile(files[0] ?? ""), [selected, patchFiles])
 
@@ -71,11 +66,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
   if (!report && query.isPending) return <Loading />
   if (!report)
     return (
-      <ErrorPage
-        message={
-          query.error instanceof Error ? query.error.message : t("Unable to load branch history")
-        }
-      />
+      <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load branch history")} />
     )
 
   const { repository, branches, commits, working_tree } = report.data
@@ -86,9 +77,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
 
   return (
     <div className="flex h-[calc(100dvh-2.75rem)] min-h-[33.25rem] flex-col overflow-hidden bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={<RepositoryContext repository={repository} />}
         actions={
@@ -109,9 +98,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
         <select
           className="h-7 min-w-44 rounded border bg-background px-2 text-xs"
           value={branch}
-          onChange={(event) =>
-            void navigate({ search: { branch: event.target.value || undefined } })
-          }
+          onChange={(event) => void navigate({ search: { branch: event.target.value || undefined } })}
         >
           <option value="">{t("All branches")}</option>
           {visibleBranches.map((item) => (
@@ -136,11 +123,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
           </div>
         )}
         <label className="flex items-center gap-1.5 whitespace-nowrap text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showRemote}
-            onChange={(event) => setShowRemote(event.target.checked)}
-          />
+          <input type="checkbox" checked={showRemote} onChange={(event) => setShowRemote(event.target.checked)} />
           {t("Show remote branches")}
         </label>
         <span className="ml-2 text-muted-foreground">{t("Sort by date")}</span>
@@ -214,9 +197,7 @@ export function BranchPage({ search }: { search: BranchRouteSearch }) {
                   )
                 })}
                 {commits.length === 0 && !working_tree.dirty && (
-                  <div className="p-12 text-center text-xs text-muted-foreground">
-                    {t("No commits yet")}
-                  </div>
+                  <div className="p-12 text-center text-xs text-muted-foreground">{t("No commits yet")}</div>
                 )}
               </div>
             </section>
@@ -371,8 +352,7 @@ function layoutGraph(commits: BranchCommit[]) {
     const lanes = Math.max(active.length, lane + 1)
     if (commit.parents[0]) active[lane] = commit.parents[0]
     else active.splice(lane, 1)
-    for (const parent of commit.parents.slice(1))
-      if (!active.includes(parent)) active.splice(lane + 1, 0, parent)
+    for (const parent of commit.parents.slice(1)) if (!active.includes(parent)) active.splice(lane + 1, 0, parent)
     for (let index = active.length - 1; index >= 0; index--)
       if (active.indexOf(active[index]) !== index) active.splice(index, 1)
     return { commit, lane, lanes }

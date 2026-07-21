@@ -1,6 +1,6 @@
+import { ArrowDown, ArrowUp, ArrowUpDown, Maximize2, Minimize2, RotateCcw } from "lucide-react"
 import * as React from "react"
 import { createPortal } from "react-dom"
-import { ArrowDown, ArrowUp, ArrowUpDown, Maximize2, Minimize2, RotateCcw } from "lucide-react"
 
 import { useI18n } from "@/lib/i18n"
 import { compareSortValues } from "@/lib/table-sort"
@@ -19,10 +19,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
   const { t, locale } = useI18n()
   const [sortRules, setSortRules] = React.useState<SortRule[]>([])
   const [isExpanded, setIsExpanded] = React.useState(false)
-  const collator = React.useMemo(
-    () => new Intl.Collator(locale, { numeric: true, sensitivity: "base" }),
-    [locale],
-  )
+  const collator = React.useMemo(() => new Intl.Collator(locale, { numeric: true, sensitivity: "base" }), [locale])
 
   React.useEffect(() => {
     if (!isExpanded) return
@@ -39,19 +36,15 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
   }, [isExpanded])
 
   const childList = React.Children.toArray(children)
-  const headerIndex = childList.findIndex(
-    (child) => React.isValidElement(child) && child.type === TableHeader,
-  )
-  const bodyIndex = childList.findIndex(
-    (child) => React.isValidElement(child) && child.type === TableBody,
-  )
+  const headerIndex = childList.findIndex((child) => React.isValidElement(child) && child.type === TableHeader)
+  const bodyIndex = childList.findIndex((child) => React.isValidElement(child) && child.type === TableBody)
   const header = headerIndex >= 0 ? (childList[headerIndex] as ElementWithChildren) : null
   const body = bodyIndex >= 0 ? (childList[bodyIndex] as ElementWithChildren) : null
 
   const headerRows = header ? React.Children.toArray(header.props.children) : []
-  const firstHeaderRow = headerRows.find(
-    (row) => React.isValidElement(row) && row.type === TableRow,
-  ) as ElementWithChildren | undefined
+  const firstHeaderRow = headerRows.find((row) => React.isValidElement(row) && row.type === TableRow) as
+    | ElementWithChildren
+    | undefined
   const columnCount = firstHeaderRow ? countTableHeads(firstHeaderRow.props.children) : 0
   const canSort = sortable && Boolean(header && body && columnCount)
 
@@ -64,9 +57,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
       }
       if (!existing) return [...current, { column, direction: "ascending" }]
       if (existing.direction === "ascending") {
-        return current.map((rule) =>
-          rule.column === column ? { ...rule, direction: "descending" } : rule,
-        )
+        return current.map((rule) => (rule.column === column ? { ...rule, direction: "descending" } : rule))
       }
       return current.filter((rule) => rule.column !== column)
     })
@@ -113,9 +104,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
                     ) : (
                       <ArrowUpDown className="size-3 opacity-30 group-hover/sort:opacity-70" />
                     )}
-                    {rule && sortRules.length > 1 && (
-                      <span className="text-[9px] text-primary">{ruleIndex + 1}</span>
-                    )}
+                    {rule && sortRules.length > 1 && <span className="text-[9px] text-primary">{ruleIndex + 1}</span>}
                   </button>,
                 )
               })
@@ -182,10 +171,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
           {isExpanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
         </button>
       </div>
-      <div
-        data-slot="table-container"
-        className={cn("relative w-full overflow-auto", isExpanded && "min-h-0 flex-1")}
-      >
+      <div data-slot="table-container" className={cn("relative w-full overflow-auto", isExpanded && "min-h-0 flex-1")}>
         <table
           data-slot="table"
           className={cn(
@@ -217,12 +203,7 @@ function Table({ className, children, sortable = true, ...props }: TableProps) {
   return content
 }
 
-function compareRows(
-  left: React.ReactNode,
-  right: React.ReactNode,
-  column: number,
-  collator: Intl.Collator,
-) {
+function compareRows(left: React.ReactNode, right: React.ReactNode, column: number, collator: Intl.Collator) {
   const leftValue = getCellValue(left, column)
   const rightValue = getCellValue(right, column)
   return compareSortValues(leftValue, rightValue, collator)
@@ -232,8 +213,7 @@ function countTableHeads(nodes: React.ReactNode): number {
   return React.Children.toArray(nodes).reduce<number>((count, node) => {
     if (!React.isValidElement(node)) return count
     if (node.type === TableHead) return count + 1
-    if (node.type === React.Fragment)
-      return count + countTableHeads((node as ElementWithChildren).props.children)
+    if (node.type === React.Fragment) return count + countTableHeads((node as ElementWithChildren).props.children)
     return count
   }, 0)
 }
@@ -258,8 +238,7 @@ function collectText(node: React.ReactNode): string {
   if (!React.isValidElement(node)) return ""
   const props = node.props as Record<string, unknown>
   const explicitValue = props.sortValue ?? props["data-sort-value"]
-  if (typeof explicitValue === "string" || typeof explicitValue === "number")
-    return String(explicitValue)
+  if (typeof explicitValue === "string" || typeof explicitValue === "number") return String(explicitValue)
   const children = props.children as React.ReactNode
   if (children !== undefined) return React.Children.toArray(children).map(collectText).join(" ")
   for (const key of ["name", "path", "value", "title"]) {
@@ -279,13 +258,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return (
-    <tbody
-      data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
-      {...props}
-    />
-  )
+  return <tbody data-slot="table-body" className={cn("[&_tr:last-child]:border-0", className)} {...props} />
 }
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
@@ -342,12 +315,8 @@ function TableCell({ className, sortValue, ...props }: TableCellProps) {
 
 function TableCaption({ className, ...props }: React.ComponentProps<"caption">) {
   return (
-    <caption
-      data-slot="table-caption"
-      className={cn("mt-4 text-sm text-muted-foreground", className)}
-      {...props}
-    />
+    <caption data-slot="table-caption" className={cn("mt-4 text-sm text-muted-foreground", className)} {...props} />
   )
 }
 
-export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption }
+export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow }

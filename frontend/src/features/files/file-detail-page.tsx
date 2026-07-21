@@ -1,27 +1,20 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Bot, RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import { fileQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type FileRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { fileQueryOptions } from "@/lib/queries"
+import { type FileRouteSearch, filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
 
 export function FileDetailPage({ search }: { search: FileRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
@@ -35,24 +28,17 @@ export function FileDetailPage({ search }: { search: FileRouteSearch }) {
   })
   const report = query.data
 
-  if (!file)
-    return <ErrorPage message={t("Choose a file from Hotspots or Ownership to inspect it.")} />
+  if (!file) return <ErrorPage message={t("Choose a file from Hotspots or Ownership to inspect it.")} />
   if (!report && query.isPending) return <Loading />
   if (!report)
-    return (
-      <ErrorPage
-        message={query.error instanceof Error ? query.error.message : t("Unable to load file")}
-      />
-    )
+    return <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load file")} />
 
   const { repository, contributors, recent_commits, recent_days } = report.data
   const metric = report.data.file
   const listSearch = searchFromFilters(filters)
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={
           <>
@@ -142,9 +128,7 @@ export function FileDetailPage({ search }: { search: FileRouteSearch }) {
                         className="inline-flex items-center gap-1 hover:underline"
                       >
                         {entry.contributor.name}
-                        {entry.contributor.is_bot && (
-                          <Bot className="size-3 text-muted-foreground" />
-                        )}
+                        {entry.contributor.is_bot && <Bot className="size-3 text-muted-foreground" />}
                       </Link>
                       <div className="text-[9px] text-muted-foreground">
                         {t("Last active {date}", { date: formatDate(entry.last_active) })}
@@ -231,15 +215,7 @@ function OwnershipCard({ title, name, share }: { title: string; name: string; sh
     </Card>
   )
 }
-function Panel({
-  title,
-  count,
-  children,
-}: {
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
+function Panel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <Card className="gap-2 overflow-hidden rounded-md py-0 shadow-none">
       <div className="flex items-center border-b px-3 py-2">

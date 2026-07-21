@@ -13,9 +13,7 @@ export function RepositoryContext({ repository }: { repository: Repository }) {
         <div className="truncate text-xs font-semibold">{repository.name}</div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="max-w-[44vw] truncate text-[10px] text-muted-foreground">
-              {repository.root}
-            </div>
+            <div className="max-w-[44vw] truncate text-[10px] text-muted-foreground">{repository.root}</div>
           </TooltipTrigger>
           <TooltipContent>{repository.root}</TooltipContent>
         </Tooltip>

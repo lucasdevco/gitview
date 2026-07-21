@@ -1,27 +1,21 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
 import { RepositoryContext } from "@/components/repository-context"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import { functionsQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type FunctionRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { functionsQueryOptions } from "@/lib/queries"
+import { type FunctionRouteSearch, filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
+
 const sorts = ["hotspot", "churn", "changes", "complexity"] as const
 
 export function FunctionListPage({ search }: { search: FunctionRouteSearch }) {
@@ -36,18 +30,12 @@ export function FunctionListPage({ search }: { search: FunctionRouteSearch }) {
   const report = query.data
   if (!report && query.isPending) return <Loading />
   if (!report)
-    return (
-      <ErrorPage
-        message={query.error instanceof Error ? query.error.message : t("Unable to load functions")}
-      />
-    )
+    return <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load functions")} />
   const { repository, analyzer_version, total } = report.data
   const functions = report.data.functions ?? []
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={<RepositoryContext repository={repository} />}
         actions={
@@ -139,9 +127,7 @@ export function FunctionListPage({ search }: { search: FunctionRouteSearch }) {
                     </TableCell>
                     <TableCell className="max-w-40">
                       <div className="truncate text-xs">{fn.owner.name || "—"}</div>
-                      <div className="text-[9px] text-muted-foreground">
-                        {(fn.owner_share * 100).toFixed(1)}%
-                      </div>
+                      <div className="text-[9px] text-muted-foreground">{(fn.owner_share * 100).toFixed(1)}%</div>
                     </TableCell>
                     <NumberCell>{fn.hotspot_score.toFixed(1)}</NumberCell>
                     <NumberCell>{fn.changes}</NumberCell>

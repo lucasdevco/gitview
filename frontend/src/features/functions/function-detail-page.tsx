@@ -1,34 +1,21 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import { functionQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type OverviewRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { functionQueryOptions } from "@/lib/queries"
+import { filtersFromSearch, type OverviewRouteSearch, searchFromFilters } from "@/lib/url-filters"
 
-export function FunctionDetailPage({
-  functionId,
-  search,
-}: {
-  functionId: string
-  search: OverviewRouteSearch
-}) {
+export function FunctionDetailPage({ functionId, search }: { functionId: string; search: OverviewRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
   const filters = filtersFromSearch(search)
   const navigate = useNavigate({ from: "/functions/$functionId" })
@@ -40,19 +27,13 @@ export function FunctionDetailPage({
   if (!report && query.isPending) return <Loading />
   if (!report)
     return (
-      <ErrorPage
-        message={
-          query.error instanceof Error ? query.error.message : t("Unable to load function history")
-        }
-      />
+      <ErrorPage message={query.error instanceof Error ? query.error.message : t("Unable to load function history")} />
     )
   const { repository, history, analyzer_version } = report.data
   const fn = report.data.function
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={
           <>
@@ -67,9 +48,7 @@ export function FunctionDetailPage({
               </Link>
             </Button>
             <div className="min-w-0">
-              <div className="truncate font-mono text-[11px] font-semibold">
-                {fn.qualified_name}
-              </div>
+              <div className="truncate font-mono text-[11px] font-semibold">{fn.qualified_name}</div>
               <div className="truncate text-[10px] text-muted-foreground">
                 {repository.name} · {fn.path}:{fn.start_line}–{fn.end_line}
               </div>
@@ -155,9 +134,7 @@ export function FunctionDetailPage({
                       </Link>
                     </TableCell>
                     <NumberCell tone="text-success">+{formatNumber(change.additions)}</NumberCell>
-                    <NumberCell tone="text-destructive">
-                      −{formatNumber(change.deletions)}
-                    </NumberCell>
+                    <NumberCell tone="text-destructive">−{formatNumber(change.deletions)}</NumberCell>
                     <NumberCell>{formatNumber(change.churn)}</NumberCell>
                     <TableCell>
                       <Badge variant="outline">{change.confidence}</Badge>
@@ -181,22 +158,10 @@ export function FunctionDetailPage({
   )
 }
 
-function Metric({
-  label,
-  value,
-  compact = false,
-}: {
-  label: string
-  value: string
-  compact?: boolean
-}) {
+function Metric({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
   return (
     <Card className="min-w-0 gap-1 rounded-md px-3 py-2.5 shadow-none">
-      <div
-        className={`${compact ? "truncate text-sm" : "font-mono text-xl"} font-semibold tabular-nums`}
-      >
-        {value}
-      </div>
+      <div className={`${compact ? "truncate text-sm" : "font-mono text-xl"} font-semibold tabular-nums`}>{value}</div>
       <div className="text-[10px] text-muted-foreground">{label}</div>
     </Card>
   )

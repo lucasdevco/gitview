@@ -1,5 +1,5 @@
 import { GripHorizontal, GripVertical } from "lucide-react"
-import { Group, Panel, Separator, type Layout } from "react-resizable-panels"
+import { Group, type Layout, Panel, Separator } from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
 

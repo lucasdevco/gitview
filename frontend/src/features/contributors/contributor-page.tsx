@@ -2,40 +2,22 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, Bot, RefreshCw } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import { contributorQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type OverviewRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { contributorQueryOptions } from "@/lib/queries"
+import { filtersFromSearch, type OverviewRouteSearch, searchFromFilters } from "@/lib/url-filters"
 
-export function ContributorPage({
-  contributorId,
-  search,
-}: {
-  contributorId: string
-  search: OverviewRouteSearch
-}) {
+export function ContributorPage({ contributorId, search }: { contributorId: string; search: OverviewRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
   const chartConfig = {
     commits: { label: t("Commits"), color: "var(--chart-1)" },
@@ -55,9 +37,7 @@ export function ContributorPage({
       <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background p-6">
         <Alert variant="destructive" className="max-w-lg">
           <AlertTitle>{t("Unable to load contributor")}</AlertTitle>
-          <AlertDescription>
-            {query.error instanceof Error ? query.error.message : t("Unknown error")}
-          </AlertDescription>
+          <AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription>
         </Alert>
       </main>
     )
@@ -69,12 +49,7 @@ export function ContributorPage({
         context={
           <>
             <Button variant="ghost" size="icon-xs" asChild>
-              <Link
-                to="/"
-                search={search}
-                aria-label={t("Back to overview")}
-                title={t("Back to overview")}
-              >
+              <Link to="/" search={search} aria-label={t("Back to overview")} title={t("Back to overview")}>
                 <ArrowLeft />
               </Link>
             </Button>
@@ -120,18 +95,8 @@ export function ContributorPage({
         <ReportWarnings warnings={report.warnings} />
         <section className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Metric label={t("Commits")} value={contributor.commits} />
-          <Metric
-            label={t("Additions")}
-            value={contributor.additions}
-            tone="text-success"
-            prefix="+"
-          />
-          <Metric
-            label={t("Deletions")}
-            value={contributor.deletions}
-            tone="text-destructive"
-            prefix="−"
-          />
+          <Metric label={t("Additions")} value={contributor.additions} tone="text-success" prefix="+" />
+          <Metric label={t("Deletions")} value={contributor.deletions} tone="text-destructive" prefix="−" />
           <Metric label={t("Churn")} value={contributor.churn} />
         </section>
         <Card className="gap-3 rounded-md py-3 shadow-none">
@@ -144,13 +109,7 @@ export function ContributorPage({
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
                 <YAxis yAxisId="commits" width={28} tickLine={false} axisLine={false} />
-                <YAxis
-                  yAxisId="churn"
-                  orientation="right"
-                  width={42}
-                  tickLine={false}
-                  axisLine={false}
-                />
+                <YAxis yAxisId="churn" orientation="right" width={42} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar yAxisId="commits" dataKey="commits" fill="var(--color-commits)" />
                 <Bar yAxisId="churn" dataKey="churn" fill="var(--color-churn)" />
@@ -171,13 +130,9 @@ export function ContributorPage({
               <TableBody>
                 {top_paths.map((path) => (
                   <TableRow key={path.path}>
-                    <TableCell className="max-w-80 truncate font-mono text-[10px]">
-                      {path.path}
-                    </TableCell>
+                    <TableCell className="max-w-80 truncate font-mono text-[10px]">{path.path}</TableCell>
                     <TableCell className="text-right font-mono">{path.commits}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatNumber(path.churn)}
-                    </TableCell>
+                    <TableCell className="text-right font-mono">{formatNumber(path.churn)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -208,9 +163,7 @@ export function ContributorPage({
                         {commit.oid.slice(0, 8)} · {formatDate(commit.authored_at)}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatNumber(commit.churn)}
-                    </TableCell>
+                    <TableCell className="text-right font-mono">{formatNumber(commit.churn)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -252,15 +205,7 @@ function Metric({
     </Card>
   )
 }
-function Panel({
-  title,
-  count,
-  children,
-}: {
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
+function Panel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <Card className="gap-2 overflow-hidden rounded-md py-0 shadow-none">
       <div className="flex items-center border-b px-3 py-2">

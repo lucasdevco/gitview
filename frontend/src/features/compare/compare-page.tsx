@@ -2,28 +2,21 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { GitCompareArrows, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
 import type { CompareResponse } from "@/lib/api"
-import { compareQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type CompareRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { compareQueryOptions } from "@/lib/queries"
+import { type CompareRouteSearch, filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
 
 export function ComparePage({ search }: { search: CompareRouteSearch }) {
   const { t } = useI18n()
@@ -48,9 +41,7 @@ export function ComparePage({ search }: { search: CompareRouteSearch }) {
   }
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={
           <>
@@ -59,9 +50,7 @@ export function ComparePage({ search }: { search: CompareRouteSearch }) {
               <div className="truncate text-xs font-semibold">
                 {report?.data.repository.name ?? t("Revision comparison")}
               </div>
-              <div className="truncate text-[10px] text-muted-foreground">
-                {t("Git revision range")}
-              </div>
+              <div className="truncate text-[10px] text-muted-foreground">{t("Git revision range")}</div>
             </div>
           </>
         }
@@ -114,11 +103,7 @@ export function ComparePage({ search }: { search: CompareRouteSearch }) {
               }}
             />
           </div>
-          <Button
-            className="self-end"
-            disabled={!draftFrom.trim() || !draftTo.trim()}
-            onClick={applyRefs}
-          >
+          <Button className="self-end" disabled={!draftFrom.trim() || !draftTo.trim()} onClick={applyRefs}>
             {t("Compare")}
           </Button>
         </Card>
@@ -259,9 +244,7 @@ function Results({ report }: { report: CompareResponse }) {
               <TableRow key={commit.oid}>
                 <TableCell>
                   <div>{commit.subject}</div>
-                  <div className="font-mono text-[9px] text-muted-foreground">
-                    {commit.oid.slice(0, 8)}
-                  </div>
+                  <div className="font-mono text-[9px] text-muted-foreground">{commit.oid.slice(0, 8)}</div>
                 </TableCell>
                 <TableCell>{commit.author}</TableCell>
                 <NumberCell>{formatNumber(commit.churn)}</NumberCell>
@@ -310,7 +293,5 @@ function NumberCell({ children }: { children: React.ReactNode }) {
   return <TableCell className="text-right font-mono tabular-nums">{children}</TableCell>
 }
 function Empty({ message }: { message: string }) {
-  return (
-    <Card className="p-14 text-center text-xs text-muted-foreground shadow-none">{message}</Card>
-  )
+  return <Card className="p-14 text-center text-xs text-muted-foreground shadow-none">{message}</Card>
 }

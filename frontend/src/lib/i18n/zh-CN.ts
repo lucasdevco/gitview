@@ -39,11 +39,9 @@ export const zhCN = {
   "{count} source file(s) contained parse errors. Functions recovered from valid syntax are still included.":
     "{count} 个源码文件存在解析错误，已保留从有效语法中识别出的函数。",
   "Binary changes were excluded": "已排除二进制改动",
-  "{count} binary file change(s) were excluded from line totals.":
-    "行数统计已排除 {count} 个二进制文件改动。",
+  "{count} binary file change(s) were excluded from line totals.": "行数统计已排除 {count} 个二进制文件改动。",
   "Dependency source was excluded": "已排除依赖源码",
-  "{count} dependency source file(s) were excluded from function analysis.":
-    "函数分析已排除 {count} 个依赖源码文件。",
+  "{count} dependency source file(s) were excluded from function analysis.": "函数分析已排除 {count} 个依赖源码文件。",
   "Function history uses approximate matching": "函数历史使用近似匹配",
   "Moves, renames, and function boundary changes may not be fully attributed.":
     "移动、重命名和函数边界变化可能无法被完整归属。",
@@ -56,8 +54,7 @@ export const zhCN = {
   "Monthly activity by contributor": "按贡献者查看每月活动",
   "Activity metric": "活动指标",
   "Each color represents a contributor.": "每种颜色代表一位贡献者。",
-  "Showing the top 8 contributors; the rest are grouped as Other.":
-    "显示前 8 位贡献者，其余归入“其他”。",
+  "Showing the top 8 contributors; the rest are grouped as Other.": "显示前 8 位贡献者，其余归入“其他”。",
   "Other contributors": "其他贡献者",
   Person: "人员",
   "Last active": "最近活跃",
@@ -134,14 +131,12 @@ export const zhCN = {
   "Bus factor 80%": "巴士因子 80%",
   Risk: "风险",
   "Unable to load {mode}": "无法加载{mode}",
-  "Choose a file from Hotspots or Ownership to inspect it.":
-    "请从热点或所有权页面选择一个文件进行查看。",
+  "Choose a file from Hotspots or Ownership to inspect it.": "请从热点或所有权页面选择一个文件进行查看。",
   "Unable to load file": "无法加载文件",
   "Back to file hotspots": "返回文件热点",
   "{repository} file evidence": "{repository} 文件证据",
   "File analysis": "文件分析",
-  "Change evidence and knowledge concentration for the selected history":
-    "所选历史范围内的变更证据和知识集中度",
+  "Change evidence and knowledge concentration for the selected history": "所选历史范围内的变更证据和知识集中度",
   "Hotspot score": "热点评分",
   "Ownership risk": "所有权风险",
   "Recent owner · {days}d": "近期所有者 · {days} 天",
@@ -152,10 +147,8 @@ export const zhCN = {
   "No recent activity": "近期无活动",
   "Go function analysis": "Go 函数分析",
   "Function hotspots": "函数热点",
-  "Current Go AST symbols with explainable history attribution":
-    "当前 Go AST 符号及可解释的历史归因",
-  "Current Tree-sitter symbols with explainable history attribution":
-    "当前 Tree-sitter 多语言符号及可解释的历史归因",
+  "Current Go AST symbols with explainable history attribution": "当前 Go AST 符号及可解释的历史归因",
+  "Current Tree-sitter symbols with explainable history attribution": "当前 Tree-sitter 多语言符号及可解释的历史归因",
   "Sort by": "排序",
   hotspot: "热点",
   churn: "变更量",
@@ -178,16 +171,14 @@ export const zhCN = {
   Lines: "行数",
   "Owner share": "所有者占比",
   "Attributed commits": "归因提交",
-  "No history hunks overlap this function in the selected window.":
-    "所选时间范围内没有历史代码块与此函数重叠。",
+  "No history hunks overlap this function in the selected window.": "所选时间范围内没有历史代码块与此函数重叠。",
   Confidence: "置信度",
   "Explain monthly activity": "解读每月活动",
   "Monthly activity explanation": "每月活动解读",
   "Monthly explanation": "月度解读",
   "Evidence-backed month review": "基于证据的月度回顾",
   "Explain a month": "解读一个月份",
-  "A structured summary backed by contributors, paths, and commits":
-    "由贡献者、路径和提交证据支撑的结构化摘要",
+  "A structured summary backed by contributors, paths, and commits": "由贡献者、路径和提交证据支撑的结构化摘要",
   "Calendar month": "日历月份",
   "Repository path · optional": "仓库路径 · 可选",
   "Select a calendar month to explain.": "请选择要解读的日历月份。",
@@ -195,8 +186,7 @@ export const zhCN = {
   "Unable to explain month": "无法解读该月份",
   "Most changed paths": "变更最多的路径",
   "Leading contributors": "主要贡献者",
-  "Choose a month to explain its activity and supporting commits.":
-    "选择一个月份，查看其活动说明和相关提交。",
+  "Choose a month to explain its activity and supporting commits.": "选择一个月份，查看其活动说明和相关提交。",
   Month: "月份",
   "Explain month": "解读月份",
   "Unable to explain activity": "无法解读活动",
@@ -222,8 +212,7 @@ export const zhCN = {
   "Unable to load branch history": "无法加载分支历史",
   "Open full review": "打开完整审查",
   "Click to sort; hold Shift to sort by multiple columns": "点击排序；按住 Shift 可进行多列排序",
-  "Click a column to sort · Shift-click for multiple columns":
-    "点击列标题排序 · Shift 点击可多列排序",
+  "Click a column to sort · Shift-click for multiple columns": "点击列标题排序 · Shift 点击可多列排序",
   "Sorted by {count} columns": "已按 {count} 列排序",
   "Clear sorting": "清除排序",
   "View table full screen": "全屏查看表格",

@@ -1,10 +1,4 @@
-export function DiffView({
-  patch,
-  className = "max-h-[calc(100vh-19rem)]",
-}: {
-  patch: string
-  className?: string
-}) {
+export function DiffView({ patch, className = "max-h-[calc(100vh-19rem)]" }: { patch: string; className?: string }) {
   return (
     <div className={`${className} overflow-auto bg-muted/20 font-mono text-[11px] leading-5`}>
       <pre className="min-w-max py-2">

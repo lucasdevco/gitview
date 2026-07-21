@@ -1,16 +1,13 @@
-import { useLayoutEffect, useState, type ReactNode } from "react"
+import { type ReactNode, useLayoutEffect, useState } from "react"
 import { createPortal } from "react-dom"
 
 export function PageHeader({ context, actions }: { context: ReactNode; actions?: ReactNode }) {
-  const [targets, setTargets] = useState<{ context: HTMLElement; actions: HTMLElement } | null>(
-    null,
-  )
+  const [targets, setTargets] = useState<{ context: HTMLElement; actions: HTMLElement } | null>(null)
 
   useLayoutEffect(() => {
     const contextTarget = document.getElementById("app-header-context")
     const actionsTarget = document.getElementById("app-header-actions")
-    if (contextTarget && actionsTarget)
-      setTargets({ context: contextTarget, actions: actionsTarget })
+    if (contextTarget && actionsTarget) setTargets({ context: contextTarget, actions: actionsTarget })
   }, [])
 
   if (!targets) return null

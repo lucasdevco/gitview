@@ -1,37 +1,25 @@
-import { useMemo, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useSearch } from "@tanstack/react-router"
 import { AlertCircle, FilterX, GitCommitHorizontal, RefreshCw } from "lucide-react"
+import { useMemo, useState } from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { PageHeader } from "@/components/page-header"
+import { ReportWarnings } from "@/components/report-warnings"
+import { RepositoryContext } from "@/components/repository-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { PageHeader } from "@/components/page-header"
-import { ReportWarnings } from "@/components/report-warnings"
-import { RepositoryContext } from "@/components/repository-context"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
 import type { Contributor, Month, OverviewFilters } from "@/lib/api"
+import { useI18n } from "@/lib/i18n"
 import { overviewQueryOptions } from "@/lib/queries"
 import { filtersFromSearch, searchFromFilters } from "@/lib/url-filters"
-import { useI18n } from "@/lib/i18n"
 
 export function App() {
   const { t, formatDate, formatNumber } = useI18n()
@@ -41,11 +29,7 @@ export function App() {
   const query = useQuery({ ...overviewQueryOptions(filters), placeholderData: keepPreviousData })
   const report = query.data
   const error =
-    query.error instanceof Error
-      ? query.error.message
-      : query.error
-        ? t("Unable to load repository overview")
-        : null
+    query.error instanceof Error ? query.error.message : query.error ? t("Unable to load repository overview") : null
   const loading = query.isFetching
 
   const applyFilters = (next: OverviewFilters) => {
@@ -59,9 +43,7 @@ export function App() {
   const { repository, totals, monthly_activity, contributors, recent_commits } = report.data
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {loading && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {loading && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={<RepositoryContext repository={repository} />}
         actions={
@@ -78,9 +60,7 @@ export function App() {
         }
       />
 
-      <main
-        className={`flex-1 space-y-4 p-4 pb-10 transition-opacity ${loading ? "opacity-85" : ""}`}
-      >
+      <main className={`flex-1 space-y-4 p-4 pb-10 transition-opacity ${loading ? "opacity-85" : ""}`}>
         <div className="flex items-end justify-between">
           <div>
             <h1 className="text-base font-semibold tracking-tight">{t("Repository overview")}</h1>
@@ -107,18 +87,8 @@ export function App() {
         <section className="grid grid-cols-2 gap-2 md:grid-cols-5">
           <MetricCard label={t("Commits")} value={totals.commits} />
           <MetricCard label={t("Contributors")} value={totals.contributors} />
-          <MetricCard
-            label={t("Additions")}
-            value={totals.additions}
-            tone="text-success"
-            prefix="+"
-          />
-          <MetricCard
-            label={t("Deletions")}
-            value={totals.deletions}
-            tone="text-destructive"
-            prefix="−"
-          />
+          <MetricCard label={t("Additions")} value={totals.additions} tone="text-success" prefix="+" />
+          <MetricCard label={t("Deletions")} value={totals.deletions} tone="text-destructive" prefix="−" />
           <MetricCard label={t("Churn")} value={totals.churn} />
         </section>
 
@@ -200,9 +170,7 @@ export function App() {
                             {commit.oid.slice(0, 8)} · {formatDate(commit.authored_at)}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-28 truncate text-muted-foreground">
-                          {commit.author}
-                        </TableCell>
+                        <TableCell className="max-w-28 truncate text-muted-foreground">{commit.author}</TableCell>
                         <NumericCell>{formatNumber(commit.churn)}</NumericCell>
                       </TableRow>
                     ))}
@@ -242,13 +210,7 @@ const CONTRIBUTOR_COLORS = [
   "oklch(0.64 0.13 115)",
 ]
 
-function MonthlyContributorChart({
-  months,
-  contributors,
-}: {
-  months: Month[]
-  contributors: Contributor[]
-}) {
+function MonthlyContributorChart({ months, contributors }: { months: Month[]; contributors: Contributor[] }) {
   const { t } = useI18n()
   const [metric, setMetric] = useState<"commits" | "churn">("commits")
   const chart = useMemo(() => {
@@ -262,8 +224,7 @@ function MonthlyContributorChart({
       name: person.name,
       color: CONTRIBUTOR_COLORS[index],
     }))
-    if (hasOther)
-      series.push({ id: "other", name: t("Other contributors"), color: "var(--muted-foreground)" })
+    if (hasOther) series.push({ id: "other", name: t("Other contributors"), color: "var(--muted-foreground)" })
     const data = months.map((month) => {
       const row: Record<string, string | number> = { month: month.month }
       for (const person of month.contributors) {
@@ -319,12 +280,7 @@ function MonthlyContributorChart({
           <BarChart data={chart.data} margin={{ left: 0, right: 8, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={24} />
-            <YAxis
-              width={42}
-              tickLine={false}
-              axisLine={false}
-              allowDecimals={metric !== "commits"}
-            />
+            <YAxis width={42} tickLine={false} axisLine={false} allowDecimals={metric !== "commits"} />
             <ChartTooltip content={<ChartTooltipContent />} />
             {chart.series.map((item, index) => (
               <Bar
@@ -339,14 +295,8 @@ function MonthlyContributorChart({
         </ChartContainer>
         <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 px-2">
           {chart.series.map((item) => (
-            <span
-              key={item.id}
-              className="flex max-w-40 items-center gap-1 text-[10px] text-muted-foreground"
-            >
-              <span
-                className="size-2 shrink-0 rounded-[2px]"
-                style={{ backgroundColor: item.color }}
-              />
+            <span key={item.id} className="flex max-w-40 items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
               <span className="truncate" title={item.name}>
                 {item.name}
               </span>
@@ -380,15 +330,7 @@ function MetricCard({
   )
 }
 
-function DataPanel({
-  title,
-  count,
-  children,
-}: {
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
+function DataPanel({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <Card className="gap-2 overflow-hidden rounded-md py-0 shadow-none">
       <div className="flex items-center border-b px-3 py-2">
@@ -411,9 +353,7 @@ function EmptyRepository() {
     <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none">
       <GitCommitHorizontal className="size-8 text-muted-foreground" />
       <CardTitle className="text-sm">{t("No commits yet")}</CardTitle>
-      <p className="text-xs text-muted-foreground">
-        {t("Create the first commit, then refresh this page.")}
-      </p>
+      <p className="text-xs text-muted-foreground">{t("Create the first commit, then refresh this page.")}</p>
     </Card>
   )
 }
@@ -424,9 +364,7 @@ function NoMatchingHistory() {
     <Card className="items-center gap-2 rounded-md py-16 text-center shadow-none">
       <FilterX className="size-8 text-muted-foreground" />
       <CardTitle className="text-sm">{t("No matching history")}</CardTitle>
-      <p className="text-xs text-muted-foreground">
-        {t("Adjust or clear the current date and path filters.")}
-      </p>
+      <p className="text-xs text-muted-foreground">{t("Adjust or clear the current date and path filters.")}</p>
     </Card>
   )
 }

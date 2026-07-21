@@ -295,10 +295,7 @@ export type ExplainResponse = {
 }
 type ErrorResponse = { error?: { code?: string; message?: string } }
 
-export async function fetchOverview(
-  filters: OverviewFilters,
-  signal?: AbortSignal,
-): Promise<OverviewResponse> {
+export async function fetchOverview(filters: OverviewFilters, signal?: AbortSignal): Promise<OverviewResponse> {
   const suffix = filterSuffix(filters)
   const response = await fetch(`/api/v1/overview${suffix}`, {
     signal,
@@ -317,10 +314,7 @@ export async function fetchOverview(
   return response.json() as Promise<OverviewResponse>
 }
 
-export async function fetchDirectories(
-  parent: string,
-  signal?: AbortSignal,
-): Promise<DirectoryListResponse> {
+export async function fetchDirectories(parent: string, signal?: AbortSignal): Promise<DirectoryListResponse> {
   const query = new URLSearchParams()
   if (parent) query.set("parent", parent)
   const response = await fetch(`/api/v1/paths${query.size > 0 ? `?${query.toString()}` : ""}`, {
@@ -331,10 +325,7 @@ export async function fetchDirectories(
   return response.json() as Promise<DirectoryListResponse>
 }
 
-export async function fetchCommit(
-  oid: string,
-  signal?: AbortSignal,
-): Promise<CommitReviewResponse> {
+export async function fetchCommit(oid: string, signal?: AbortSignal): Promise<CommitReviewResponse> {
   const response = await fetch(`/api/v1/commits/${encodeURIComponent(oid)}`, {
     signal,
     headers: { Accept: "application/json" },
@@ -359,10 +350,10 @@ export async function fetchContributor(
   filters: OverviewFilters,
   signal?: AbortSignal,
 ): Promise<ContributorResponse> {
-  const response = await fetch(
-    `/api/v1/contributors/${encodeURIComponent(id)}${filterSuffix(filters)}`,
-    { signal, headers: { Accept: "application/json" } },
-  )
+  const response = await fetch(`/api/v1/contributors/${encodeURIComponent(id)}${filterSuffix(filters)}`, {
+    signal,
+    headers: { Accept: "application/json" },
+  })
   if (!response.ok) throw await responseError(response, "Contributor request failed")
   return response.json() as Promise<ContributorResponse>
 }
@@ -415,10 +406,10 @@ export async function fetchFunction(
   filters: OverviewFilters,
   signal?: AbortSignal,
 ): Promise<FunctionDetailResponse> {
-  const response = await fetch(
-    `/api/v1/functions/${encodeURIComponent(id)}${filterSuffix(filters)}`,
-    { signal, headers: { Accept: "application/json" } },
-  )
+  const response = await fetch(`/api/v1/functions/${encodeURIComponent(id)}${filterSuffix(filters)}`, {
+    signal,
+    headers: { Accept: "application/json" },
+  })
   if (!response.ok) throw await responseError(response, "Function history request failed")
   return response.json() as Promise<FunctionDetailResponse>
 }
@@ -440,11 +431,7 @@ export async function fetchCompare(
   return response.json() as Promise<CompareResponse>
 }
 
-export async function fetchExplain(
-  month: string,
-  path: string,
-  signal?: AbortSignal,
-): Promise<ExplainResponse> {
+export async function fetchExplain(month: string, path: string, signal?: AbortSignal): Promise<ExplainResponse> {
   const query = new URLSearchParams({ month })
   if (path) query.set("path", path)
   const response = await fetch(`/api/v1/explain?${query.toString()}`, {

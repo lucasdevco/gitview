@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react"
 
 import { en } from "./en"
-import { zhCN } from "./zh-CN"
 import type { TranslationKey } from "./zh-CN"
+import { zhCN } from "./zh-CN"
 
 export type Language = "en" | "zh-CN"
 
@@ -50,9 +50,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       },
       formatNumber: (number) => new Intl.NumberFormat(locale).format(number),
       formatDate: (value) =>
-        value
-          ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value))
-          : "—",
+        value ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value)) : "—",
     }),
     [language, locale],
   )

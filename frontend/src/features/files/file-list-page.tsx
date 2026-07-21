@@ -1,35 +1,22 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { RefreshCw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PageHeader } from "@/components/page-header"
 import { ReportWarnings } from "@/components/report-warnings"
 import { RepositoryContext } from "@/components/repository-context"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { OverviewFilterBar } from "@/features/overview/overview-filters"
-import { filesQueryOptions } from "@/lib/queries"
-import { filtersFromSearch, searchFromFilters, type OverviewRouteSearch } from "@/lib/url-filters"
 import { useI18n } from "@/lib/i18n"
+import { filesQueryOptions } from "@/lib/queries"
+import { filtersFromSearch, type OverviewRouteSearch, searchFromFilters } from "@/lib/url-filters"
 
-export function FileListPage({
-  mode,
-  search,
-}: {
-  mode: "hotspots" | "ownership"
-  search: OverviewRouteSearch
-}) {
+export function FileListPage({ mode, search }: { mode: "hotspots" | "ownership"; search: OverviewRouteSearch }) {
   const { t, formatDate, formatNumber } = useI18n()
   const filters = filtersFromSearch(search)
   const navigate = useNavigate()
@@ -45,9 +32,7 @@ export function FileListPage({
               mode: t(mode === "hotspots" ? "Hotspots" : "Ownership"),
             })}
           </AlertTitle>
-          <AlertDescription>
-            {query.error instanceof Error ? query.error.message : t("Unknown error")}
-          </AlertDescription>
+          <AlertDescription>{query.error instanceof Error ? query.error.message : t("Unknown error")}</AlertDescription>
         </Alert>
       </main>
     )
@@ -55,9 +40,7 @@ export function FileListPage({
   const isHotspot = mode === "hotspots"
   return (
     <div className="flex min-h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      {query.isFetching && (
-        <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />
-      )}
+      {query.isFetching && <Progress value={35} className="fixed inset-x-0 top-11 z-[105] h-0.5 rounded-none" />}
       <PageHeader
         context={<RepositoryContext repository={repository} />}
         actions={
@@ -75,9 +58,7 @@ export function FileListPage({
       />
       <main className="flex-1 space-y-4 p-4 pb-10">
         <div>
-          <h1 className="text-base font-semibold">
-            {t(isHotspot ? "File hotspots" : "File ownership")}
-          </h1>
+          <h1 className="text-base font-semibold">{t(isHotspot ? "File hotspots" : "File ownership")}</h1>
           <p className="text-[11px] text-muted-foreground">
             {isHotspot
               ? t("Change frequency and churn with direct evidence")
@@ -150,10 +131,7 @@ export function FileListPage({
                       </>
                     ) : (
                       <>
-                        <OwnerCell
-                          name={file.historical_owner.name}
-                          share={file.historical_share}
-                        />
+                        <OwnerCell name={file.historical_owner.name} share={file.historical_share} />
                         <OwnerCell name={file.recent_owner.name || "—"} share={file.recent_share} />
                         <NumberCell>{file.bus_factor_80}</NumberCell>
                         <NumberCell>{file.ownership_risk.toFixed(1)}%</NumberCell>
