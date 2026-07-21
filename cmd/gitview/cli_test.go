@@ -24,6 +24,23 @@ func TestServeCommandParsesConfiguration(t *testing.T) {
 	}
 }
 
+func TestServeCommandShortAliasParsesConfiguration(t *testing.T) {
+	var received serveConfig
+	command := newCommand(func(_ context.Context, config serveConfig) error {
+		received = config
+		return nil
+	})
+	command.Writer = &bytes.Buffer{}
+	command.ErrWriter = &bytes.Buffer{}
+
+	if err := command.Run(context.Background(), []string{"gitview", "s", "/repo", "--port", "9090"}); err != nil {
+		t.Fatal(err)
+	}
+	if received.Repository != "/repo" || received.Port != 9090 {
+		t.Fatalf("unexpected config: %+v", received)
+	}
+}
+
 func TestServeCommandUsesDefaults(t *testing.T) {
 	var received serveConfig
 	command := newCommand(func(_ context.Context, config serveConfig) error {

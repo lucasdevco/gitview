@@ -24,6 +24,7 @@ func newCommand(action serveAction) *cli.Command {
 		Commands: []*cli.Command{
 			{
 				Name:      "serve",
+				Aliases:   []string{"s"},
 				Usage:     "start the local Git analysis web interface",
 				ArgsUsage: "[repository]",
 				Flags: []cli.Flag{
