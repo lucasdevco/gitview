@@ -8,7 +8,6 @@ export type Language = "en" | "zh-CN"
 
 const storageKey = "gitview-language"
 
-
 type Variables = Record<string, string | number>
 
 type I18nValue = {
@@ -37,20 +36,26 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = language
   }, [language])
 
-  const value = useMemo<I18nValue>(() => ({
-    language,
-    locale,
-    setLanguage,
-    t: (key, variables = {}) => {
-      const template = language === "zh-CN" ? zhCN[key] : en[key]
-      return Object.entries(variables).reduce(
-        (result, [name, replacement]) => result.replaceAll(`{${name}}`, String(replacement)),
-        template,
-      )
-    },
-    formatNumber: (number) => new Intl.NumberFormat(locale).format(number),
-    formatDate: (value) => value ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value)) : "—",
-  }), [language, locale])
+  const value = useMemo<I18nValue>(
+    () => ({
+      language,
+      locale,
+      setLanguage,
+      t: (key, variables = {}) => {
+        const template = language === "zh-CN" ? zhCN[key] : en[key]
+        return Object.entries(variables).reduce(
+          (result, [name, replacement]) => result.replaceAll(`{${name}}`, String(replacement)),
+          template,
+        )
+      },
+      formatNumber: (number) => new Intl.NumberFormat(locale).format(number),
+      formatDate: (value) =>
+        value
+          ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value))
+          : "—",
+    }),
+    [language, locale],
+  )
 
   return <I18nContext value={value}>{children}</I18nContext>
 }

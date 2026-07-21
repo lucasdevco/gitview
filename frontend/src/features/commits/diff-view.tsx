@@ -1,7 +1,27 @@
-export function DiffView({ patch, className = "max-h-[calc(100vh-19rem)]" }: { patch: string; className?: string }) {
-  return <div className={`${className} overflow-auto bg-muted/20 font-mono text-[11px] leading-5`}>
-    <pre className="min-w-max py-2">{parseDiffLines(patch).map((line, index) => <div key={index} className={lineClass(line.text)}><span className="inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">{line.oldLine ?? ""}</span><span className="mr-3 inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">{line.newLine ?? ""}</span><span className="pr-4">{line.text || " "}</span></div>)}</pre>
-  </div>
+export function DiffView({
+  patch,
+  className = "max-h-[calc(100vh-19rem)]",
+}: {
+  patch: string
+  className?: string
+}) {
+  return (
+    <div className={`${className} overflow-auto bg-muted/20 font-mono text-[11px] leading-5`}>
+      <pre className="min-w-max py-2">
+        {parseDiffLines(patch).map((line, index) => (
+          <div key={index} className={lineClass(line.text)}>
+            <span className="inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">
+              {line.oldLine ?? ""}
+            </span>
+            <span className="mr-3 inline-block w-10 select-none border-r pr-2 text-right text-muted-foreground/60">
+              {line.newLine ?? ""}
+            </span>
+            <span className="pr-4">{line.text || " "}</span>
+          </div>
+        ))}
+      </pre>
+    </div>
+  )
 }
 
 function parseDiffLines(patch: string) {

@@ -1,12 +1,33 @@
 import { queryOptions } from "@tanstack/react-query"
-import { fetchBranches, fetchCommit, fetchCompare, fetchContributor, fetchDirectories, fetchExplain, fetchFile, fetchFiles, fetchFunction, fetchFunctions, fetchOverview, type OverviewFilters } from "@/lib/api"
+import {
+  fetchBranches,
+  fetchCommit,
+  fetchCompare,
+  fetchContributor,
+  fetchDirectories,
+  fetchExplain,
+  fetchFile,
+  fetchFiles,
+  fetchFunction,
+  fetchFunctions,
+  fetchOverview,
+  type OverviewFilters,
+} from "@/lib/api"
 
 export function branchesQueryOptions(branch: string) {
-  return queryOptions({ queryKey: ["branches", branch], queryFn: ({ signal }) => fetchBranches(branch, signal), staleTime: 30_000 })
+  return queryOptions({
+    queryKey: ["branches", branch],
+    queryFn: ({ signal }) => fetchBranches(branch, signal),
+    staleTime: 30_000,
+  })
 }
 
 export function commitQueryOptions(oid: string) {
-  return queryOptions({ queryKey: ["commit", oid], queryFn: ({ signal }) => fetchCommit(oid, signal), staleTime: 5 * 60_000 })
+  return queryOptions({
+    queryKey: ["commit", oid],
+    queryFn: ({ signal }) => fetchCommit(oid, signal),
+    staleTime: 5 * 60_000,
+  })
 }
 
 export function directoriesQueryOptions(parent: string) {
@@ -50,17 +71,35 @@ export function contributorQueryOptions(id: string, filters: OverviewFilters) {
 }
 
 export function functionsQueryOptions(sort: string, filters: OverviewFilters) {
-  return queryOptions({ queryKey: ["functions", sort, filters], queryFn: ({ signal }) => fetchFunctions(sort, filters, signal), staleTime: 30_000 })
+  return queryOptions({
+    queryKey: ["functions", sort, filters],
+    queryFn: ({ signal }) => fetchFunctions(sort, filters, signal),
+    staleTime: 30_000,
+  })
 }
 
 export function functionQueryOptions(id: string, filters: OverviewFilters) {
-  return queryOptions({ queryKey: ["function", id, filters], queryFn: ({ signal }) => fetchFunction(id, filters, signal), staleTime: 30_000 })
+  return queryOptions({
+    queryKey: ["function", id, filters],
+    queryFn: ({ signal }) => fetchFunction(id, filters, signal),
+    staleTime: 30_000,
+  })
 }
 
 export function compareQueryOptions(from: string, to: string, filters: OverviewFilters) {
-  return queryOptions({ queryKey: ["compare", from, to, filters], queryFn: ({ signal }) => fetchCompare(from, to, filters, signal), staleTime: 30_000, enabled: from !== "" && to !== "" })
+  return queryOptions({
+    queryKey: ["compare", from, to, filters],
+    queryFn: ({ signal }) => fetchCompare(from, to, filters, signal),
+    staleTime: 30_000,
+    enabled: from !== "" && to !== "",
+  })
 }
 
 export function explainQueryOptions(month: string, path: string) {
-  return queryOptions({ queryKey: ["explain", month, path], queryFn: ({ signal }) => fetchExplain(month, path, signal), staleTime: 30_000, enabled: month !== "" })
+  return queryOptions({
+    queryKey: ["explain", month, path],
+    queryFn: ({ signal }) => fetchExplain(month, path, signal),
+    staleTime: 30_000,
+    enabled: month !== "",
+  })
 }

@@ -7,7 +7,9 @@ export type OverviewRouteSearch = {
 }
 
 export type FileRouteSearch = OverviewRouteSearch & { file?: string }
-export type FunctionRouteSearch = OverviewRouteSearch & { sort?: "hotspot" | "churn" | "changes" | "complexity" }
+export type FunctionRouteSearch = OverviewRouteSearch & {
+  sort?: "hotspot" | "churn" | "changes" | "complexity"
+}
 export type CompareRouteSearch = OverviewRouteSearch & { from?: string; to?: string }
 export type ExplainRouteSearch = { month?: string; path?: string }
 
@@ -27,12 +29,26 @@ export function validateFileSearch(search: Record<string, unknown>): FileRouteSe
 
 export function validateFunctionSearch(search: Record<string, unknown>): FunctionRouteSearch {
   const result: FunctionRouteSearch = validateOverviewSearch(search)
-  if (search.sort === "churn" || search.sort === "changes" || search.sort === "complexity" || search.sort === "hotspot") result.sort = search.sort
+  if (
+    search.sort === "churn" ||
+    search.sort === "changes" ||
+    search.sort === "complexity" ||
+    search.sort === "hotspot"
+  )
+    result.sort = search.sort
   return result
 }
 
-export function validateCompareSearch(search: Record<string, unknown>): CompareRouteSearch { return { ...validateOverviewSearch(search), from: stringValue(search.from), to: stringValue(search.to) } }
-export function validateExplainSearch(search: Record<string, unknown>): ExplainRouteSearch { return { month: stringValue(search.month), path: stringValue(search.path) } }
+export function validateCompareSearch(search: Record<string, unknown>): CompareRouteSearch {
+  return {
+    ...validateOverviewSearch(search),
+    from: stringValue(search.from),
+    to: stringValue(search.to),
+  }
+}
+export function validateExplainSearch(search: Record<string, unknown>): ExplainRouteSearch {
+  return { month: stringValue(search.month), path: stringValue(search.path) }
+}
 
 export function filtersFromSearch(search: OverviewRouteSearch): OverviewFilters {
   return {
