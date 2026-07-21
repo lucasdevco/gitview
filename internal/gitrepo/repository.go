@@ -90,14 +90,14 @@ func (r *Repository) IsShallow(ctx context.Context) (bool, error) {
 	return strings.TrimSpace(value) == "true", err
 }
 
-func (r *Repository) GoFiles(ctx context.Context, path string) ([]functionanalysis.SourceFile, error) {
+func (r *Repository) SourceFiles(ctx context.Context, path string) ([]functionanalysis.SourceFile, error) {
 	output, err := run(ctx, r.root, "ls-tree", "-r", "-z", "--name-only", "HEAD")
 	if err != nil {
 		return nil, err
 	}
 	files := []functionanalysis.SourceFile{}
 	for _, candidate := range strings.Split(output, "\x00") {
-		if candidate == "" || !strings.HasSuffix(candidate, ".go") || !withinPath(candidate, path) {
+		if candidate == "" || !functionanalysis.IsSupportedSource(candidate) || !withinPath(candidate, path) {
 			continue
 		}
 		content, readErr := run(ctx, r.root, "show", "HEAD:"+candidate)
@@ -109,12 +109,14 @@ func (r *Repository) GoFiles(ctx context.Context, path string) ([]functionanalys
 	return files, nil
 }
 
-func (r *Repository) GoHistory(ctx context.Context, path string, destination io.Writer) error {
+func (r *Repository) FunctionHistory(ctx context.Context, path string, destination io.Writer) error {
 	args := []string{"-C", r.root, "log", "HEAD", "--root", "--use-mailmap", "--date=iso-strict", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%aI%x1f%s", "-p", "--unified=0", "--no-renames", "--no-prefix", "--"}
 	if path != "" {
 		args = append(args, ":(literal)"+path)
 	} else {
-		args = append(args, "*.go")
+		for _, extension := range functionanalysis.SupportedExtensions() {
+			args = append(args, "*"+extension)
+		}
 	}
 	cmd := exec.CommandContext(ctx, "git", args...)
 	var stderr bytes.Buffer

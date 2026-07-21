@@ -67,6 +67,40 @@ func TestOpenRejectsNonRepository(t *testing.T) {
 	}
 }
 
+func TestRepositoryReadsSupportedFunctionSourcesAndHistory(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, nil, "init", "-b", "main")
+	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"main.go":    "package main\nfunc main() {}\n",
+		"web/app.ts": "export function load() {}\n",
+		"notes.txt":  "not source code\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "add", ".")
+	runGit(t, dir, authorEnv("Ada", "ada@example.com", "2026-01-02T10:00:00Z"), "commit", "-m", "add sources")
+	repository, err := Open(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := repository.SourceFiles(context.Background(), "")
+	if err != nil || len(files) != 2 {
+		t.Fatalf("unexpected source files: %#v, %v", files, err)
+	}
+	var history bytes.Buffer
+	if err := repository.FunctionHistory(context.Background(), "", &history); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(history.String(), "main.go") || !strings.Contains(history.String(), "web/app.ts") || strings.Contains(history.String(), "notes.txt") {
+		t.Fatalf("unexpected function history: %s", history.String())
+	}
+}
+
 func TestRepositoryListsTrackedDirectories(t *testing.T) {
 	dir := t.TempDir()
 	runGit(t, dir, nil, "init", "-b", "main")

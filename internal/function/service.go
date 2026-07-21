@@ -6,9 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io"
 	"math"
 	"regexp"
@@ -23,8 +20,8 @@ import (
 
 type Git interface {
 	Repository(context.Context) (overview.Repository, error)
-	GoFiles(context.Context, string) ([]SourceFile, error)
-	GoHistory(context.Context, string, io.Writer) error
+	SourceFiles(context.Context, string) ([]SourceFile, error)
+	FunctionHistory(context.Context, string, io.Writer) error
 	IsShallow(context.Context) (bool, error)
 }
 
@@ -101,15 +98,15 @@ func (s *Service) analyze(ctx context.Context, filters overview.Filters) (analys
 	if repo.Empty {
 		return analysis{report: Report{Repository: repo, AnalysisContext: contextValue, Functions: []Metric{}, Warnings: []overview.Warning{}, AnalyzerVersion: AnalyzerVersion}, history: map[string][]Change{}}, nil
 	}
-	files, err := s.git.GoFiles(ctx, filters.Path)
+	files, err := s.git.SourceFiles(ctx, filters.Path)
 	if err != nil {
-		return analysis{}, fmt.Errorf("read Go snapshot: %w", err)
+		return analysis{}, fmt.Errorf("read source snapshot: %w", err)
 	}
 	symbols, parseFailures, vendorExcluded := parseFiles(files)
 	reader, writer := io.Pipe()
 	done := make(chan error, 1)
 	go func() {
-		commandErr := s.git.GoHistory(ctx, filters.Path, writer)
+		commandErr := s.git.FunctionHistory(ctx, filters.Path, writer)
 		_ = writer.CloseWithError(commandErr)
 		done <- commandErr
 	}()
@@ -117,18 +114,18 @@ func (s *Service) analyze(ctx context.Context, filters overview.Filters) (analys
 	_ = reader.Close()
 	commandErr := <-done
 	if commandErr != nil {
-		return analysis{}, fmt.Errorf("read Go history: %w", commandErr)
+		return analysis{}, fmt.Errorf("read function history: %w", commandErr)
 	}
 	if historyErr != nil {
-		return analysis{}, fmt.Errorf("parse Go history: %w", historyErr)
+		return analysis{}, fmt.Errorf("parse function history: %w", historyErr)
 	}
 	metrics := finalize(symbols)
-	warnings := []overview.Warning{{Code: "function_lineage_probable", Message: "Function history is mapped from Git hunks to current Go AST ranges; moves, renames, and boundary changes may be incomplete."}}
+	warnings := []overview.Warning{{Code: "function_lineage_probable", Message: "Function history is mapped from Git hunks to current Tree-sitter ranges; moves, renames, and boundary changes may be incomplete."}}
 	if parseFailures > 0 {
-		warnings = append(warnings, overview.Warning{Code: "go_parse_failed", Message: fmt.Sprintf("%d Go file(s) could not be parsed and were excluded.", parseFailures)})
+		warnings = append(warnings, overview.Warning{Code: "source_parse_failed", Message: fmt.Sprintf("%d source file(s) contained parse errors; recoverable functions were still analyzed.", parseFailures)})
 	}
 	if vendorExcluded > 0 {
-		warnings = append(warnings, overview.Warning{Code: "vendor_excluded", Message: fmt.Sprintf("%d vendored Go file(s) were excluded.", vendorExcluded)})
+		warnings = append(warnings, overview.Warning{Code: "dependency_source_excluded", Message: fmt.Sprintf("%d dependency source file(s) were excluded.", vendorExcluded)})
 	}
 	if shallow, shallowErr := s.git.IsShallow(ctx); shallowErr == nil && shallow {
 		warnings = append(warnings, overview.Warning{Code: "shallow_repository", Message: "Repository history is shallow; function history may be incomplete."})
@@ -138,83 +135,6 @@ func (s *Service) analyze(ctx context.Context, filters overview.Filters) (analys
 	s.cache[key] = result
 	s.mu.Unlock()
 	return cloneAnalysis(result), nil
-}
-
-func parseFiles(files []SourceFile) (map[string][]*symbol, int, int) {
-	byPath := map[string][]*symbol{}
-	failures, vendor := 0, 0
-	for _, file := range files {
-		if isVendor(file.Path) {
-			vendor++
-			continue
-		}
-		set := token.NewFileSet()
-		parsed, err := parser.ParseFile(set, file.Path, file.Content, parser.SkipObjectResolution)
-		if err != nil {
-			failures++
-			continue
-		}
-		for _, declaration := range parsed.Decls {
-			fn, ok := declaration.(*ast.FuncDecl)
-			if !ok || fn.Body == nil {
-				continue
-			}
-			name := fn.Name.Name
-			qualified := name
-			if fn.Recv != nil && len(fn.Recv.List) > 0 {
-				qualified = receiverName(fn.Recv.List[0].Type) + "." + name
-			}
-			start, end := set.Position(fn.Pos()).Line, set.Position(fn.End()).Line
-			signatureEnd := fn.Type.End()
-			if fn.Body != nil {
-				signatureEnd = fn.Body.Lbrace
-			}
-			startOffset, endOffset := set.Position(fn.Type.Pos()).Offset, set.Position(signatureEnd).Offset
-			signature := strings.TrimSpace(string(file.Content[startOffset:endOffset]))
-			metric := Metric{ID: symbolID(file.Path, qualified, signature), Name: name, QualifiedName: qualified, Signature: signature, Path: file.Path, StartLine: start, EndLine: end, Lines: end - start + 1, Complexity: complexity(fn), LineageConfidence: "probable"}
-			byPath[file.Path] = append(byPath[file.Path], &symbol{metric: metric, contributors: map[string]*contribution{}, seenCommits: map[string]struct{}{}})
-		}
-	}
-	return byPath, failures, vendor
-}
-
-func receiverName(expression ast.Expr) string {
-	switch value := expression.(type) {
-	case *ast.Ident:
-		return value.Name
-	case *ast.StarExpr:
-		return receiverName(value.X)
-	case *ast.IndexExpr:
-		return receiverName(value.X)
-	case *ast.IndexListExpr:
-		return receiverName(value.X)
-	default:
-		return "receiver"
-	}
-}
-
-func complexity(fn *ast.FuncDecl) int {
-	value := 1
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		switch current := node.(type) {
-		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
-			value++
-		case *ast.CaseClause:
-			if current.List != nil {
-				value++
-			}
-		case *ast.CommClause:
-			if current.Comm != nil {
-				value++
-			}
-		case *ast.BinaryExpr:
-			if current.Op == token.LAND || current.Op == token.LOR {
-				value++
-			}
-		}
-		return true
-	})
-	return value
 }
 
 var hunkPattern = regexp.MustCompile(`^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@`)
@@ -353,9 +273,6 @@ func personID(name, email string) string {
 func isBot(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.Contains(lower, "[bot]") || strings.HasSuffix(lower, " bot")
-}
-func isVendor(path string) bool {
-	return strings.HasPrefix(path, "vendor/") || strings.Contains(path, "/vendor/")
 }
 func countValue(raw string) int {
 	if raw == "" {

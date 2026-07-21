@@ -18,8 +18,8 @@ type fakeGit struct {
 func (f fakeGit) Repository(context.Context) (overview.Repository, error) {
 	return overview.Repository{Name: "fixture", Head: "head"}, nil
 }
-func (f fakeGit) GoFiles(context.Context, string) ([]SourceFile, error) { return f.files, nil }
-func (f fakeGit) GoHistory(_ context.Context, _ string, output io.Writer) error {
+func (f fakeGit) SourceFiles(context.Context, string) ([]SourceFile, error) { return f.files, nil }
+func (f fakeGit) FunctionHistory(_ context.Context, _ string, output io.Writer) error {
 	_, err := io.Copy(output, bytes.NewBufferString(f.history))
 	return err
 }
@@ -59,6 +59,34 @@ func TestMethodIdentityIncludesReceiver(t *testing.T) {
 	symbols, failures, _ := parseFiles([]SourceFile{{Path: "parser.go", Content: []byte(source)}})
 	if failures != 0 || len(symbols["parser.go"]) != 1 || symbols["parser.go"][0].metric.QualifiedName != "Parser.Parse" {
 		t.Fatalf("unexpected symbols: %#v, failures %d", symbols, failures)
+	}
+}
+
+func TestTreeSitterParsesSupportedLanguages(t *testing.T) {
+	tests := []struct {
+		path       string
+		source     string
+		qualified  string
+		language   string
+		complexity int
+	}{
+		{path: "app.js", source: "const load = async (ready) => { if (ready) return 1; return 0 }\n", qualified: "load", language: "JavaScript", complexity: 2},
+		{path: "app.ts", source: "class Store { load(ready: boolean) { return ready ? 1 : 0 } }\n", qualified: "Store.load", language: "TypeScript", complexity: 2},
+		{path: "app.py", source: "class Store:\n    def load(self, ready):\n        if ready:\n            return 1\n        return 0\n", qualified: "Store.load", language: "Python", complexity: 2},
+		{path: "Store.java", source: "class Store { int load(boolean ready) { return ready ? 1 : 0; } }\n", qualified: "Store.load", language: "Java", complexity: 2},
+		{path: "src/lib.rs", source: "struct Store; impl Store { fn load(&self, ready: bool) -> i32 { if ready { 1 } else { 0 } } }\n", qualified: "Store.load", language: "Rust", complexity: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.language, func(t *testing.T) {
+			symbols, failures, _ := parseFiles([]SourceFile{{Path: test.path, Content: []byte(test.source)}})
+			if failures != 0 || len(symbols[test.path]) != 1 {
+				t.Fatalf("unexpected symbols: %#v, failures %d", symbols, failures)
+			}
+			metric := symbols[test.path][0].metric
+			if metric.QualifiedName != test.qualified || metric.Language != test.language || metric.Complexity != test.complexity {
+				t.Fatalf("unexpected metric: %+v", metric)
+			}
+		})
 	}
 }
 

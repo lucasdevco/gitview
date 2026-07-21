@@ -2,7 +2,7 @@ package function
 
 import "gitview/internal/overview"
 
-const AnalyzerVersion = "go-ast-current-range-v1"
+const AnalyzerVersion = "tree-sitter-current-range-v1"
 
 type SourceFile struct {
 	Path    string
@@ -31,6 +31,7 @@ type Metric struct {
 	Name              string                       `json:"name"`
 	QualifiedName     string                       `json:"qualified_name"`
 	Signature         string                       `json:"signature"`
+	Language          string                       `json:"language"`
 	Path              string                       `json:"path"`
 	StartLine         int                          `json:"start_line"`
 	EndLine           int                          `json:"end_line"`
