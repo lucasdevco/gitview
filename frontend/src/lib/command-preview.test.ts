@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
+  abortMergeCommand,
+  abortRebaseCommand,
   checkoutCommand,
   commitCommand,
   createBranchCommand,
   deleteBranchesCommand,
   discardHunkCommand,
   formatGitCommand,
+  mergeCommand,
+  rebaseCommand,
   renameBranchCommand,
   setUpstreamCommand,
   stageCommand,
@@ -107,5 +111,22 @@ describe("stash", () => {
   it("names the stash by its reflog entry", () => {
     expect(stashApplyCommand({ index: 0, oid: "abc" })).toBe("git stash apply 'stash@{0}'")
     expect(stashDropCommand({ index: 1, oid: "abc" })).toBe("git stash drop 'stash@{1}'")
+  })
+})
+
+describe("merge and rebase", () => {
+  it("adds the chosen merge options in the backend's order", () => {
+    expect(mergeCommand({ branch: "topic" })).toBe("git merge topic")
+    expect(mergeCommand({ branch: "topic", noFastForward: true, log: true })).toBe("git merge --no-ff --log topic")
+    expect(mergeCommand({ branch: "origin/main", noCommit: true })).toBe("git merge --no-commit origin/main")
+  })
+
+  it("rebases the current branch onto the chosen one", () => {
+    expect(rebaseCommand({ onto: "topic" })).toBe("git rebase topic")
+  })
+
+  it("aborts the merge or rebase in progress", () => {
+    expect(abortMergeCommand()).toBe("git merge --abort")
+    expect(abortRebaseCommand()).toBe("git rebase --abort")
   })
 })

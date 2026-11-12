@@ -20,6 +20,16 @@ const KNOWN: Record<string, Omit<OperationErrorDescription, "output">> = {
     advice: "等其他 git 操作结束后重试；若没有其他 git 进程在运行，可删除 .git/index.lock。",
   },
   hook_failed: { summary: "仓库的 hook 拒绝了此操作", advice: "修复 hook 报告的问题后重试。" },
+  conflict: { summary: "出现冲突", advice: "在“文件状态”中解决冲突文件，或中止操作。" },
+  nothing_in_progress: { summary: "没有进行中的合并或变基", advice: "它可能已在别处完成或中止。" },
+}
+
+/**
+ * Whether a merge or rebase stopped on conflicts. The repository is then
+ * merging or rebasing, which the workbench shows; it is not a failure.
+ */
+export function isConflict(error: Error): boolean {
+  return error instanceof ApiError && error.code === "conflict"
 }
 
 export function describeOperationError(error: Error): OperationErrorDescription {

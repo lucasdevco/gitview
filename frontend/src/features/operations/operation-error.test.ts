@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { ApiError } from "@/lib/api/client"
-import { describeOperationError } from "./operation-error"
+import { describeOperationError, isConflict } from "./operation-error"
 
 const checkoutOutput = `error: Your local changes to the following files would be overwritten by checkout:
 \ta.txt
@@ -30,5 +30,15 @@ describe("describeOperationError", () => {
     expect(summary("hook_failed")).toBe("仓库的 hook 拒绝了此操作")
     expect(summary("branch_not_merged")).toBe("分支尚未完全合并")
     expect(summary("git_failed")).toBe("操作失败")
+    expect(summary("conflict")).toBe("出现冲突")
+    expect(summary("nothing_in_progress")).toBe("没有进行中的合并或变基")
+  })
+})
+
+describe("isConflict", () => {
+  it("recognises a merge or rebase that stopped on conflicts", () => {
+    expect(isConflict(new ApiError(409, "conflict", "m"))).toBe(true)
+    expect(isConflict(new ApiError(409, "local_changes", "m"))).toBe(false)
+    expect(isConflict(new Error("conflict"))).toBe(false)
   })
 })

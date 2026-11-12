@@ -90,6 +90,27 @@ export type StashPushRequest = {
  */
 export type StashRequest = { index: number; oid: string }
 
+/** `merge`: merge a branch into the current branch. */
+export type MergeRequest = {
+  /** Local or remote-tracking branch to merge, e.g. "topic" or "origin/main". */
+  branch: string
+  /** Create a merge commit even when a fast-forward is possible (`--no-ff`). */
+  noFastForward?: boolean
+  /** List the merged commits' subjects in the merge commit message (`--log`). */
+  log?: boolean
+  /**
+   * Stop before the merge commit, leaving the merge in progress (`--no-commit`).
+   * A fast-forward still happens unless `noFastForward` is set.
+   */
+  noCommit?: boolean
+}
+
+/** `rebase`: replay the current branch's own commits onto another branch. */
+export type RebaseRequest = { onto: string }
+
+/** The abort operations take no options. */
+export type AbortRequest = Record<string, never>
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
@@ -116,6 +137,15 @@ export type OperationRequests = {
   stashApply: StashRequest
   /** Delete a stash; cannot be undone. */
   stashDrop: StashRequest
+
+  // Merge and rebase. A conflict fails with code `conflict` and leaves the
+  // repository merging or rebasing (RepoSummary.state).
+  merge: MergeRequest
+  /** Abandon the merge in progress (`nothing_in_progress` when there is none). */
+  abortMerge: AbortRequest
+  rebase: RebaseRequest
+  /** Abandon the rebase in progress (`nothing_in_progress` when there is none). */
+  abortRebase: AbortRequest
 }
 
 export type OperationName = keyof OperationRequests

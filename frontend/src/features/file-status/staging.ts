@@ -17,19 +17,25 @@ export function pendingFileCount(status?: WorktreeStatus): number {
 
 /**
  * The operation that moves `files` out of `area`: unstaged files are staged,
- * staged files unstaged. Conflicted files are skipped (staging one marks the
- * conflict resolved), and a staged rename unstages both of its paths.
+ * staged files unstaged, and a staged rename unstages both of its paths.
+ * Staging a conflicted file marks its conflict resolved with whatever the
+ * file now contains; `resolves` names those files so the view can confirm
+ * first.
  */
 export function toggleRequest(
   area: Area,
   files: readonly FileChange[],
-): { op: "stage" | "unstage"; request: FilesRequest } | undefined {
-  const paths =
-    area === "staged"
-      ? files.flatMap((file) => (file.oldPath ? [file.path, file.oldPath] : [file.path]))
-      : files.filter((file) => file.status !== "conflicted").map((file) => file.path)
-  if (!paths.length) return undefined
-  return { op: area === "staged" ? "unstage" : "stage", request: { paths } }
+): { op: "stage" | "unstage"; request: FilesRequest; resolves: string[] } | undefined {
+  if (!files.length) return undefined
+  if (area === "staged") {
+    const paths = files.flatMap((file) => (file.oldPath ? [file.path, file.oldPath] : [file.path]))
+    return { op: "unstage", request: { paths }, resolves: [] }
+  }
+  return {
+    op: "stage",
+    request: { paths: files.map((file) => file.path) },
+    resolves: files.filter((file) => file.status === "conflicted").map((file) => file.path),
+  }
 }
 
 export type HunkOperation = "stageHunk" | "unstageHunk" | "discardHunk"
@@ -57,20 +63,29 @@ export function hunkRequest(file: FileChange, area: Area, hunk: DiffHunk): HunkR
   return { path: file.path, hunk: range }
 }
 
-/** Whether the commit button is enabled. */
+/**
+ * Whether the commit button is enabled. Nothing can be committed while a
+ * file is conflicted; a merge can be concluded once none is, even when its
+ * result matches the current branch and nothing is staged.
+ */
 export function canCommit({
   stagedCount,
   message,
   amend,
   empty,
+  merging = false,
+  conflictedCount = 0,
 }: {
   stagedCount: number
   message: string
   amend: boolean
   /** The repository has no commits yet. */
   empty: boolean
+  /** A merge is in progress; committing concludes it. */
+  merging?: boolean
+  conflictedCount?: number
 }): boolean {
-  if (!message.trim()) return false
-  if (amend) return !empty
-  return stagedCount > 0
+  if (!message.trim() || conflictedCount > 0) return false
+  if (amend) return !empty && !merging
+  return merging || stagedCount > 0
 }

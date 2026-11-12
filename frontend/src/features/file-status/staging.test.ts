@@ -20,14 +20,22 @@ describe("pendingFileCount", () => {
 })
 
 describe("toggleRequest", () => {
-  it("stages unstaged and untracked files, leaving conflicts for conflict resolution", () => {
+  it("stages unstaged and untracked files", () => {
     expect(
       toggleRequest("unstaged", [
         { path: "m.txt", status: "modified" },
         { path: "u.txt", status: "untracked" },
-        { path: "c.txt", status: "conflicted" },
       ]),
-    ).toEqual({ op: "stage", request: { paths: ["m.txt", "u.txt"] } })
+    ).toEqual({ op: "stage", request: { paths: ["m.txt", "u.txt"] }, resolves: [] })
+  })
+
+  it("stages conflicted files too, naming them because staging marks their conflicts resolved", () => {
+    expect(
+      toggleRequest("unstaged", [
+        { path: "c.txt", status: "conflicted" },
+        { path: "m.txt", status: "modified" },
+      ]),
+    ).toEqual({ op: "stage", request: { paths: ["c.txt", "m.txt"] }, resolves: ["c.txt"] })
   })
 
   it("unstages both sides of a staged rename", () => {
@@ -36,12 +44,12 @@ describe("toggleRequest", () => {
         { path: "new.txt", oldPath: "old.txt", status: "renamed" },
         { path: "a.txt", status: "added" },
       ]),
-    ).toEqual({ op: "unstage", request: { paths: ["new.txt", "old.txt", "a.txt"] } })
+    ).toEqual({ op: "unstage", request: { paths: ["new.txt", "old.txt", "a.txt"] }, resolves: [] })
   })
 
-  it("has nothing to do when no file can be toggled", () => {
-    expect(toggleRequest("unstaged", [{ path: "c.txt", status: "conflicted" }])).toBeUndefined()
+  it("has nothing to do without files", () => {
     expect(toggleRequest("staged", [])).toBeUndefined()
+    expect(toggleRequest("unstaged", [])).toBeUndefined()
   })
 })
 
@@ -56,6 +64,17 @@ describe("canCommit", () => {
 
   it("lets an amend reword the last commit without staged changes", () => {
     expect(canCommit({ ...ready, stagedCount: 0, amend: true })).toBe(true)
+  })
+
+  it("concludes a merge without staged changes once no file is conflicted", () => {
+    const merging = { ...ready, stagedCount: 0, merging: true }
+    expect(canCommit(merging)).toBe(true)
+    expect(canCommit({ ...merging, conflictedCount: 1 })).toBe(false)
+    expect(canCommit({ ...merging, message: "" })).toBe(false)
+  })
+
+  it("cannot commit while files are conflicted", () => {
+    expect(canCommit({ ...ready, conflictedCount: 2 })).toBe(false)
   })
 
   it("cannot amend before the first commit, but can make it", () => {

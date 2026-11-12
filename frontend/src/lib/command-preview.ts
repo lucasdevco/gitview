@@ -11,6 +11,8 @@ import type {
   CommitRequest,
   CreateBranchRequest,
   DeleteBranchesRequest,
+  MergeRequest,
+  RebaseRequest,
   RenameBranchRequest,
   SetUpstreamRequest,
   StashPushRequest,
@@ -117,4 +119,30 @@ export function stashApplyCommand({ index }: StashRequest): string {
 /** `stashDrop`: delete a stash. */
 export function stashDropCommand({ index }: StashRequest): string {
   return formatGitCommand(["stash", "drop", `stash@{${index}}`])
+}
+
+/** `merge`: merge a branch into the current branch with the chosen options. */
+export function mergeCommand({ branch, noFastForward, log, noCommit }: MergeRequest): string {
+  return formatGitCommand([
+    "merge",
+    ...(noFastForward ? ["--no-ff"] : []),
+    ...(log ? ["--log"] : []),
+    ...(noCommit ? ["--no-commit"] : []),
+    branch,
+  ])
+}
+
+/** `abortMerge`: abandon the merge in progress. */
+export function abortMergeCommand(): string {
+  return formatGitCommand(["merge", "--abort"])
+}
+
+/** `rebase`: replay the current branch onto another. */
+export function rebaseCommand({ onto }: RebaseRequest): string {
+  return formatGitCommand(["rebase", onto])
+}
+
+/** `abortRebase`: abandon the rebase in progress. */
+export function abortRebaseCommand(): string {
+  return formatGitCommand(["rebase", "--abort"])
 }
