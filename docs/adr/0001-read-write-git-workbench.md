@@ -42,6 +42,8 @@ internal/
 
 依赖方向：`server → workspace → repo/{query,ops} → git`；`analytics` 只依赖 `repo/query` 暴露的小接口（延续现有“消费方定义接口”的做法）。
 
+> **2026-11-12 更新：** 不再保留分析层。Sourcetree 工作台规格（`.scratch/sourcetree-workbench/spec.md`）决定彻底重写：删除旧的分析模块（overview、function、Tree-sitter 函数分析）、旧 API 和旧前端页面，旧分析功能（贡献者、热点、所有权、函数历史）列为不做。因此不建 `analytics/`，本 ADR 中关于分析层、`analytics` 缓存和“分析路径”的内容作废；后端只有执行层、领域层、工作区层与 `server`。
+
 ### 2. 执行层约定
 
 - `git.Runner` 为接口；所有命令经 builder 生成独立 argv，禁止 shell 拼接。
@@ -82,6 +84,8 @@ internal/
 
 - 后端一次返回全部提交的 oid、parents、refs 与计算好的泳道（10 万提交量级约数 MB）；提交详情、文件列表、diff 按选中懒加载。
 - 前端虚拟列表渲染图与行；不以 limit 分页绘图，避免泳道截断。
+
+> **2026-11-12 更新：** 泳道改由前端计算（规格决定）。后端仍一次返回全量拓扑（oid、parents、作者、时间、标题，按 `--date-order` 保证子提交在父提交之前），不含泳道；前端用与 lazygit 相同的思路自上而下分配泳道（`frontend/src/features/history/graph.ts`），这样“未提交的更改”等虚拟节点和筛选无需后端参与。引用经 `GET .../refs` 单独返回。
 
 ### 7. 本地安全
 
