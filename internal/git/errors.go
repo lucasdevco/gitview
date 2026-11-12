@@ -100,10 +100,23 @@ var classifications = []struct {
 	}},
 }
 
-func classify(stderr string) ErrorKind {
+// classify names a failure from git's stderr. Merge machinery (merge,
+// stash apply, ...) prints its CONFLICT lines on stdout instead, so stdout is
+// checked for conflicts when stderr matches nothing.
+func classify(stderr, stdout string) ErrorKind {
+	if kind := classifyText(stderr); kind != Failed {
+		return kind
+	}
+	if classifyText(stdout) == Conflict {
+		return Conflict
+	}
+	return Failed
+}
+
+func classifyText(text string) ErrorKind {
 	for _, class := range classifications {
 		for _, pattern := range class.patterns {
-			if strings.Contains(stderr, pattern) {
+			if strings.Contains(text, pattern) {
 				return class.kind
 			}
 		}

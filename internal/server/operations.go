@@ -27,9 +27,12 @@ import (
 // and register it here. The request struct is decoded from the JSON body;
 // the response lists the git commands it ran.
 var operations = map[string]operation{
-	"stage":   newOperation(ops.Stage),
-	"unstage": newOperation(ops.Unstage),
-	"commit":  newOperation(ops.Commit),
+	"stage":       newOperation(ops.Stage),
+	"unstage":     newOperation(ops.Unstage),
+	"commit":      newOperation(ops.Commit),
+	"stash-push":  newOperation(ops.StashPush),
+	"stash-apply": newOperation(ops.StashApply),
+	"stash-drop":  newOperation(ops.StashDrop),
 }
 
 // maxOperationBody bounds an operation's JSON request body.

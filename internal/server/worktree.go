@@ -37,8 +37,9 @@ func writeQueryError(w http.ResponseWriter, err error) {
 }
 
 // getDiff answers GET /api/v1/repos/{repoId}/diff?source=&path=&oldPath=&commit=.
-// source is staged, unstaged, untracked or commit; oldPath is the original
-// name of a renamed file; commit is the commit id for source=commit.
+// source is staged, unstaged, untracked, commit or stash; oldPath is the
+// original name of a renamed file; commit is the commit id for source=commit
+// or the stash's oid for source=stash.
 func (s *Server) getDiff(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()

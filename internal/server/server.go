@@ -53,6 +53,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/refs", s.withRepo(s.getRefs))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/commits/{oid}", s.withRepo(s.getCommit))
 	s.registerOperations(mux)
+	s.registerStashes(mux)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")
 	})

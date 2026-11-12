@@ -25,6 +25,10 @@ const (
 	// DiffCommit compares a commit with its first parent, or with nothing
 	// for a root commit. Set DiffRequest.Commit.
 	DiffCommit DiffSource = "commit"
+	// DiffStash shows a file saved in a stash: a tracked file against the
+	// commit the stash was made on, an untracked one as added. Set
+	// DiffRequest.Commit to the stash's oid.
+	DiffStash DiffSource = "stash"
 )
 
 // MaxDiffBytes is the largest patch returned in full. Larger diffs are
@@ -40,7 +44,8 @@ type DiffRequest struct {
 	// Pass it so the diff pairs both names and shows a rename instead of an
 	// added file.
 	OldPath string
-	// Commit is the commit id to diff; required for DiffCommit only.
+	// Commit is the commit id to diff for DiffCommit, or the stash's oid for
+	// DiffStash; required for those two only.
 	Commit string
 }
 
@@ -82,9 +87,12 @@ func Diff(ctx context.Context, r *repo.Repository, request DiffRequest) (FileDif
 		if err != nil {
 			return FileDiff{}, err
 		}
-		command = git.Read("diff-tree", "-r", "--patch", "--no-color", "--no-ext-diff", "--no-textconv").
-			Arg(commitDiffArgs(commit.GraphCommit)...).
-			Arg("--").ArgIf(request.OldPath != "", literal(request.OldPath)).Arg(literal(request.Path))
+		command = commitDiffCommand(commit.GraphCommit, request)
+	case DiffStash:
+		var err error
+		if command, err = stashDiffCommand(ctx, r, request); err != nil {
+			return FileDiff{}, err
+		}
 	case DiffUntracked:
 		info, err := os.Lstat(filepath.Join(r.Root, request.Path))
 		if err != nil {
@@ -116,6 +124,13 @@ func Diff(ctx context.Context, r *repo.Repository, request DiffRequest) (FileDif
 	return diff, nil
 }
 
+// commitDiffCommand diffs one file of a commit against its first parent.
+func commitDiffCommand(commit GraphCommit, request DiffRequest) *git.Command {
+	return git.Read("diff-tree", "-r", "--patch", "--no-color", "--no-ext-diff", "--no-textconv").
+		Arg(commitDiffArgs(commit)...).
+		Arg("--").ArgIf(request.OldPath != "", literal(request.OldPath)).Arg(literal(request.Path))
+}
+
 func (r DiffRequest) validate() error {
 	switch r.Source {
 	case DiffStaged, DiffUnstaged, DiffUntracked:
@@ -123,10 +138,14 @@ func (r DiffRequest) validate() error {
 		if r.Commit == "" {
 			return &InvalidRequestError{Message: "missing commit; pass the commit id whose change to show"}
 		}
+	case DiffStash:
+		if r.Commit == "" {
+			return &InvalidRequestError{Message: "missing commit; pass the stash's oid from the stash list"}
+		}
 	case "":
-		return &InvalidRequestError{Message: "missing diff source; use staged, unstaged, untracked or commit"}
+		return &InvalidRequestError{Message: "missing diff source; use staged, unstaged, untracked, commit or stash"}
 	default:
-		return &InvalidRequestError{Message: fmt.Sprintf("unknown diff source %q; use staged, unstaged, untracked or commit", r.Source)}
+		return &InvalidRequestError{Message: fmt.Sprintf("unknown diff source %q; use staged, unstaged, untracked, commit or stash", r.Source)}
 	}
 	if r.Path == "" {
 		return &InvalidRequestError{Message: "missing path; pass the file path relative to the repository root"}
