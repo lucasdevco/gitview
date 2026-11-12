@@ -1,3 +1,5 @@
+// Package server is gitview's local HTTP API and the delivery of the embedded
+// frontend. Repository resources live under /api/v1/repos/{repoId}.
 package server
 
 import (
@@ -7,379 +9,138 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
-	functionanalysis "gitview/internal/function"
-	"gitview/internal/overview"
+	"gitview/internal/git"
+	"gitview/internal/repo/query"
 	webassets "gitview/internal/web"
+	"gitview/internal/workspace"
 )
 
-type OverviewService interface {
-	Directories(context.Context, string) ([]string, error)
-	Branches(context.Context, string, int) (overview.BranchReport, error)
-	Commit(context.Context, string) (overview.CommitReviewReport, error)
-	Overview(context.Context, overview.Filters) (overview.Report, error)
-	Contributor(context.Context, overview.Filters, string) (overview.ContributorReport, error)
-	Files(context.Context, overview.Filters, string, int) (overview.FileReport, error)
-	File(context.Context, overview.Filters, string) (overview.FileDetailReport, error)
-	Compare(context.Context, overview.Filters, string, string) (overview.CompareReport, error)
-	Explain(context.Context, string, string, *time.Location) (overview.ExplainReport, error)
-}
+// readTimeout bounds a single read request.
+const readTimeout = 30 * time.Second
 
-type FunctionService interface {
-	Functions(context.Context, overview.Filters, string, int) (functionanalysis.Report, error)
-	Function(context.Context, overview.Filters, string) (functionanalysis.DetailReport, error)
-}
-
-type API struct {
-	overview  OverviewService
-	functions FunctionService
+// Server serves the API for the repositories in a workspace.
+type Server struct {
+	workspace *workspace.Workspace
+	token     string
 	assets    http.Handler
 	assetFS   fs.FS
 }
 
-func New(overviewService OverviewService, functionServices ...FunctionService) (*API, error) {
+// New returns a server for ws. Every API request must present token.
+func New(ws *workspace.Workspace, token string) (*Server, error) {
+	if token == "" {
+		return nil, errors.New("server: an access token is required")
+	}
 	assets, err := webassets.Assets()
 	if err != nil {
 		return nil, err
 	}
-	api := &API{overview: overviewService, assets: http.FileServer(http.FS(assets)), assetFS: assets}
-	if len(functionServices) > 0 {
-		api.functions = functionServices[0]
-	}
-	return api, nil
+	return &Server{workspace: ws, token: token, assets: http.FileServer(http.FS(assets)), assetFS: assets}, nil
 }
 
-func (a *API) Handler() http.Handler {
+// Handler returns the HTTP handler with security checks applied.
+func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/health", a.health)
-	mux.HandleFunc("GET /api/v1/paths", a.getPaths)
-	mux.HandleFunc("GET /api/v1/branches", a.getBranches)
-	mux.HandleFunc("GET /api/v1/overview", a.getOverview)
-	mux.HandleFunc("GET /api/v1/contributors/{id}", a.getContributor)
-	mux.HandleFunc("GET /api/v1/commits/{oid}", a.getCommit)
-	mux.HandleFunc("GET /api/v1/hotspots", a.getHotspots)
-	mux.HandleFunc("GET /api/v1/ownership", a.getOwnership)
-	mux.HandleFunc("GET /api/v1/file", a.getFile)
-	mux.HandleFunc("GET /api/v1/functions", a.getFunctions)
-	mux.HandleFunc("GET /api/v1/functions/{id}", a.getFunction)
-	mux.HandleFunc("GET /api/v1/compare", a.getCompare)
-	mux.HandleFunc("GET /api/v1/explain", a.getExplain)
-	mux.HandleFunc("/api/", notFound)
-	mux.HandleFunc("/", a.spa)
-	return securityHeaders(mux)
-}
-
-func (a *API) getBranches(w http.ResponseWriter, request *http.Request) {
-	limit, err := parseLimit(request, 200)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_limit", "message": err.Error()}})
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Branches(ctx, request.URL.Query().Get("branch"), limit)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "data": map[string]any{"repository": report.Repository, "branches": report.Branches, "commits": report.Commits, "working_tree": report.WorkingTree}})
-}
-
-func (a *API) getCommit(w http.ResponseWriter, request *http.Request) {
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Commit(ctx, request.PathValue("oid"))
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "data": map[string]any{"repository": report.Repository, "commit": report.Commit}})
-}
-
-func (a *API) getPaths(w http.ResponseWriter, request *http.Request) {
-	filters, err := overview.ParseFilters("", "", request.URL.Query().Get("parent"), time.Local)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 10*time.Second)
-	defer cancel()
-	directories, err := a.overview.Directories(ctx, filters.Path)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"parent": filters.Path, "directories": directories}})
-}
-
-func (a *API) getCompare(w http.ResponseWriter, request *http.Request) {
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Compare(ctx, filters, request.URL.Query().Get("from"), request.URL.Query().Get("to"))
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "from_ref": report.FromRef, "to_ref": report.ToRef, "from_revision": report.FromRevision, "to_revision": report.ToRevision, "totals": report.Totals, "contributors": report.Contributors, "files": report.Files, "files_total": report.FilesTotal, "files_limit": report.FilesLimit, "files_has_more": report.FilesHasMore, "commits": report.Commits}})
-}
-
-func (a *API) getExplain(w http.ResponseWriter, request *http.Request) {
-	pathFilter, err := overview.ParseFilters("", "", request.URL.Query().Get("path"), time.Local)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Explain(ctx, pathFilter.Path, request.URL.Query().Get("month"), time.Local)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "month": report.Month, "totals": report.Totals, "contributors": report.Contributors, "paths": report.Paths, "commits": report.Commits, "insights": report.Insights}})
-}
-
-func (a *API) getFunctions(w http.ResponseWriter, request *http.Request) {
-	if a.functions == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]any{"error": map[string]string{"code": "function_analysis_unavailable", "message": "function analysis is unavailable"}})
-		return
-	}
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	limit, err := parseLimit(request, 50)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_limit", "message": err.Error()}})
-		return
-	}
-	sortBy := request.URL.Query().Get("sort")
-	if sortBy == "" {
-		sortBy = "hotspot"
-	}
-	if sortBy != "hotspot" && sortBy != "churn" && sortBy != "changes" && sortBy != "complexity" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_sort", "message": "sort must be hotspot, churn, changes, or complexity"}})
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 60*time.Second)
-	defer cancel()
-	report, err := a.functions.Functions(ctx, filters, sortBy, limit)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "functions": report.Functions, "analyzer_version": report.AnalyzerVersion, "total": report.Total, "limit": report.Limit, "has_more": report.HasMore}})
-}
-
-func (a *API) getFunction(w http.ResponseWriter, request *http.Request) {
-	if a.functions == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]any{"error": map[string]string{"code": "function_analysis_unavailable", "message": "function analysis is unavailable"}})
-		return
-	}
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 60*time.Second)
-	defer cancel()
-	report, err := a.functions.Function(ctx, filters, request.PathValue("id"))
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings, "data": map[string]any{"repository": report.Repository, "function": report.Function, "history": report.History, "analyzer_version": report.AnalyzerVersion}})
-}
-
-func (a *API) getHotspots(w http.ResponseWriter, request *http.Request) {
-	a.getFiles(w, request, "hotspot")
-}
-
-func (a *API) getOwnership(w http.ResponseWriter, request *http.Request) {
-	a.getFiles(w, request, "ownership")
-}
-
-func (a *API) getFiles(w http.ResponseWriter, request *http.Request, sortBy string) {
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	limit, err := parseLimit(request, 20)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_limit", "message": err.Error()}})
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Files(ctx, filters, sortBy, limit)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings,
-		"data": map[string]any{"repository": report.Repository, "files": report.Files, "recent_days": report.RecentDays, "total": report.Total, "limit": report.Limit, "has_more": report.HasMore},
+	mux.HandleFunc("GET /api/v1/repos", s.listRepos)
+	mux.HandleFunc("GET /api/v1/repos/{repoId}", s.withRepo(s.getRepo))
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
+		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")
 	})
+	mux.HandleFunc("/", s.spa)
+	return securityHeaders(guard(s.token, mux))
 }
 
-func parseLimit(request *http.Request, fallback int) (int, error) {
-	raw := request.URL.Query().Get("limit")
-	if raw == "" {
-		return fallback, nil
-	}
-	limit, err := strconv.Atoi(raw)
-	if err != nil || limit < 1 || limit > 200 {
-		return 0, errors.New("limit must be between 1 and 200")
-	}
-	return limit, nil
-}
+// repoHandler handles a request for one open repository.
+type repoHandler func(http.ResponseWriter, *http.Request, *workspace.Repo)
 
-func (a *API) getFile(w http.ResponseWriter, request *http.Request) {
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	fileFilter, err := overview.ParseFilters("", "", request.URL.Query().Get("file"), time.Local)
-	if err != nil || fileFilter.Path == "" {
-		if err == nil {
-			err = &overview.FilterError{Code: "invalid_file", Message: "file is required"}
+// withRepo resolves the {repoId} path segment, answering 404 when no such
+// repository is open.
+func (s *Server) withRepo(next repoHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("repoId")
+		repo, ok := s.workspace.Repo(id)
+		if !ok {
+			writeError(w, http.StatusNotFound, "repo_not_found", "no open repository has id "+id)
+			return
 		}
-		writeFilterError(w, err)
-		return
+		next(w, r, repo)
 	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
+}
+
+type repoEntry struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Root string `json:"root"`
+}
+
+func (s *Server) listRepos(w http.ResponseWriter, _ *http.Request) {
+	entries := []repoEntry{}
+	for _, r := range s.workspace.Repos() {
+		entries = append(entries, repoEntry{ID: r.ID, Name: r.Name(), Root: r.Root})
+	}
+	writeData(w, entries)
+}
+
+func (s *Server) getRepo(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
+	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	report, err := a.overview.File(ctx, filters, fileFilter.Path)
+	summary, err := query.Summarize(ctx, repo.Repository)
 	if err != nil {
-		writeAnalysisError(w, err)
+		writeGitError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"schema_version": overview.SchemaVersion, "analysis_context": report.AnalysisContext, "warnings": report.Warnings,
-		"data": map[string]any{"repository": report.Repository, "file": report.File, "contributors": report.Contributors, "recent_commits": report.RecentCommits, "recent_days": report.RecentDays},
-	})
+	writeData(w, struct {
+		ID string `json:"id"`
+		query.Summary
+	}{repo.ID, summary})
 }
 
-func notFound(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusNotFound, map[string]any{
-		"error": map[string]string{"code": "not_found", "message": "API endpoint not found"},
-	})
+func writeData(w http.ResponseWriter, data any) {
+	writeJSON(w, http.StatusOK, map[string]any{"data": data})
 }
 
-func (a *API) health(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	writeJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
 }
 
-func (a *API) getOverview(w http.ResponseWriter, request *http.Request) {
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
+// writeGitError reports a failed git command with its classified kind as the
+// error code and git's own message.
+func writeGitError(w http.ResponseWriter, err error) {
+	var gitErr *git.Error
+	if !errors.As(err, &gitErr) {
+		if errors.Is(err, context.DeadlineExceeded) {
+			writeError(w, http.StatusGatewayTimeout, "timeout", "git did not answer in time; try again")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal", err.Error())
 		return
 	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Overview(ctx, filters)
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"schema_version":   overview.SchemaVersion,
-		"analysis_context": report.AnalysisContext,
-		"warnings":         report.Warnings,
-		"data": map[string]any{
-			"repository":       report.Repository,
-			"totals":           report.Totals,
-			"monthly_activity": report.MonthlyActivity,
-			"contributors":     report.Contributors,
-			"recent_commits":   report.RecentCommits,
-		},
-	})
-}
-
-func (a *API) getContributor(w http.ResponseWriter, request *http.Request) {
-	filters, err := parseFilters(request)
-	if err != nil {
-		writeFilterError(w, err)
-		return
-	}
-	ctx, cancel := context.WithTimeout(request.Context(), 30*time.Second)
-	defer cancel()
-	report, err := a.overview.Contributor(ctx, filters, request.PathValue("id"))
-	if err != nil {
-		writeAnalysisError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"schema_version":   overview.SchemaVersion,
-		"analysis_context": report.AnalysisContext,
-		"warnings":         report.Warnings,
-		"data": map[string]any{
-			"repository":       report.Repository,
-			"contributor":      report.Contributor,
-			"monthly_activity": report.MonthlyActivity,
-			"top_paths":        report.TopPaths,
-			"recent_commits":   report.RecentCommits,
-		},
-	})
-}
-
-func parseFilters(request *http.Request) (overview.Filters, error) {
-	query := request.URL.Query()
-	return overview.ParseFilters(query.Get("since"), query.Get("until"), query.Get("path"), time.Local)
-}
-
-func writeFilterError(w http.ResponseWriter, err error) {
-	var filterErr *overview.FilterError
-	if errors.As(err, &filterErr) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": filterErr.Code, "message": filterErr.Message}})
-		return
-	}
-	writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "invalid_filter", "message": err.Error()}})
-}
-
-func writeAnalysisError(w http.ResponseWriter, err error) {
-	code := "analysis_failed"
 	status := http.StatusInternalServerError
-	if errors.Is(err, context.DeadlineExceeded) {
-		code = "analysis_timeout"
-		status = http.StatusGatewayTimeout
-	}
-	var notFound *overview.NotFoundError
-	if errors.As(err, &notFound) {
-		code = notFound.Entity + "_not_found"
+	switch gitErr.Kind {
+	case git.RefNotFound:
 		status = http.StatusNotFound
+	case git.LockConflict, git.Conflict, git.PushRejected:
+		status = http.StatusConflict
 	}
-	var functionNotFound *functionanalysis.NotFoundError
-	if errors.As(err, &functionNotFound) {
-		code = "function_not_found"
-		status = http.StatusNotFound
-	}
-	var filterErr *overview.FilterError
-	if errors.As(err, &filterErr) {
-		writeFilterError(w, err)
-		return
-	}
-	writeJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": err.Error()}})
+	writeError(w, status, string(gitErr.Kind), gitErr.Error())
 }
 
-func (a *API) spa(w http.ResponseWriter, request *http.Request) {
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func (s *Server) spa(w http.ResponseWriter, request *http.Request) {
 	assetPath := strings.TrimPrefix(path.Clean(request.URL.Path), "/")
 	if assetPath == "." || assetPath == "" {
 		assetPath = "index.html"
 	}
-	if _, err := fs.Stat(a.assetFS, assetPath); err != nil {
+	if _, err := fs.Stat(s.assetFS, assetPath); err != nil {
 		assetPath = "index.html"
 	}
 	if assetPath == "index.html" {
@@ -389,20 +150,15 @@ func (a *API) spa(w http.ResponseWriter, request *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		request.URL.Path = "/" + assetPath
 	}
-	a.assets.ServeHTTP(w, request)
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	s.assets.ServeHTTP(w, request)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; frame-ancestors 'none'")
 		next.ServeHTTP(w, r)
 	})
 }

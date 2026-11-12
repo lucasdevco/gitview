@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -12,20 +14,28 @@ import (
 	"syscall"
 	"time"
 
-	functionanalysis "gitview/internal/function"
-	"gitview/internal/gitrepo"
-	"gitview/internal/overview"
+	"gitview/internal/git"
 	"gitview/internal/server"
+	"gitview/internal/workspace"
 )
 
 func serve(parent context.Context, config serveConfig) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	repository, err := gitrepo.Open(ctx, config.Repository)
+
+	if _, err := git.RequireVersion(ctx, git.NewRunner(".")); err != nil {
+		return err
+	}
+	ws := workspace.New()
+	repo, err := ws.Open(ctx, config.Repository)
 	if err != nil {
 		return err
 	}
-	api, err := server.New(overview.NewService(repository), functionanalysis.NewService(repository))
+	token, err := newToken()
+	if err != nil {
+		return err
+	}
+	api, err := server.New(ws, token)
 	if err != nil {
 		return fmt.Errorf("initialize web server: %w", err)
 	}
@@ -35,8 +45,8 @@ func serve(parent context.Context, config serveConfig) error {
 	}
 	httpServer := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
-	fmt.Printf("Analyzing %s\n", repository.Root())
-	fmt.Printf("Open http://%s\n", listener.Addr().String())
+	_, _ = fmt.Fprintf(config.Stdout, "Serving %s\n", repo.Root)
+	_, _ = fmt.Fprintf(config.Stdout, "Open http://%s/?token=%s\n", listener.Addr().String(), token)
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
 
@@ -54,4 +64,13 @@ func serve(parent context.Context, config serveConfig) error {
 		}
 		return err
 	}
+}
+
+// newToken returns a random per-run access token for the API.
+func newToken() (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generate access token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }

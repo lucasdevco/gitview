@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/urfave/cli/v3"
 )
@@ -10,6 +11,8 @@ import (
 type serveConfig struct {
 	Repository string
 	Port       int
+	// Stdout receives startup messages, including the URL to open.
+	Stdout io.Writer
 }
 
 type serveAction func(context.Context, serveConfig) error
@@ -19,8 +22,8 @@ type serveAction func(context.Context, serveConfig) error
 func newCommand(action serveAction) *cli.Command {
 	return &cli.Command{
 		Name:        "gitview",
-		Usage:       "analyze a Git repository in a local web interface",
-		Description: "Gitview reads local Git history and serves an embedded web interface on loopback.\nRunning gitview without a subcommand is the same as gitview serve.",
+		Usage:       "manage a Git repository in a local web workbench",
+		Description: "Gitview serves a Sourcetree-style Git workbench for a local repository on loopback.\nRunning gitview without a subcommand is the same as gitview serve.",
 		ArgsUsage:   "[repository]",
 		HideVersion: true,
 		Suggest:     true,
@@ -31,7 +34,7 @@ func newCommand(action serveAction) *cli.Command {
 			{
 				Name:      "serve",
 				Aliases:   []string{"s"},
-				Usage:     "start the local Git analysis web interface",
+				Usage:     "start the local Git workbench",
 				ArgsUsage: "[repository]",
 				Flags:     serveFlags(),
 				Arguments: serveArguments(),
@@ -72,6 +75,7 @@ func runServe(action serveAction) cli.ActionFunc {
 		return action(ctx, serveConfig{
 			Repository: command.StringArg("repository"),
 			Port:       command.Int("port"),
+			Stdout:     command.Root().Writer,
 		})
 	}
 }

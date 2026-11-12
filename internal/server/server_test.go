@@ -1,338 +1,228 @@
-package server
+package server_test
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	functionanalysis "gitview/internal/function"
-	"gitview/internal/overview"
+	"gitview/internal/gittest"
+	"gitview/internal/server"
+	"gitview/internal/workspace"
 )
 
-type fakeOverview struct {
-	report  overview.Report
-	filters *overview.Filters
-	err     error
+const token = "test-token"
+
+type fixture struct {
+	handler http.Handler
+	repoID  string
 }
 
-type fakeFunctions struct{ err error }
-
-func (f fakeOverview) Branches(context.Context, string, int) (overview.BranchReport, error) {
-	if f.err != nil {
-		return overview.BranchReport{}, f.err
-	}
-	return overview.BranchReport{Branches: []overview.BranchRef{{Name: "main", OID: "abc", Current: true}}, Commits: []overview.BranchCommit{{OID: "abc", Parents: []string{}, Subject: "Initial commit", Refs: []string{"main"}}}}, nil
-}
-
-func (f fakeOverview) Directories(context.Context, string) ([]string, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	return []string{"frontend", "internal"}, nil
-}
-
-func (f fakeOverview) Commit(context.Context, string) (overview.CommitReviewReport, error) {
-	if f.err != nil {
-		return overview.CommitReviewReport{}, f.err
-	}
-	return overview.CommitReviewReport{Commit: overview.CommitReview{OID: "abc", Subject: "Improve parser", Patch: "+new\n"}}, nil
-}
-
-func (f fakeFunctions) Functions(context.Context, overview.Filters, string, int) (functionanalysis.Report, error) {
-	if f.err != nil {
-		return functionanalysis.Report{}, f.err
-	}
-	return functionanalysis.Report{Functions: []functionanalysis.Metric{{ID: "fn-1", QualifiedName: "Parse"}}, AnalyzerVersion: functionanalysis.AnalyzerVersion, Total: 3, Limit: 1, HasMore: true}, nil
-}
-func (f fakeFunctions) Function(context.Context, overview.Filters, string) (functionanalysis.DetailReport, error) {
-	if f.err != nil {
-		return functionanalysis.DetailReport{}, f.err
-	}
-	return functionanalysis.DetailReport{Function: functionanalysis.Metric{ID: "fn-1", QualifiedName: "Parse"}, History: []functionanalysis.Change{{OID: "abc"}}, AnalyzerVersion: functionanalysis.AnalyzerVersion}, nil
-}
-
-func (f fakeOverview) Overview(_ context.Context, filters overview.Filters) (overview.Report, error) {
-	if f.filters != nil {
-		*f.filters = filters
-	}
-	return f.report, f.err
-}
-
-func (f fakeOverview) Contributor(_ context.Context, filters overview.Filters, _ string) (overview.ContributorReport, error) {
-	if f.filters != nil {
-		*f.filters = filters
-	}
-	if f.err != nil {
-		return overview.ContributorReport{}, f.err
-	}
-	return overview.ContributorReport{Contributor: overview.Contributor{ID: "person-1", Name: "Ada"}}, nil
-}
-
-func (f fakeOverview) Files(context.Context, overview.Filters, string, int) (overview.FileReport, error) {
-	if f.err != nil {
-		return overview.FileReport{}, f.err
-	}
-	return overview.FileReport{Files: []overview.FileMetric{{Path: "internal/a.go"}}, RecentDays: 180, Total: 3, Limit: 1, HasMore: true}, nil
-}
-
-func (f fakeOverview) File(context.Context, overview.Filters, string) (overview.FileDetailReport, error) {
-	if f.err != nil {
-		return overview.FileDetailReport{}, f.err
-	}
-	return overview.FileDetailReport{File: overview.FileMetric{Path: "internal/a.go"}, RecentDays: 180}, nil
-}
-func (f fakeOverview) Compare(context.Context, overview.Filters, string, string) (overview.CompareReport, error) {
-	if f.err != nil {
-		return overview.CompareReport{}, f.err
-	}
-	return overview.CompareReport{FromRef: "v1", ToRef: "v2", Totals: overview.Totals{Commits: 2}, FilesTotal: 3, FilesLimit: 20}, nil
-}
-func (f fakeOverview) Explain(context.Context, string, string, *time.Location) (overview.ExplainReport, error) {
-	if f.err != nil {
-		return overview.ExplainReport{}, f.err
-	}
-	return overview.ExplainReport{Month: "2026-06", Insights: []overview.Insight{{Kind: "summary", Values: map[string]any{"commits": 2}}}}, nil
-}
-
-func TestAPIReturnsStableTimeoutError(t *testing.T) {
-	api, err := New(fakeOverview{err: context.DeadlineExceeded})
+func newFixture(t *testing.T, r *gittest.Repo) fixture {
+	t.Helper()
+	ws := workspace.New()
+	opened, err := ws.Open(context.Background(), r.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/overview", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusGatewayTimeout || !strings.Contains(response.Body.String(), `"code":"analysis_timeout"`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
-	}
-}
-
-func TestAPI(t *testing.T) {
-	api, err := New(fakeOverview{report: overview.Report{Repository: overview.Repository{Name: "sample"}}})
+	api, err := server.New(ws, token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/overview", nil)
+	return fixture{handler: api.Handler(), repoID: opened.ID}
+}
+
+// get issues an authenticated same-origin request the way the frontend does.
+func (f fixture) get(t *testing.T, path string, mutate ...func(*http.Request)) *httptest.ResponseRecorder {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080"+path, nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	for _, m := range mutate {
+		m(request)
+	}
 	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
+	f.handler.ServeHTTP(response, request)
+	return response
+}
+
+func decode[T any](t *testing.T, response *httptest.ResponseRecorder) T {
+	t.Helper()
+	var body T
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode %q: %v", response.Body.String(), err)
+	}
+	return body
+}
+
+type repoSummary struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Branch   string `json:"branch"`
+	Head     string `json:"head"`
+	Empty    bool   `json:"empty"`
+	Detached bool   `json:"detached"`
+	State    string `json:"state"`
+	Identity struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	} `json:"identity"`
+}
+
+type apiError struct {
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+func TestRepositorySummary(t *testing.T) {
+	r := gittest.Init(t)
+	head := r.Commit("README.md", "hello\n", "first")
+	f := newFixture(t, r)
+
+	response := f.get(t, "/api/v1/repos/"+f.repoID)
 	if response.Code != http.StatusOK {
-		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	var payload map[string]any
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatal(err)
-	}
-	if payload["schema_version"] != overview.SchemaVersion {
-		t.Fatalf("unexpected schema: %+v", payload)
-	}
-}
-
-func TestPathsAPI(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/paths?parent=internal", nil))
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"directories":["frontend","internal"]`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	body := decode[struct{ Data repoSummary }](t, response)
+	got := body.Data
+	if got.ID != f.repoID || got.Name != filepath.Base(r.Dir) || got.Branch != "main" || got.Head != head ||
+		got.Empty || got.Detached || got.State != "clean" ||
+		got.Identity.Name != "Ada Lovelace" || got.Identity.Email != "ada@example.com" {
+		t.Fatalf("unexpected summary: %+v", got)
 	}
 }
 
-func TestBranchesAPI(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/branches", nil))
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"name":"main"`) || !strings.Contains(response.Body.String(), `"subject":"Initial commit"`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
-	}
-}
+func TestEmptyRepositoryOpens(t *testing.T) {
+	r := gittest.Init(t)
+	f := newFixture(t, r)
 
-func TestPathsAPIRejectsOutsideRepository(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/paths?parent=../outside", nil))
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_path") {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
-	}
-}
-
-func TestCommitAPI(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/commits/abc", nil))
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Improve parser") {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
-	}
-}
-
-func TestAPIParsesOverviewFilters(t *testing.T) {
-	var filters overview.Filters
-	api, err := New(fakeOverview{filters: &filters})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/overview?since=2026-01-01&until=2026-01-31&path=internal%2Fparser", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
+	response := f.get(t, "/api/v1/repos/"+f.repoID)
 	if response.Code != http.StatusOK {
-		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
+		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	if filters.Since != "2026-01-01" || filters.Until != "2026-01-31" || filters.Path != "internal/parser" {
-		t.Fatalf("unexpected filters: %+v", filters)
-	}
-}
-
-func TestAPIRejectsInvalidOverviewFilters(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/overview?since=2026-02-01&until=2026-01-01", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"invalid_date_range"`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	got := decode[struct{ Data repoSummary }](t, response).Data
+	if !got.Empty || got.Head != "" || got.Branch != "main" {
+		t.Fatalf("unexpected summary: %+v", got)
 	}
 }
 
-func TestContributorAPI(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
+func TestListRepositories(t *testing.T) {
+	r := gittest.Init(t)
+	f := newFixture(t, r)
+
+	response := f.get(t, "/api/v1/repos")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/contributors/person-1?path=internal", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"name":"Ada"`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	body := decode[struct {
+		Data []struct{ ID, Name, Root string }
+	}](t, response)
+	if len(body.Data) != 1 || body.Data[0].ID != f.repoID || body.Data[0].Name != filepath.Base(r.Dir) || body.Data[0].Root != r.Dir {
+		t.Fatalf("unexpected repositories: %+v", body.Data)
 	}
 }
 
-func TestContributorAPINotFound(t *testing.T) {
-	api, err := New(fakeOverview{err: &overview.NotFoundError{Entity: "contributor"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/contributors/missing", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || !strings.Contains(response.Body.String(), `"code":"contributor_not_found"`) {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+func TestUnknownRepository(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
+
+	response := f.get(t, "/api/v1/repos/nope")
+	if response.Code != http.StatusNotFound || decode[apiError](t, response).Error.Code != "repo_not_found" {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body)
 	}
 }
 
-func TestHotspotsAndFileAPI(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, target := range []string{"/api/v1/hotspots?limit=10", "/api/v1/ownership", "/api/v1/file?file=internal%2Fa.go"} {
-		response := httptest.NewRecorder()
-		api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
-		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "internal/a.go") {
-			t.Fatalf("%s: unexpected response %d: %s", target, response.Code, response.Body.String())
-		}
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/hotspots?limit=1", nil))
-	if !strings.Contains(response.Body.String(), `"total":3`) || !strings.Contains(response.Body.String(), `"has_more":true`) {
-		t.Fatalf("missing ranking metadata: %s", response.Body.String())
+func TestUnknownAPIRoute(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
+
+	response := f.get(t, "/api/v1/overview")
+	if response.Code != http.StatusNotFound || decode[apiError](t, response).Error.Code != "not_found" {
+		t.Fatalf("unexpected response %d: %s", response.Code, response.Body)
 	}
 }
 
-func TestHotspotsRejectInvalidLimit(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
+func TestRejectedRequests(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
+	cases := []struct {
+		name   string
+		mutate func(*http.Request)
+		status int
+		code   string
+	}{
+		{"missing token", func(r *http.Request) { r.Header.Del("Authorization") }, http.StatusUnauthorized, "invalid_token"},
+		{"wrong token", func(r *http.Request) { r.Header.Set("Authorization", "Bearer nope") }, http.StatusUnauthorized, "invalid_token"},
+		{"token with wrong scheme", func(r *http.Request) { r.Header.Set("Authorization", "Basic "+token) }, http.StatusUnauthorized, "invalid_token"},
+		{"foreign host (DNS rebinding)", func(r *http.Request) { r.Host = "evil.example:8080" }, http.StatusForbidden, "forbidden_host"},
+		{"lan address host", func(r *http.Request) { r.Host = "192.168.1.10:8080" }, http.StatusForbidden, "forbidden_host"},
+		{"cross-site origin", func(r *http.Request) { r.Header.Set("Origin", "https://evil.example") }, http.StatusForbidden, "forbidden_origin"},
+		{"other loopback port origin", func(r *http.Request) { r.Header.Set("Origin", "http://127.0.0.1:9999") }, http.StatusForbidden, "forbidden_origin"},
+		{"opaque origin", func(r *http.Request) { r.Header.Set("Origin", "null") }, http.StatusForbidden, "forbidden_origin"},
+		{"cross-site fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "cross-site") }, http.StatusForbidden, "forbidden_origin"},
 	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/hotspots?limit=0", nil))
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_limit") {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
-	}
-}
-
-func TestFunctionAPIs(t *testing.T) {
-	api, err := New(fakeOverview{}, fakeFunctions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, target := range []string{"/api/v1/functions?sort=complexity&limit=10", "/api/v1/functions/fn-1"} {
-		response := httptest.NewRecorder()
-		api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
-		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Parse") {
-			t.Fatalf("%s: unexpected response %d: %s", target, response.Code, response.Body.String())
-		}
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/functions?limit=1", nil))
-	if !strings.Contains(response.Body.String(), `"total":3`) || !strings.Contains(response.Body.String(), `"has_more":true`) {
-		t.Fatalf("missing function ranking metadata: %s", response.Body.String())
-	}
-}
-
-func TestFunctionAPIRejectsInvalidSort(t *testing.T) {
-	api, err := New(fakeOverview{}, fakeFunctions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/functions?sort=unknown", nil))
-	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_sort") {
-		t.Fatalf("unexpected response %d: %s", response.Code, response.Body.String())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response := f.get(t, "/api/v1/repos/"+f.repoID, tc.mutate)
+			if response.Code != tc.status {
+				t.Fatalf("status %d, want %d: %s", response.Code, tc.status, response.Body)
+			}
+			body := decode[apiError](t, response)
+			if body.Error.Code != tc.code || body.Error.Message == "" {
+				t.Fatalf("unexpected error body: %s", response.Body)
+			}
+			if strings.Contains(response.Body.String(), `"data"`) {
+				t.Fatalf("rejected request leaked data: %s", response.Body)
+			}
+		})
 	}
 }
 
-func TestCompareAndExplainAPIs(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
+func TestAcceptedRequestVariants(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
+	cases := []struct {
+		name   string
+		mutate func(*http.Request)
+	}{
+		{"same origin", func(r *http.Request) { r.Header.Set("Origin", "http://127.0.0.1:8080") }},
+		{"localhost host", func(r *http.Request) {
+			r.Host = "localhost:8080"
+			r.Header.Set("Origin", "http://localhost:8080")
+		}},
+		{"ipv6 loopback host", func(r *http.Request) { r.Host = "[::1]:8080" }},
+		{"same-origin fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-origin") }},
+		{"token in query for EventSource", func(r *http.Request) {
+			r.Header.Del("Authorization")
+			r.URL.RawQuery = "token=" + token
+		}},
 	}
-	for _, target := range []string{"/api/v1/compare?from=v1&to=v2", "/api/v1/explain?month=2026-06"} {
-		response := httptest.NewRecorder()
-		api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
-		if response.Code != http.StatusOK {
-			t.Fatalf("%s: unexpected response %d: %s", target, response.Code, response.Body.String())
-		}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response := f.get(t, "/api/v1/repos/"+f.repoID, tc.mutate)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", response.Code, response.Body)
+			}
+		})
 	}
 }
 
-func TestSPAFallback(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest(http.MethodGet, "/deep/link", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-cache" {
-		t.Fatalf("unexpected response: %d %+v", response.Code, response.Header())
-	}
-}
+func TestPageLoadsWithoutTokenButOnlyOnLoopbackHosts(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
 
-func TestUnknownAPIDoesNotFallBackToSPA(t *testing.T) {
-	api, err := New(fakeOverview{})
-	if err != nil {
-		t.Fatal(err)
+	page := f.get(t, "/?token="+token, func(r *http.Request) { r.Header.Del("Authorization") })
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "<html") {
+		t.Fatalf("unexpected page response %d", page.Code)
 	}
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/missing", nil)
-	response := httptest.NewRecorder()
-	api.Handler().ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound || response.Header().Get("Content-Type") != "application/json; charset=utf-8" {
-		t.Fatalf("unexpected response: %d %+v", response.Code, response.Header())
+	if page.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatal("the page URL carries the token, so it must not leak through Referer")
+	}
+
+	rebound := f.get(t, "/", func(r *http.Request) {
+		r.Header.Del("Authorization")
+		r.Host = "evil.example"
+	})
+	if rebound.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden for foreign host, got %d", rebound.Code)
 	}
 }
