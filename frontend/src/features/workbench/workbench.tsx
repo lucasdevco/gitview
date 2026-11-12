@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { FileStatusView } from "@/features/file-status/file-status-view"
 import { useApi } from "@/lib/api/context"
 import { repoSummaryQuery, reposQuery } from "@/lib/api/queries"
 import type { RepoSummary } from "@/lib/api/repos"
@@ -41,7 +42,9 @@ function Shell({ summary }: { summary?: RepoSummary }) {
           </ResizablePanel>
           <ResizableHandle orientation="horizontal" />
           <ResizablePanel>
-            <main className="h-full" aria-label={summary ? VIEW_LABELS[view] : "正在加载仓库"} aria-busy={!summary} />
+            <main className="h-full" aria-label={summary ? VIEW_LABELS[view] : "正在加载仓库"} aria-busy={!summary}>
+              {summary && view === "status" && <FileStatusView repoId={summary.id} />}
+            </main>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
