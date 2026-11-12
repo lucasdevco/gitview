@@ -1,10 +1,9 @@
 // The 贮藏 dialog and the confirmations for applying and deleting a stash.
-import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { useWritesBlocked } from "@/features/jobs/write-block"
 import { Check, Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { ApiError } from "@/lib/api/client"
-import { type Stash, stashKeys } from "@/lib/api/stashes"
+import type { Stash } from "@/lib/api/stashes"
 import { useOperation } from "@/lib/api/use-operation"
 import { stashApplyCommand, stashDropCommand, stashPushCommand } from "@/lib/command-preview"
 
@@ -70,18 +69,13 @@ export function StashActionSheet({
   action: StashAction
   onClose: () => void
 }) {
-  const queryClient = useQueryClient()
   const operation = useOperation(repoId, kind === "apply" ? "stashApply" : "stashDrop")
   const blocked = useWritesBlocked(repoId)
   const request = { index: stash.index, oid: stash.oid }
   const apply = kind === "apply"
-  const confirm = () =>
-    operation.mutate(request, {
-      onSuccess: onClose,
-      // Dropping an older stash leaves refs/stash unchanged, so no change
-      // event refreshes the list; a refused request means the list is stale.
-      onSettled: () => queryClient.invalidateQueries({ queryKey: stashKeys.list(repoId) }),
-    })
+  // The stash list refreshes from change events, dropping an older stash
+  // included (the stash reflog is watched).
+  const confirm = () => operation.mutate(request, { onSuccess: onClose })
   return (
     <OperationSheet
       title={apply ? "应用贮藏" : "删除贮藏"}

@@ -1,6 +1,5 @@
 // Package repo locates a Git repository on disk. Its subpackages read
-// (query) and, in later work, change (ops) that repository through the git
-// execution layer.
+// (query) and change (ops) that repository through the git execution layer.
 package repo
 
 import (
