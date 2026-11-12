@@ -33,6 +33,36 @@ func Init(t testing.TB) *Repo {
 	return repo
 }
 
+// InitBare creates an empty bare repository whose default branch is "main",
+// to serve as the origin of other test repositories: pass its Dir to
+// "git remote add" or Clone.
+func InitBare(t testing.TB) *Repo {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &Repo{t: t, Dir: dir}
+	repo.Git("init", "--quiet", "--bare", "--initial-branch=main")
+	return repo
+}
+
+// Clone clones the repository at url, such as an InitBare origin's Dir, with
+// the same fixed identity as Init.
+func Clone(t testing.TB, url string) *Repo {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &Repo{t: t, Dir: dir}
+	repo.Git("clone", "--quiet", url, ".")
+	repo.Git("config", "user.name", "Ada Lovelace")
+	repo.Git("config", "user.email", "ada@example.com")
+	repo.Git("config", "commit.gpgsign", "false")
+	return repo
+}
+
 // Git runs git in the repository and returns trimmed stdout. Any failure
 // fails the test.
 func (r *Repo) Git(args ...string) string {

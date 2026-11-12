@@ -32,13 +32,32 @@ type WriteFunc func(ctx context.Context, r *repo.Repository) error
 // It returns the write commands op ran, in order, including a failed last
 // command; they are also appended to the repository's command log.
 func (r *Repo) Write(ctx context.Context, op WriteFunc) ([]git.LogEntry, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.unlock()
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
+	defer cancel()
+	return r.write(writeCtx, op, nil)
+}
+
+// lock takes the write lock, waiting only as long as ctx allows.
+func (r *Repo) lock(ctx context.Context) error {
 	select {
 	case r.writeLock <- struct{}{}:
+		return nil
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
-	defer func() { <-r.writeLock }()
+}
 
+func (r *Repo) unlock() { <-r.writeLock }
+
+// write runs op; the caller holds the write lock. Change detection is
+// paused meanwhile and every write command is recorded in the command log.
+// wrap, when not nil, adds to the runner op uses (a job reports progress
+// through it).
+func (r *Repo) write(ctx context.Context, op WriteFunc, wrap func(git.Runner) git.Runner) ([]git.LogEntry, error) {
 	r.beginWrite()
 	defer r.endWrite()
 
@@ -50,9 +69,10 @@ func (r *Repo) Write(ctx context.Context, op WriteFunc) ([]git.LogEntry, error) 
 		commands = append(commands, entry)
 		mu.Unlock()
 	})
-	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
-	err := op(writeCtx, &repo.Repository{Root: r.Root, GitDir: r.GitDir, Runner: runner})
+	if wrap != nil {
+		runner = wrap(runner)
+	}
+	err := op(ctx, &repo.Repository{Root: r.Root, GitDir: r.GitDir, Runner: runner})
 
 	mu.Lock()
 	defer mu.Unlock()

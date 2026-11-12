@@ -25,6 +25,8 @@ type Repo struct {
 	writeLock chan struct{}
 	commands  *git.CommandLog
 	changes   *changeDetector
+	jobs      jobList
+	publish   func(Event)
 }
 
 // Workspace is the set of open repositories. It is safe for concurrent use.
@@ -59,7 +61,7 @@ func (w *Workspace) Open(ctx context.Context, path string) (*Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes}
+	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes, publish: w.Publish}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -80,10 +82,11 @@ func (w *Workspace) Subscribe() *Subscription { return w.events.subscribe() }
 // Publish sends event to every current subscriber. It never blocks.
 func (w *Workspace) Publish(event Event) { w.events.publish(event) }
 
-// Close stops watching every repository and ends all subscriptions. Writes
-// still work afterwards but are no longer reported.
+// Close cancels every job, stops watching every repository and ends all
+// subscriptions. Writes still work afterwards but are no longer reported.
 func (w *Workspace) Close() {
 	for _, r := range w.Repos() {
+		r.stopJobs()
 		r.changes.close()
 	}
 	w.events.close()

@@ -11,6 +11,9 @@ type Command struct {
 	args  []string
 	write bool
 	input []byte
+	// progress receives stderr line by line while the command runs; see
+	// Reporting.
+	progress func(Progress)
 }
 
 // Read starts a command that only inspects the repository. Read commands run

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"time"
@@ -73,6 +74,11 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if command.progress != nil {
+		progress := &progressWriter{report: command.progress}
+		defer progress.flush()
+		cmd.Stderr = io.MultiWriter(&stderr, progress)
+	}
 
 	started := time.Now()
 	err := cmd.Run()

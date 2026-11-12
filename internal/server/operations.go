@@ -24,8 +24,13 @@ import (
 //
 //	func Name(ctx context.Context, r *repo.Repository, request NameRequest) error
 //
-// and register it here. The request struct is decoded from the JSON body;
-// the response lists the git commands it ran.
+// and register it here with newOperation. The request struct is decoded from
+// the JSON body; the response lists the git commands it ran.
+//
+// Long-running operations that talk to remotes (fetch, pull, push) are
+// registered with newJob instead: the response is 202 Accepted with the
+// started job (see jobs.go), progress arrives as job.updated events, and the
+// job's commands and error are read from GET .../jobs/{jobId}.
 var operations = map[string]operation{
 	"stage":   newOperation(ops.Stage),
 	"unstage": newOperation(ops.Unstage),
@@ -35,6 +40,9 @@ var operations = map[string]operation{
 	"stageHunk":   newOperation(ops.StageHunk),
 	"unstageHunk": newOperation(ops.UnstageHunk),
 	"discardHunk": newOperation(ops.DiscardHunk),
+
+	// Background jobs.
+	"fetch": newJob(ops.Fetch),
 }
 
 // maxOperationBody bounds an operation's JSON request body.
@@ -42,13 +50,34 @@ const maxOperationBody = 1 << 20
 
 // operation decodes a request body and returns the work to run under the
 // repository's write lock.
-type operation func(body []byte) (workspace.WriteFunc, error)
+type operation struct {
+	prepare func(body []byte) (workspace.WriteFunc, error)
+	// background runs the work as a job instead of within the request.
+	background bool
+}
 
+// newOperation registers an operation that runs within the request.
 func newOperation[Request any](run func(context.Context, *repo.Repository, Request) error) operation {
+	return operation{prepare: prepareWrite(run)}
+}
+
+// newJob registers an operation that runs as a background job.
+func newJob[Request any](run func(context.Context, *repo.Repository, Request) error) operation {
+	return operation{prepare: prepareWrite(run), background: true}
+}
+
+func prepareWrite[Request any](run func(context.Context, *repo.Repository, Request) error) func([]byte) (workspace.WriteFunc, error) {
 	return func(body []byte) (workspace.WriteFunc, error) {
 		var request Request
 		if err := decodeOperationBody(body, &request); err != nil {
 			return nil, err
+		}
+		// A request that can tell it is invalid on its own is rejected before
+		// it waits for the write lock or starts a job.
+		if validator, ok := any(request).(interface{ Validate() error }); ok {
+			if err := validator.Validate(); err != nil {
+				return nil, err
+			}
 		}
 		return func(ctx context.Context, r *repo.Repository) error { return run(ctx, r, request) }, nil
 	}
@@ -78,6 +107,7 @@ func (s *Server) registerOperations(mux *http.ServeMux) {
 		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "operations only accept POST with a JSON body")
 	})
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/commands", s.withRepo(s.listCommands))
+	s.registerJobs(mux)
 }
 
 // operationResult is the response to a successful operation.
@@ -109,9 +139,13 @@ func (s *Server) runOperation(w http.ResponseWriter, r *http.Request, repo *work
 		writeError(w, http.StatusRequestEntityTooLarge, "body_too_large", "the request body is larger than 1 MiB")
 		return
 	}
-	run, err := op(body)
+	run, err := op.prepare(body)
 	if err != nil {
 		writeOperationError(w, err, nil)
+		return
+	}
+	if op.background {
+		s.startJob(w, repo, name, run)
 		return
 	}
 	commands, err := repo.Write(r.Context(), run)
@@ -126,16 +160,34 @@ func (s *Server) runOperation(w http.ResponseWriter, r *http.Request, repo *work
 // the error carries git's output (for a failed hook, the hook's output) and
 // the commands that ran before and including the failing one.
 func writeOperationError(w http.ResponseWriter, err error, commands []git.LogEntry) {
+	status, described := describeFailure(err)
+	writeJSON(w, status, map[string]any{"error": struct {
+		failure
+		Commands []git.LogEntry `json:"commands"`
+	}{described, nonNil(commands)}})
+}
+
+// failure is why an operation or job failed, as the API reports it.
+type failure struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	// Output is what git printed about the failure; absent when git did not
+	// fail.
+	Output *string `json:"output,omitempty"`
+}
+
+func describeFailure(err error) (int, failure) {
 	status, code, message := describeError(err)
-	body := map[string]any{"code": code, "message": message, "commands": nonNil(commands)}
+	described := failure{Code: code, Message: message}
 	var gitErr *git.Error
 	if errors.As(err, &gitErr) {
-		body["output"] = gitErr.Output()
+		output := gitErr.Output()
+		described.Output = &output
 		if gitErr.Kind == git.HookFailed {
-			body["message"] = fmt.Sprintf("the %s hook failed; fix what it reports, or skip hooks for this commit", gitErr.Hook)
+			described.Message = fmt.Sprintf("the %s hook failed; fix what it reports, or skip hooks for this commit", gitErr.Hook)
 		}
 	}
-	writeJSON(w, status, map[string]any{"error": body})
+	return status, described
 }
 
 // listCommands answers GET /api/v1/repos/{repoId}/commands: the repository's

@@ -33,6 +33,8 @@ type eventStream struct {
 	header http.Header
 	status int
 	events chan repoChanged
+	// jobs receives job.updated events, which events does not.
+	jobs chan jobUpdated
 }
 
 // streamWriter is a ResponseWriter whose body is readable while the handler
@@ -75,7 +77,7 @@ func (f fixture) subscribe(t *testing.T) *eventStream {
 		<-done
 	})
 
-	stream := &eventStream{header: w.header, events: make(chan repoChanged, 16)}
+	stream := &eventStream{header: w.header, events: make(chan repoChanged, 16), jobs: make(chan jobUpdated, 256)}
 	select {
 	case stream.status = <-w.status:
 	case <-time.After(eventDeadline):
@@ -93,9 +95,19 @@ func (f fixture) subscribe(t *testing.T) *eventStream {
 	}
 	go func() {
 		defer close(stream.events)
+		defer close(stream.jobs)
 		for lines.Scan() {
 			data, ok := strings.CutPrefix(lines.Text(), "data: ")
 			if !ok {
+				continue
+			}
+			if strings.HasPrefix(data, `{"type":"job.updated"`) {
+				var update jobUpdated
+				if err := json.Unmarshal([]byte(data), &update); err != nil {
+					t.Errorf("decode event %q: %v", data, err)
+					return
+				}
+				stream.jobs <- update
 				continue
 			}
 			var event repoChanged
