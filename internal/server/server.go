@@ -46,6 +46,8 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/repos", s.listRepos)
 	mux.HandleFunc("GET /api/v1/repos/{repoId}", s.withRepo(s.getRepo))
+	mux.HandleFunc("GET /api/v1/repos/{repoId}/graph", s.withRepo(s.getGraph))
+	mux.HandleFunc("GET /api/v1/repos/{repoId}/refs", s.withRepo(s.getRefs))
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")
 	})
