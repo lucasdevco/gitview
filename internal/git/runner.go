@@ -55,6 +55,17 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 	cmd := exec.CommandContext(ctx, r.executable, command.args...)
 	cmd.Dir = r.dir
 	cmd.Env = environment(command.write)
+	// On cancellation, interrupt git instead of killing it so it can remove
+	// its lock files; kill only if it has not exited shortly after.
+	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+	cmd.WaitDelay = 5 * time.Second
+	var trace *hookTrace
+	if command.write {
+		if trace = newHookTrace(); trace != nil {
+			cmd.Env = append(cmd.Env, trace.env())
+			defer trace.remove()
+		}
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -65,7 +76,7 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 	if err == nil {
 		return result, nil
 	}
-	gitErr := &Error{Command: command.String(), ExitCode: -1, Stderr: stderr.String(), Err: err}
+	gitErr := &Error{Command: command.String(), ExitCode: -1, Stderr: stderr.String(), Stdout: stdout.String(), Err: err}
 	var exitErr *exec.ExitError
 	switch {
 	case ctx.Err() != nil:
@@ -74,6 +85,13 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 	case errors.As(err, &exitErr):
 		gitErr.ExitCode = exitErr.ExitCode()
 		gitErr.Kind = classify(gitErr.Stderr)
+		// A failed hook decides the outcome even when its output happens to
+		// match another kind (a failed pre-push also says "failed to push").
+		if trace != nil {
+			if hook := trace.failedHook(); hook != "" {
+				gitErr.Kind, gitErr.Hook = HookFailed, hook
+			}
+		}
 	case errors.Is(err, exec.ErrNotFound) || errors.Is(err, os.ErrNotExist):
 		gitErr.Kind = NotInstalled
 		gitErr.Stderr = "git executable not found; install git and make sure it is on PATH"

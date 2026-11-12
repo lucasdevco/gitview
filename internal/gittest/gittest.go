@@ -78,6 +78,19 @@ func (r *Repo) Write(path, content string) {
 	}
 }
 
+// Hook installs an executable hook script, such as a failing pre-commit,
+// where git will look for it (respecting core.hooksPath).
+func (r *Repo) Hook(name, script string) {
+	r.t.Helper()
+	dir := r.Git("rev-parse", "--path-format=absolute", "--git-path", "hooks")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		r.t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
 // Commit writes path with content, stages everything and commits it. It
 // returns the new HEAD commit id.
 func (r *Repo) Commit(path, content, message string) string {

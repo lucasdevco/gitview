@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"sync"
 
+	"gitview/internal/git"
 	"gitview/internal/repo"
 )
 
@@ -19,6 +20,10 @@ type Repo struct {
 	// same across restarts.
 	ID string
 	*repo.Repository
+
+	// writeLock holds one token while a write runs; see Write.
+	writeLock chan struct{}
+	commands  *git.CommandLog
 }
 
 // Workspace is the set of open repositories. It is safe for concurrent use.
@@ -45,7 +50,7 @@ func (w *Workspace) Open(ctx context.Context, path string) (*Repo, error) {
 			return existing, nil
 		}
 	}
-	added := &Repo{ID: id, Repository: opened}
+	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize)}
 	w.repos = append(w.repos, added)
 	return added, nil
 }

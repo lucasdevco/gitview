@@ -19,6 +19,10 @@ const (
 	RefNotFound          ErrorKind = "ref_not_found"
 	PushRejected         ErrorKind = "push_rejected"
 	UnsupportedVersion   ErrorKind = "unsupported_git_version"
+	// HookFailed means a repository hook (pre-commit, commit-msg, pre-push,
+	// ...) exited non-zero and git stopped. Error.Hook names the hook and
+	// Error.Output holds what it printed.
+	HookFailed ErrorKind = "hook_failed"
 	// Failed is any git failure that does not match a more specific kind.
 	Failed ErrorKind = "git_failed"
 )
@@ -31,11 +35,27 @@ type Error struct {
 	Command  string // display form, e.g. "git rev-parse HEAD"
 	ExitCode int    // -1 when git did not run
 	Stderr   string
-	Err      error // underlying process error, if any
+	Stdout   string
+	// Hook names the hook that failed when Kind is HookFailed.
+	Hook string
+	Err  error // underlying process error, if any
+}
+
+// Output is what git printed about the failure: stderr, or stdout when
+// stderr is empty (git commit reports "nothing to commit" on stdout). Hooks
+// run by git print to stderr.
+func (e *Error) Output() string {
+	if output := strings.TrimSpace(e.Stderr); output != "" {
+		return output
+	}
+	return strings.TrimSpace(e.Stdout)
 }
 
 func (e *Error) Error() string {
-	detail := strings.TrimSpace(e.Stderr)
+	detail := e.Output()
+	if e.Kind == HookFailed {
+		detail = fmt.Sprintf("the %s hook failed\n%s", e.Hook, detail)
+	}
 	if detail == "" && e.Err != nil {
 		detail = e.Err.Error()
 	}

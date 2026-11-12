@@ -72,9 +72,9 @@ gitview intentionally listens on loopback only. It does not expose a `--host` op
 gitview runs your system `git` with structured output formats, parses the results in Go, and serves an embedded React application from the same binary.
 
 - No account or external service is required; repository data stays on the local machine.
-- The current release is read-only and does not execute repository hooks or build scripts.
-- The local server requires the per-run token and rejects non-loopback `Host` headers (DNS rebinding) and cross-origin requests.
-- Once write operations ship, they will behave like the `git` command line—including running hooks.
+- Write operations (stage, unstage, commit) behave like the `git` command line, including running repository hooks such as `pre-commit` and `commit-msg`; a failing hook's output is shown, and the commit options can skip hooks (`--no-verify`).
+- Writes to a repository run one at a time, and every git command they run is listed in the command log bar at the bottom of the workbench.
+- The local server requires the per-run token and rejects non-loopback `Host` headers (DNS rebinding) and cross-origin requests. Write operations accept only `POST` requests with a JSON body.
 
 ## Development
 
