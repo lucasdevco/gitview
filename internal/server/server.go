@@ -45,6 +45,7 @@ func New(ws *workspace.Workspace, token string) (*Server, error) {
 // Handler returns the HTTP handler with security checks applied.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/events", s.streamEvents)
 	mux.HandleFunc("GET /api/v1/repos", s.listRepos)
 	mux.HandleFunc("GET /api/v1/repos/{repoId}", s.withRepo(s.getRepo))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/status", s.withRepo(s.getStatus))

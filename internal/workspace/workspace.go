@@ -24,35 +24,69 @@ type Repo struct {
 	// writeLock holds one token while a write runs; see Write.
 	writeLock chan struct{}
 	commands  *git.CommandLog
+	changes   *changeDetector
 }
 
 // Workspace is the set of open repositories. It is safe for concurrent use.
+// Close it to stop watching the repositories and end event subscriptions.
 type Workspace struct {
-	mu    sync.RWMutex
-	repos []*Repo
+	mu        sync.RWMutex
+	repos     []*Repo
+	events    *eventHub
+	detection detection
 }
 
 // New returns an empty workspace.
-func New() *Workspace { return &Workspace{} }
+func New() *Workspace { return newWorkspace(defaultDetection) }
+
+func newWorkspace(config detection) *Workspace {
+	return &Workspace{events: newEventHub(), detection: config}
+}
 
 // Open opens the repository containing path, or returns it if it is already
-// open.
+// open. From then on, changes to the repository — by gitview or anything
+// else — are published as RepoChanged events.
 func (w *Workspace) Open(ctx context.Context, path string) (*Repo, error) {
 	opened, err := repo.Open(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 	id := repoID(opened.Root)
+	if existing, ok := w.Repo(id); ok {
+		return existing, nil
+	}
+	changes, err := startDetector(ctx, id, opened, w.detection, w.Publish)
+	if err != nil {
+		return nil, err
+	}
+	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, existing := range w.repos {
 		if existing.ID == id {
+			changes.close()
 			return existing, nil
 		}
 	}
-	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize)}
 	w.repos = append(w.repos, added)
 	return added, nil
+}
+
+// Subscribe starts receiving the workspace's events. Close the subscription
+// when done.
+func (w *Workspace) Subscribe() *Subscription { return w.events.subscribe() }
+
+// Publish sends event to every current subscriber. It never blocks.
+func (w *Workspace) Publish(event Event) { w.events.publish(event) }
+
+// Close stops watching every repository and ends all subscriptions. Writes
+// still work afterwards but are no longer reported.
+func (w *Workspace) Close() {
+	for _, r := range w.Repos() {
+		r.changes.close()
+	}
+	w.events.close()
 }
 
 // Repo returns the open repository with id.

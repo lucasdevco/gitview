@@ -24,6 +24,7 @@ type fixture struct {
 func newFixture(t *testing.T, r *gittest.Repo) fixture {
 	t.Helper()
 	ws := workspace.New()
+	t.Cleanup(ws.Close)
 	opened, err := ws.Open(context.Background(), r.Dir)
 	if err != nil {
 		t.Fatal(err)
