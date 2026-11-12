@@ -4,7 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FileStatusView } from "@/features/file-status/file-status-view"
+import { HistoryView, type Selection } from "@/features/history/history-view"
 import { useApi } from "@/lib/api/context"
+import { refsQuery } from "@/lib/api/history"
 import { repoSummaryQuery, reposQuery } from "@/lib/api/queries"
 import type { RepoSummary } from "@/lib/api/repos"
 import { Sidebar, type WorkbenchView } from "./sidebar"
@@ -27,7 +29,15 @@ export function Workbench() {
 }
 
 function Shell({ summary }: { summary?: RepoSummary }) {
+  const api = useApi()
   const [view, setView] = useState<WorkbenchView>("history")
+  const [selection, setSelection] = useState<Selection>()
+  const refs = useQuery({ ...refsQuery(api, summary?.id ?? ""), enabled: !!summary })
+  const select = (oid: string) => setSelection((previous) => ({ oid, seq: (previous?.seq ?? 0) + 1 }))
+  const reveal = (oid: string) => {
+    if (view === "status") setView("history")
+    select(oid)
+  }
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <TitleBar name={summary?.name ?? ""} onCommit={summary ? () => setView("status") : undefined} />
@@ -35,7 +45,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">
             {summary ? (
-              <Sidebar summary={summary} view={view} onView={setView} />
+              <Sidebar summary={summary} refs={refs.data} view={view} onView={setView} onReveal={reveal} />
             ) : (
               <div className="h-full border-r bg-muted/50" />
             )}
@@ -44,6 +54,15 @@ function Shell({ summary }: { summary?: RepoSummary }) {
           <ResizablePanel>
             <main className="h-full" aria-label={summary ? VIEW_LABELS[view] : "正在加载仓库"} aria-busy={!summary}>
               {summary && view === "status" && <FileStatusView repoId={summary.id} />}
+              {summary && view !== "status" && (
+                <HistoryView
+                  summary={summary}
+                  refs={refs.data}
+                  selection={selection}
+                  onSelect={select}
+                  searchMode={view === "search"}
+                />
+              )}
             </main>
           </ResizablePanel>
         </ResizablePanelGroup>
