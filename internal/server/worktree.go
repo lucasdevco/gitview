@@ -13,7 +13,7 @@ import (
 func (s *Server) getStatus(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	status, err := query.Status(ctx, repo.Repository)
+	status, err := query.Status(ctx, repo.Reader())
 	if err != nil {
 		writeGitError(w, err)
 		return
@@ -44,7 +44,7 @@ func (s *Server) getDiff(w http.ResponseWriter, r *http.Request, repo *workspace
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
 	params := r.URL.Query()
-	diff, err := query.Diff(ctx, repo.Repository, query.DiffRequest{
+	diff, err := query.Diff(ctx, repo.Reader(), query.DiffRequest{
 		Source:  query.DiffSource(params.Get("source")),
 		Path:    params.Get("path"),
 		OldPath: params.Get("oldPath"),

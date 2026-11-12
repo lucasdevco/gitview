@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -129,6 +130,20 @@ func (r envRunner) Run(ctx context.Context, command *Command) (Result, error) {
 	extended := *command
 	extended.env = append(append([]string(nil), command.env...), r.env...)
 	return r.next.Run(ctx, &extended)
+}
+
+// ReadOnly wraps runner so it runs only Read commands; a Write command is
+// refused without running. Hand it to code that must not change the
+// repository, such as queries served outside the write lock.
+func ReadOnly(runner Runner) Runner { return readOnlyRunner{next: runner} }
+
+type readOnlyRunner struct{ next Runner }
+
+func (r readOnlyRunner) Run(ctx context.Context, command *Command) (Result, error) {
+	if command.write {
+		return Result{}, fmt.Errorf("git: %s changes the repository; run it through workspace.Repo.Write, which holds the write lock", command)
+	}
+	return r.next.Run(ctx, command)
 }
 
 // environment returns the process environment for a git command: the current

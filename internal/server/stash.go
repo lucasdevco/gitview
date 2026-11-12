@@ -21,7 +21,7 @@ func (s *Server) registerStashes(mux *http.ServeMux) {
 func (s *Server) listStashes(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	stashes, err := query.Stashes(ctx, repo.Repository)
+	stashes, err := query.Stashes(ctx, repo.Reader())
 	if err != nil {
 		writeGitError(w, err)
 		return
@@ -42,7 +42,7 @@ func (s *Server) getStash(w http.ResponseWriter, r *http.Request, repo *workspac
 			fmt.Sprintf("stash index %q is not a number; pass 0 for stash@{0}, 1 for stash@{1}, ...", raw))
 		return
 	}
-	stash, err := query.StashFiles(ctx, repo.Repository, index)
+	stash, err := query.StashFiles(ctx, repo.Reader(), index)
 	var missing *query.StashNotFoundError
 	switch {
 	case errors.As(err, &missing):

@@ -50,7 +50,7 @@ func serve(parent context.Context, config serveConfig) error {
 	}
 	httpServer := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
-	_, _ = fmt.Fprintf(config.Stdout, "Serving %s\n", repo.Root)
+	_, _ = fmt.Fprintf(config.Stdout, "Serving %s\n", repo.Root())
 	_, _ = fmt.Fprintf(config.Stdout, "Open http://%s/\n", listener.Addr().String())
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()

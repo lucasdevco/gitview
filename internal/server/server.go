@@ -81,7 +81,7 @@ type repoEntry struct {
 func (s *Server) listRepos(w http.ResponseWriter, _ *http.Request) {
 	entries := []repoEntry{}
 	for _, r := range s.workspace.Repos() {
-		entries = append(entries, repoEntry{ID: r.ID, Name: r.Name(), Root: r.Root})
+		entries = append(entries, repoEntry{ID: r.ID, Name: r.Name(), Root: r.Root()})
 	}
 	writeData(w, entries)
 }
@@ -89,7 +89,7 @@ func (s *Server) listRepos(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) getRepo(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	summary, err := query.Summarize(ctx, repo.Repository)
+	summary, err := query.Summarize(ctx, repo.Reader())
 	if err != nil {
 		writeGitError(w, err)
 		return

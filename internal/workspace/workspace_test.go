@@ -3,8 +3,10 @@ package workspace_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"gitview/internal/git"
 	"gitview/internal/gittest"
 	"gitview/internal/workspace"
 )
@@ -55,6 +57,33 @@ func TestRepositoryIDIsStableAndURLSafe(t *testing.T) {
 		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9') {
 			t.Fatalf("ID %q is not URL-safe", a.ID)
 		}
+	}
+}
+
+// Queries get the repository through Reader, whose runner refuses write
+// commands: a write can only run through Repo.Write or a job, under the
+// write lock.
+func TestTheReaderRunsReadCommandsAndRefusesWrites(t *testing.T) {
+	r := gittest.Init(t)
+	head := r.Commit("a.txt", "a\n", "first")
+	opened, err := open(t).Open(context.Background(), r.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := opened.Reader()
+	if reader.Root != r.Dir || opened.Root() != r.Dir {
+		t.Fatalf("root = %q / %q, want %q", reader.Root, opened.Root(), r.Dir)
+	}
+
+	result, err := reader.Runner.Run(context.Background(), git.Read("rev-parse", "HEAD"))
+	if err != nil || strings.TrimSpace(string(result.Stdout)) != head {
+		t.Fatalf("read: %q, %v", result.Stdout, err)
+	}
+	if _, err := reader.Runner.Run(context.Background(), git.Write("branch", "sneaky")); err == nil {
+		t.Fatal("the reader ran a write command")
+	}
+	if branches := r.Git("branch", "--list", "sneaky"); branches != "" {
+		t.Fatalf("branch was created: %q", branches)
 	}
 }
 

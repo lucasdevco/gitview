@@ -37,7 +37,7 @@ func (s *Server) getGraph(w http.ResponseWriter, r *http.Request, repo *workspac
 
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	commits, err := query.Graph(ctx, repo.Repository, options)
+	commits, err := query.Graph(ctx, repo.Reader(), options)
 	if err != nil {
 		writeGitError(w, err)
 		return
@@ -50,7 +50,7 @@ func (s *Server) getGraph(w http.ResponseWriter, r *http.Request, repo *workspac
 func (s *Server) getRefs(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	refs, err := query.ReadRefs(ctx, repo.Repository)
+	refs, err := query.ReadRefs(ctx, repo.Reader())
 	if err != nil {
 		writeGitError(w, err)
 		return

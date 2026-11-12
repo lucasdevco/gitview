@@ -63,7 +63,7 @@ func (r *Repo) write(ctx context.Context, op WriteFunc, wrap func(git.Runner) gi
 
 	var mu sync.Mutex
 	var commands []git.LogEntry
-	runner := git.Recording(git.RetryOnLock(r.Runner, git.LockRetryDelays), func(entry git.LogEntry) {
+	runner := git.Recording(git.RetryOnLock(r.repository.Runner, git.LockRetryDelays), func(entry git.LogEntry) {
 		r.commands.Add(entry)
 		mu.Lock()
 		commands = append(commands, entry)
@@ -72,7 +72,7 @@ func (r *Repo) write(ctx context.Context, op WriteFunc, wrap func(git.Runner) gi
 	if wrap != nil {
 		runner = wrap(runner)
 	}
-	err := op(ctx, &repo.Repository{Root: r.Root, GitDir: r.GitDir, Runner: runner})
+	err := op(ctx, &repo.Repository{Root: r.repository.Root, GitDir: r.repository.GitDir, Runner: runner})
 
 	mu.Lock()
 	defer mu.Unlock()

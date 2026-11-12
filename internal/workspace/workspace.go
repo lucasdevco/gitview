@@ -15,11 +15,18 @@ import (
 )
 
 // Repo is an open repository in the workspace.
+//
+// It does not hand out a runner that can write: queries read through Reader,
+// and every write goes through Write or a job, which hold the write lock
+// (ADR-0001 §3).
 type Repo struct {
 	// ID is derived from the repository root, so it is URL-safe and stays the
 	// same across restarts.
 	ID string
-	*repo.Repository
+	// repository runs git without restriction; only write and the change
+	// detector use it.
+	repository *repo.Repository
+	reader     *repo.Repository
 
 	// writeLock holds one token while a write runs; see Write.
 	writeLock chan struct{}
@@ -31,6 +38,17 @@ type Repo struct {
 	// credentials through; nil without one.
 	credentialHelper func() *CredentialHelper
 }
+
+// Root is the absolute path of the repository's working tree.
+func (r *Repo) Root() string { return r.repository.Root }
+
+// Name is the repository's display name: the working tree directory name.
+func (r *Repo) Name() string { return r.repository.Name() }
+
+// Reader is the repository for read queries (internal/repo/query). Its
+// runner refuses write commands, so reading never needs, or bypasses, the
+// write lock.
+func (r *Repo) Reader() *repo.Repository { return r.reader }
 
 // Workspace is the set of open repositories. It is safe for concurrent use.
 // Close it to stop watching the repositories and end event subscriptions.
@@ -65,7 +83,8 @@ func (w *Workspace) Open(ctx context.Context, path string) (*Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes, publish: w.Publish, credentialHelper: w.credentialHelper}
+	reader := &repo.Repository{Root: opened.Root, GitDir: opened.GitDir, Runner: git.ReadOnly(opened.Runner)}
+	added := &Repo{ID: id, repository: opened, reader: reader, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes, publish: w.Publish, credentialHelper: w.credentialHelper}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()

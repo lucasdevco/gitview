@@ -14,7 +14,7 @@ import (
 func (s *Server) getCommit(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
-	commit, err := query.Commit(ctx, repo.Repository, r.PathValue("oid"))
+	commit, err := query.Commit(ctx, repo.Reader(), r.PathValue("oid"))
 	if err != nil {
 		writeQueryError(w, err)
 		return
