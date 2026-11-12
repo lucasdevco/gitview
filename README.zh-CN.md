@@ -4,7 +4,7 @@
 
 在浏览器里运行的 Sourcetree 风格 Git 客户端。gitview 提供熟悉的桌面级 Git 工作台——提交图、暂存区、分支、diff 与冲突处理——底层 Git 操作借鉴 [lazygit](https://github.com/jesseduffield/lazygit) 久经验证的实现方式。单个二进制，无需账号，数据全部留在本机。
 
-> **状态：** 早期开发中。下文“已可用”的只读视图现在即可使用；写操作（暂存、提交、分支、merge、rebase、push）正在开发。架构见 [ADR-0001](./docs/adr/0001-read-write-git-workbench.md)。
+> **状态：** 早期开发中。正在重写：工作台外壳（标题栏、侧边栏、当前分支）现已可用；各视图与写操作（暂存、提交、分支、merge、rebase、push）正在开发。架构见 [ADR-0001](./docs/adr/0001-read-write-git-workbench.md)。
 
 ## 为什么是 gitview？
 
@@ -16,10 +16,9 @@
 
 ### 已可用
 
-- **分支与提交**——本地与远程分支及上游 ahead/behind、提交历史、提交元数据与 diff。
-- **工作区**——已修改与未跟踪文件及其 diff。
-- **仓库洞察**——贡献者、文件热点、代码所有权、函数历史（Go、JavaScript/TypeScript、Python、Java、Rust）、版本对比与按月活动解释。
-- **中英文界面**。
+- **工作台外壳**——Sourcetree 风格的标题栏与侧边栏，显示真实仓库名与当前分支；空仓库也可打开。
+- **本地安全**——只监听回环地址，每次启动生成访问 token，所有 API 请求校验 Host/Origin。
+- **中文界面**。
 
 ### 开发中
 
@@ -38,8 +37,7 @@
 
 - Go 1.26+
 - Node.js 20.19+ 或 22.12+
-- Git
-- C 编译器（Tree-sitter Go bindings 需要）
+- Git 2.32.0 或更新版本（启动时检测，版本过低会给出升级提示并退出）
 
 ### 从源码构建
 
@@ -65,7 +63,7 @@ make build
 ./gitview --port 9090 /path/to/repository
 ```
 
-`gitview` 是 `gitview serve`（别名 `gitview s`）的简写。打开 [http://127.0.0.1:8080](http://127.0.0.1:8080)。传入 `--port 0` 可由操作系统选择可用端口。
+`gitview` 是 `gitview serve`（别名 `gitview s`）的简写。启动后会打印形如 `http://127.0.0.1:8080/?token=…` 的链接，请打开这个完整链接；token 每次启动重新生成，所有 API 请求都必须携带。传入 `--port 0` 可由操作系统选择可用端口。
 
 gitview 有意只监听回环地址，不提供 `--host` 选项。
 
@@ -75,7 +73,8 @@ gitview 以结构化输出格式调用系统 `git`，在 Go 中解析结果，�
 
 - 不需要账号或外部服务，仓库数据只保存在本机。
 - 当前版本只读，不执行仓库内的 hooks 或构建脚本。
-- 写操作上线后，行为将与 `git` 命令行一致（包括执行 hooks），本地服务将要求每次会话的 token 并校验 Host/Origin。
+- 本地服务要求每次启动生成的 token，并拒绝非回环 `Host`（DNS rebinding）与跨站请求。
+- 写操作上线后，行为将与 `git` 命令行一致（包括执行 hooks）。
 
 ## 本地开发
 
@@ -89,6 +88,8 @@ go run ./cmd/gitview serve /path/to/repository
 cd frontend
 npm run dev
 ```
+
+用终端 1 打印的 token 打开 Vite 页面，例如 `http://127.0.0.1:4173/?token=…`。
 
 源码变化后自动重建：
 
@@ -107,10 +108,11 @@ make check
 
 ```text
 cmd/gitview/        CLI 入口和服务生命周期
-internal/gitrepo/   系统 Git 适配层
-internal/overview/  仓库、贡献者、文件、所有权和版本对比洞察
-internal/function/  Tree-sitter 函数解析和历史分析
-internal/server/    本地 HTTP API 和 SPA 交付
+internal/git/       执行层：Runner、命令构造、统一环境变量、错误分类、版本检测
+internal/repo/      仓库定位；repo/query 只读查询
+internal/workspace/ 已打开的仓库及其 ID（/api/v1/repos/{repoId}）
+internal/server/    本地 HTTP API、token 与 Host/Origin 校验、SPA 交付
+internal/gittest/   测试用的临时真实仓库
 internal/web/       内嵌前端资源和纯后端 fallback
 frontend/           React、TypeScript、Vite、Tailwind CSS 和 shadcn/ui 应用
 docs/adr/           架构决策记录

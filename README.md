@@ -4,7 +4,7 @@
 
 A Sourcetree-style Git client that runs in your browser. gitview pairs a familiar desktop-class Git workbench—commit graph, staging area, branches, diffs, and conflict resolution—with Git plumbing modeled on [lazygit](https://github.com/jesseduffield/lazygit)'s battle-tested approach. One binary, no account, everything stays local.
 
-> **Status:** early development. The read-only views below work today; write operations (stage, commit, branch, merge, rebase, push) are being built. See [ADR-0001](./docs/adr/0001-read-write-git-workbench.md) for the architecture.
+> **Status:** early development, mid-rewrite. The workbench shell (title bar, sidebar, current branch) works today; the views and write operations (stage, commit, branch, merge, rebase, push) are being built. See [ADR-0001](./docs/adr/0001-read-write-git-workbench.md) for the architecture.
 
 ## Why gitview?
 
@@ -16,10 +16,9 @@ A Sourcetree-style Git client that runs in your browser. gitview pairs a familia
 
 ### Available now
 
-- **Branches and commits** — local and remote branches with upstream ahead/behind, commit history, commit metadata, and diffs.
-- **Working tree** — changed and untracked files with their diffs.
-- **Repository insights** — contributors, file hotspots, code ownership, function history (Go, JavaScript/TypeScript, Python, Java, Rust), revision comparison, and monthly activity explanations.
-- **English and Simplified Chinese UI**.
+- **Workbench shell** — Sourcetree-style title bar and sidebar for a real repository, showing its name and current branch; empty repositories open too.
+- **Local security** — loopback only, a per-run access token, and Host/Origin checks on every API request.
+- **Simplified Chinese UI**.
 
 ### In progress
 
@@ -38,8 +37,7 @@ A Sourcetree-style Git client that runs in your browser. gitview pairs a familia
 
 - Go 1.26+
 - Node.js 20.19+ or 22.12+
-- Git
-- A C compiler for the Tree-sitter Go bindings
+- Git 2.32.0 or newer (gitview checks at startup and exits with upgrade advice if it is older)
 
 ### Build from source
 
@@ -65,7 +63,7 @@ make build
 ./gitview --port 9090 /path/to/repository
 ```
 
-`gitview` is shorthand for `gitview serve` (alias `gitview s`). Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Pass `--port 0` to let the operating system choose an available port.
+`gitview` is shorthand for `gitview serve` (alias `gitview s`). It prints a URL such as `http://127.0.0.1:8080/?token=…`; open that exact URL. The token is generated fresh on every run and every API request must carry it, so other web pages cannot use your browser to reach the workbench. Pass `--port 0` to let the operating system choose an available port.
 
 gitview intentionally listens on loopback only. It does not expose a `--host` option.
 
@@ -75,7 +73,8 @@ gitview runs your system `git` with structured output formats, parses the result
 
 - No account or external service is required; repository data stays on the local machine.
 - The current release is read-only and does not execute repository hooks or build scripts.
-- Once write operations ship, they will behave like the `git` command line—including running hooks—and the local server will require a per-session token with Host/Origin checks.
+- The local server requires the per-run token and rejects non-loopback `Host` headers (DNS rebinding) and cross-origin requests.
+- Once write operations ship, they will behave like the `git` command line—including running hooks.
 
 ## Development
 
@@ -89,6 +88,8 @@ go run ./cmd/gitview serve /path/to/repository
 cd frontend
 npm run dev
 ```
+
+Open the Vite page with the token from terminal 1, for example `http://127.0.0.1:4173/?token=…`.
 
 For automatic rebuilds after source changes:
 
@@ -107,10 +108,11 @@ make check
 
 ```text
 cmd/gitview/        CLI entry point and server lifecycle
-internal/gitrepo/   System Git adapter
-internal/overview/  Repository, contributor, file, ownership, and comparison insights
-internal/function/  Tree-sitter function parsing and history analysis
-internal/server/    Local HTTP API and SPA delivery
+internal/git/       Execution layer: Runner, command builder, environment, error kinds, version check
+internal/repo/      Repository discovery; repo/query reads repository state
+internal/workspace/ Open repositories and their IDs (/api/v1/repos/{repoId})
+internal/server/    Local HTTP API, token and Host/Origin checks, SPA delivery
+internal/gittest/   Real temporary repositories for tests
 internal/web/       Embedded frontend assets and backend-only fallback
 frontend/           React, TypeScript, Vite, Tailwind CSS, and shadcn/ui application
 docs/adr/           Architecture decision records
