@@ -138,6 +138,28 @@ func TestFailuresAreClassified(t *testing.T) {
 	}
 }
 
+func TestConflictsReportedOnStdoutAreClassified(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+		kind   git.ErrorKind
+	}{
+		{"conflict on stdout", "echo 'CONFLICT (content): Merge conflict in a.txt'\nexit 1\n", git.Conflict},
+		{"stderr decides first", "echo 'CONFLICT (content): Merge conflict in a.txt'\necho 'fatal: not a git repository' >&2\nexit 128\n", git.NotRepository},
+		{"other kinds only from stderr", "echo 'fatal: Not a valid object name nope'\nexit 1\n", git.Failed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := git.NewRunner(t.TempDir(), git.WithExecutable(fakeGit(t, tc.script)))
+			_, err := runner.Run(context.Background(), git.Write("anything"))
+			var gitErr *git.Error
+			if !errors.As(err, &gitErr) || gitErr.Kind != tc.kind {
+				t.Fatalf("expected %v, got %v", tc.kind, err)
+			}
+		})
+	}
+}
+
 func TestMissingExecutableIsReported(t *testing.T) {
 	runner := git.NewRunner(t.TempDir(), git.WithExecutable(filepath.Join(t.TempDir(), "no-git")))
 	_, err := runner.Run(context.Background(), git.Read("status"))

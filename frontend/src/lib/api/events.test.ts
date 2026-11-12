@@ -22,6 +22,9 @@ const keys = {
   refs: ["repos", "r1", "refs"],
   commit: ["repos", "r1", "commit", "abc"],
   commands: ["repos", "r1", "commands"],
+  stashList: ["repos", "r1", "stashes"],
+  stashFiles: ["repos", "r1", "stashes", 0, "abc"],
+  stashDiff: ["repos", "r1", "stash", "abc", "diff", "a.txt", ""],
   otherRepoStatus: ["repos", "r2", "status"],
 } satisfies Record<string, QueryKey>
 
@@ -45,7 +48,15 @@ async function refreshedBy(changed: ChangedArea[]): Promise<string[]> {
 }
 
 test("a ref change refreshes HEAD, branches, the graph and what compares against HEAD", async () => {
-  expect(await refreshedBy(["refs"])).toEqual(["graph", "refs", "stagedDiff", "status", "summary"])
+  expect(await refreshedBy(["refs"])).toEqual([
+    "graph",
+    "refs",
+    "stagedDiff",
+    "stashFiles",
+    "stashList",
+    "status",
+    "summary",
+  ])
 })
 
 test("an index change refreshes status and the diffs that involve the index", async () => {

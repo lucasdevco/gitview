@@ -60,6 +60,12 @@ const DEPENDS_ON: Record<string, readonly ChangedArea[]> = {
   commit: [],
   // The command log only grows with gitview's own writes, which refresh it.
   commands: [],
+  // The stash list and each stash's files follow refs/stash. Dropping an
+  // older stash leaves refs/stash as it is, so the stash sheets refresh the
+  // list themselves.
+  stashes: ["refs"],
+  // A stash's file diffs never change.
+  stash: [],
 }
 
 const DIFF_DEPENDS_ON: Record<string, readonly ChangedArea[]> = {

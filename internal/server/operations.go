@@ -41,6 +41,19 @@ var operations = map[string]operation{
 	"unstageHunk": newOperation(ops.UnstageHunk),
 	"discardHunk": newOperation(ops.DiscardHunk),
 
+	// Branches.
+	"checkout":       newOperation(ops.Checkout),
+	"createBranch":   newOperation(ops.CreateBranch),
+	"deleteBranches": newOperation(ops.DeleteBranches),
+	"renameBranch":   newOperation(ops.RenameBranch),
+	"setUpstream":    newOperation(ops.SetUpstream),
+
+	// Stashes: push saves the working tree; apply and drop name a stash by
+	// index and oid.
+	"stashPush":  newOperation(ops.StashPush),
+	"stashApply": newOperation(ops.StashApply),
+	"stashDrop":  newOperation(ops.StashDrop),
+
 	// Background jobs.
 	"fetch": newJob(ops.Fetch),
 }

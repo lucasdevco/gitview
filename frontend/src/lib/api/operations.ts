@@ -53,6 +53,43 @@ export type HunkRequest = {
   hunk: HunkRange
 }
 
+/** A local branch to check out. */
+export type CheckoutRequest = { branch: string }
+
+export type CreateBranchRequest = {
+  name: string
+  /** Commit or revision to start at; empty or absent means the working copy's parent (HEAD). */
+  startPoint?: string
+  /** Switch to the new branch after creating it. */
+  checkout?: boolean
+}
+
+export type DeleteBranchesRequest = {
+  branches: string[]
+  /** Delete even when not merged (`-D`). Without it git refuses with `branch_not_merged`. */
+  force?: boolean
+}
+
+export type RenameBranchRequest = { branch: string; newName: string }
+
+/** Make `branch` track `upstream`, e.g. "origin/main". */
+export type SetUpstreamRequest = { branch: string; upstream: string }
+
+/** `stashPush`: save every change, untracked files included, and clean the working tree. */
+export type StashPushRequest = {
+  /** Describes the stash; git writes "WIP on <branch>: …" when empty. */
+  message?: string
+  /** Keep the staged changes in the index and working tree (`--keep-index`). */
+  keepIndex?: boolean
+}
+
+/**
+ * `stashApply` / `stashDrop`: one stash, by its index and its oid from the
+ * stash list. The server refuses the request if the stash at `index` is no
+ * longer `oid`.
+ */
+export type StashRequest = { index: number; oid: string }
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
@@ -64,6 +101,21 @@ export type OperationRequests = {
   unstageHunk: HunkRequest
   /** Revert one unstaged hunk in the working tree; cannot be undone. */
   discardHunk: HunkRequest
+
+  // Branches
+  checkout: CheckoutRequest
+  createBranch: CreateBranchRequest
+  deleteBranches: DeleteBranchesRequest
+  renameBranch: RenameBranchRequest
+  setUpstream: SetUpstreamRequest
+
+  // Stashes
+  /** Stash every change, untracked files included. */
+  stashPush: StashPushRequest
+  /** Apply a stash to the working tree and keep it. */
+  stashApply: StashRequest
+  /** Delete a stash; cannot be undone. */
+  stashDrop: StashRequest
 }
 
 export type OperationName = keyof OperationRequests

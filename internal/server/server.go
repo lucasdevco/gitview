@@ -54,6 +54,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/refs", s.withRepo(s.getRefs))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/commits/{oid}", s.withRepo(s.getCommit))
 	s.registerOperations(mux)
+	s.registerStashes(mux)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")
 	})
@@ -138,6 +139,8 @@ func describeError(err error) (status int, code, message string) {
 			status = http.StatusConflict
 		case git.HookFailed:
 			status = http.StatusUnprocessableEntity
+		case git.LocalChanges, git.BranchNotMerged:
+			status = http.StatusConflict
 		}
 		return status, string(gitErr.Kind), gitErr.Error()
 	case errors.Is(err, context.DeadlineExceeded):

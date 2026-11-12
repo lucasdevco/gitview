@@ -7,12 +7,14 @@ export function Row({
   depth,
   active,
   onClick,
+  onDoubleClick,
   title,
   children,
 }: {
   depth: number
   active?: boolean
   onClick?: () => void
+  onDoubleClick?: () => void
   title?: string
   children: ReactNode
 }) {
@@ -21,6 +23,7 @@ export function Row({
       type="button"
       title={title}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       aria-current={active ? "page" : undefined}
       style={{ paddingLeft: 16 + depth * 14 }}
       className={cn(

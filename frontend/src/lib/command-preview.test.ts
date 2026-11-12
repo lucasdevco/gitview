@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest"
 import {
+  checkoutCommand,
   commitCommand,
+  createBranchCommand,
+  deleteBranchesCommand,
   discardHunkCommand,
   formatGitCommand,
+  renameBranchCommand,
+  setUpstreamCommand,
   stageCommand,
   stageHunkCommand,
+  stashApplyCommand,
+  stashDropCommand,
+  stashPushCommand,
   unstageCommand,
   unstageHunkCommand,
 } from "./command-preview"
@@ -56,5 +64,48 @@ describe("hunk operations", () => {
     expect(stageHunkCommand()).toBe("git apply --cached")
     expect(unstageHunkCommand()).toBe("git apply --cached -R")
     expect(discardHunkCommand()).toBe("git apply -R")
+  })
+})
+
+describe("branch operations", () => {
+  it("checkout switches to a local branch", () => {
+    expect(checkoutCommand({ branch: "feature/login" })).toBe("git switch feature/login")
+  })
+
+  it("createBranch uses git branch, or git switch -c when checking out", () => {
+    expect(createBranchCommand({ name: "feature/login" })).toBe("git branch feature/login")
+    expect(createBranchCommand({ name: "hotfix", startPoint: "0123456789", checkout: true })).toBe(
+      "git switch -c hotfix 0123456789",
+    )
+    expect(createBranchCommand({ name: "x", startPoint: "", checkout: false })).toBe("git branch x")
+  })
+
+  it("deleteBranches lists every branch, with -D when forced", () => {
+    expect(deleteBranchesCommand({ branches: ["done/one", "done/two"] })).toBe("git branch -d done/one done/two")
+    expect(deleteBranchesCommand({ branches: ["wip"], force: true })).toBe("git branch -D wip")
+  })
+
+  it("renameBranch and setUpstream", () => {
+    expect(renameBranchCommand({ branch: "feature", newName: "feature/login" })).toBe(
+      "git branch -m feature feature/login",
+    )
+    expect(setUpstreamCommand({ branch: "feature", upstream: "origin/main" })).toBe(
+      "git branch --set-upstream-to=origin/main feature",
+    )
+  })
+})
+
+describe("stash", () => {
+  it("always includes untracked files and trims the message like the backend", () => {
+    expect(stashPushCommand({ message: "half-done login" })).toBe(
+      "git stash push --include-untracked -m 'half-done login'",
+    )
+    expect(stashPushCommand({ message: "  ", keepIndex: true })).toBe("git stash push --include-untracked --keep-index")
+    expect(stashPushCommand({})).toBe("git stash push --include-untracked")
+  })
+
+  it("names the stash by its reflog entry", () => {
+    expect(stashApplyCommand({ index: 0, oid: "abc" })).toBe("git stash apply 'stash@{0}'")
+    expect(stashDropCommand({ index: 1, oid: "abc" })).toBe("git stash drop 'stash@{1}'")
   })
 })

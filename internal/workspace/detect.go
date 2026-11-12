@@ -39,43 +39,58 @@ const snapshotTimeout = 10 * time.Second
 // of it: watching every file would exhaust system watch limits on large
 // repositories, so clients poll status instead.
 type snapshot struct {
-	refs  [sha256.Size]byte
-	index indexStamp
-	state query.State
+	refs [sha256.Size]byte
+	// stashes stamps the stash reflog, which holds every stash but
+	// refs/stash's latest: dropping an older stash changes only this file.
+	stashes fileStamp
+	index   fileStamp
+	state   query.State
 }
 
-type indexStamp struct {
+type fileStamp struct {
 	exists  bool
 	size    int64
 	modTime time.Time
 }
 
-// takeSnapshot inspects HEAD, every ref, the index file and in-progress
-// state files.
+func stampFile(path string) fileStamp {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fileStamp{}
+	}
+	return fileStamp{exists: true, size: info.Size(), modTime: info.ModTime()}
+}
+
+// stashLog is the stash reflog, i.e. the stash list.
+func stashLog(gitDir string) string {
+	return filepath.Join(commonDir(gitDir), "logs", "refs", "stash")
+}
+
+// takeSnapshot inspects HEAD, every ref with its upstream (a branch's
+// tracking is part of the refs area, though git keeps it in config), the
+// stash list, the index file and in-progress state files.
 func takeSnapshot(ctx context.Context, r *repo.Repository) (snapshot, error) {
 	head, err := os.ReadFile(filepath.Join(r.GitDir, "HEAD"))
 	if err != nil {
 		return snapshot{}, err
 	}
-	refs, err := r.Runner.Run(ctx, git.Read("for-each-ref", "--format=%(objectname) %(refname)"))
+	refs, err := r.Runner.Run(ctx, git.Read("for-each-ref", "--format=%(objectname) %(refname) %(upstream)"))
 	if err != nil {
 		return snapshot{}, err
 	}
-	snap := snapshot{
-		refs:  sha256.Sum256(bytes.Join([][]byte{head, refs.Stdout}, []byte{0})),
-		state: query.InProgressState(r.GitDir),
-	}
-	if info, err := os.Stat(filepath.Join(r.GitDir, "index")); err == nil {
-		snap.index = indexStamp{exists: true, size: info.Size(), modTime: info.ModTime()}
-	}
-	return snap, nil
+	return snapshot{
+		refs:    sha256.Sum256(bytes.Join([][]byte{head, refs.Stdout}, []byte{0})),
+		stashes: stampFile(stashLog(r.GitDir)),
+		index:   stampFile(filepath.Join(r.GitDir, "index")),
+		state:   query.InProgressState(r.GitDir),
+	}, nil
 }
 
 // areas lists the areas that differ between two snapshots, plus also, in
 // a fixed order.
 func (s snapshot) areas(next snapshot, also ...Area) []Area {
 	differs := map[Area]bool{
-		AreaRefs:  s.refs != next.refs,
+		AreaRefs:  s.refs != next.refs || s.stashes != next.stashes,
 		AreaIndex: s.index != next.index,
 		AreaState: s.state != next.state,
 	}

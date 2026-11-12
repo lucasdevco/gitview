@@ -94,7 +94,7 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 		gitErr.Err = ctx.Err()
 	case errors.As(err, &exitErr):
 		gitErr.ExitCode = exitErr.ExitCode()
-		gitErr.Kind = classify(gitErr.Stderr)
+		gitErr.Kind = classify(gitErr.Stderr, gitErr.Stdout)
 		// A failed hook decides the outcome even when its output happens to
 		// match another kind (a failed pre-push also says "failed to push").
 		if trace != nil {
