@@ -30,8 +30,8 @@ describe("takeSessionToken", () => {
   })
 
   it("leaves the address alone when it has no token", () => {
-    const session = takeSessionToken("http://127.0.0.1:8080/prototype/workbench", memoryStorage())
-    expect(session).toEqual({ token: null, url: "http://127.0.0.1:8080/prototype/workbench" })
+    const session = takeSessionToken("http://127.0.0.1:8080/?view=history", memoryStorage())
+    expect(session).toEqual({ token: null, url: "http://127.0.0.1:8080/?view=history" })
   })
 
   it("prefers a newly opened URL's token over a remembered one", () => {

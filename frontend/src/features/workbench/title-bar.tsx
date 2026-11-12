@@ -46,8 +46,9 @@ function ToolbarButton({
 const Gap = () => <span className="w-2" />
 
 /**
- * Repository title and the Sourcetree toolbar. Operations are enabled as their
- * features land; until then their buttons are shown disabled.
+ * Repository title and the Sourcetree toolbar. A button without its handler is
+ * disabled: unavailable for the repository (e.g. 拉取 without remotes) or, for
+ * 显示远程服务器, 在 Finder 中显示 and 设置, not implemented.
  */
 export function TitleBar({
   name,
