@@ -77,7 +77,7 @@ export function BranchDialog({
 }
 
 function useCreateBranchForm(repoId: string, branches: Branch[], onDone: () => void) {
-  const operation = useOperation(repoId, "create-branch")
+  const operation = useOperation(repoId, "createBranch")
   const [name, setName] = useState("")
   const [base, setBase] = useState<"parent" | "commit">("parent")
   const [commit, setCommit] = useState("")
@@ -172,7 +172,7 @@ function CreateBranchFields({ summary, form }: { summary: RepoSummary; form: Ret
 }
 
 function useDeleteBranchesForm(repoId: string, branches: Branch[], initialSelection: string[], onDone: () => void) {
-  const operation = useOperation(repoId, "delete-branches")
+  const operation = useOperation(repoId, "deleteBranches")
   const [selected, setSelected] = useState(() => new Set(initialSelection))
   /** Branches git refused to delete because they are not merged; confirming now forces them. */
   const [unmerged, setUnmerged] = useState<string[]>([])

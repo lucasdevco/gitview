@@ -58,7 +58,7 @@ export function useBranchOperations(
 ): { actions?: BranchActions; dialogs: ReactNode } {
   const repoId = summary?.id ?? ""
   const checkout = useOperation(repoId, "checkout")
-  const setUpstream = useOperation(repoId, "set-upstream")
+  const setUpstream = useOperation(repoId, "setUpstream")
   const [dialog, setDialog] = useState<OpenDialog>()
   const close = () => setDialog(undefined)
   const fail = (title: string) => (error: Error) => setDialog({ kind: "failure", title, error })

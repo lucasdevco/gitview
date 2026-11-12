@@ -10,6 +10,7 @@ import "strings"
 type Command struct {
 	args  []string
 	write bool
+	input []byte
 }
 
 // Read starts a command that only inspects the repository. Read commands run
@@ -35,6 +36,14 @@ func (c *Command) ArgIf(condition bool, args ...string) *Command {
 	if condition {
 		c.args = append(c.args, args...)
 	}
+	return c
+}
+
+// Input sets what the command reads on standard input, such as the patch
+// for "git apply". It is not part of String: logs and previews show only
+// the arguments.
+func (c *Command) Input(data []byte) *Command {
+	c.input = data
 	return c
 }
 

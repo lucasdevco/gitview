@@ -52,27 +52,45 @@ export function commitCommand({ message, amend, noVerify }: CommitRequest): stri
   ])
 }
 
+// The hunk operations pipe a patch of the one hunk into git apply, so the
+// command is the same whichever hunk is chosen.
+
+/** `stageHunk`: add one hunk to the index. */
+export function stageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached"])
+}
+
+/** `unstageHunk`: remove one hunk from the index. */
+export function unstageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached", "-R"])
+}
+
+/** `discardHunk`: revert one hunk in the working tree. */
+export function discardHunkCommand(): string {
+  return formatGitCommand(["apply", "-R"])
+}
+
 /** `checkout`: switch to a local branch. */
 export function checkoutCommand({ branch }: CheckoutRequest): string {
   return formatGitCommand(["switch", branch])
 }
 
-/** `create-branch`: a new branch at the start point (default HEAD), switched to when `checkout`. */
+/** `createBranch`: a new branch at the start point (default HEAD), switched to when `checkout`. */
 export function createBranchCommand({ name, startPoint, checkout }: CreateBranchRequest): string {
   return formatGitCommand([...(checkout ? ["switch", "-c"] : ["branch"]), name, ...(startPoint ? [startPoint] : [])])
 }
 
-/** `delete-branches`: `-d` refuses unmerged branches, `-D` (force) does not. */
+/** `deleteBranches`: `-d` refuses unmerged branches, `-D` (force) does not. */
 export function deleteBranchesCommand({ branches, force }: DeleteBranchesRequest): string {
   return formatGitCommand(["branch", force ? "-D" : "-d", ...branches])
 }
 
-/** `rename-branch`. */
+/** `renameBranch`. */
 export function renameBranchCommand({ branch, newName }: RenameBranchRequest): string {
   return formatGitCommand(["branch", "-m", branch, newName])
 }
 
-/** `set-upstream`: make a branch track another (usually remote-tracking) branch. */
+/** `setUpstream`: make a branch track another (usually remote-tracking) branch. */
 export function setUpstreamCommand({ branch, upstream }: SetUpstreamRequest): string {
   return formatGitCommand(["branch", `--set-upstream-to=${upstream}`, branch])
 }

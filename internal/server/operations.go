@@ -31,12 +31,17 @@ var operations = map[string]operation{
 	"unstage": newOperation(ops.Unstage),
 	"commit":  newOperation(ops.Commit),
 
+	// One hunk of a file's diff.
+	"stageHunk":   newOperation(ops.StageHunk),
+	"unstageHunk": newOperation(ops.UnstageHunk),
+	"discardHunk": newOperation(ops.DiscardHunk),
+
 	// Branches.
-	"checkout":        newOperation(ops.Checkout),
-	"create-branch":   newOperation(ops.CreateBranch),
-	"delete-branches": newOperation(ops.DeleteBranches),
-	"rename-branch":   newOperation(ops.RenameBranch),
-	"set-upstream":    newOperation(ops.SetUpstream),
+	"checkout":       newOperation(ops.Checkout),
+	"createBranch":   newOperation(ops.CreateBranch),
+	"deleteBranches": newOperation(ops.DeleteBranches),
+	"renameBranch":   newOperation(ops.RenameBranch),
+	"setUpstream":    newOperation(ops.SetUpstream),
 }
 
 // maxOperationBody bounds an operation's JSON request body.

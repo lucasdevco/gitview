@@ -4,11 +4,14 @@ import {
   commitCommand,
   createBranchCommand,
   deleteBranchesCommand,
+  discardHunkCommand,
   formatGitCommand,
   renameBranchCommand,
   setUpstreamCommand,
   stageCommand,
+  stageHunkCommand,
   unstageCommand,
+  unstageHunkCommand,
 } from "./command-preview"
 
 // Expected strings are the ones the backend reports for the same requests
@@ -53,12 +56,20 @@ describe("commitCommand", () => {
   })
 })
 
+describe("hunk operations", () => {
+  it("apply a patch of the one hunk, read from standard input", () => {
+    expect(stageHunkCommand()).toBe("git apply --cached")
+    expect(unstageHunkCommand()).toBe("git apply --cached -R")
+    expect(discardHunkCommand()).toBe("git apply -R")
+  })
+})
+
 describe("branch operations", () => {
   it("checkout switches to a local branch", () => {
     expect(checkoutCommand({ branch: "feature/login" })).toBe("git switch feature/login")
   })
 
-  it("create-branch uses git branch, or git switch -c when checking out", () => {
+  it("createBranch uses git branch, or git switch -c when checking out", () => {
     expect(createBranchCommand({ name: "feature/login" })).toBe("git branch feature/login")
     expect(createBranchCommand({ name: "hotfix", startPoint: "0123456789", checkout: true })).toBe(
       "git switch -c hotfix 0123456789",
@@ -66,12 +77,12 @@ describe("branch operations", () => {
     expect(createBranchCommand({ name: "x", startPoint: "", checkout: false })).toBe("git branch x")
   })
 
-  it("delete-branches lists every branch, with -D when forced", () => {
+  it("deleteBranches lists every branch, with -D when forced", () => {
     expect(deleteBranchesCommand({ branches: ["done/one", "done/two"] })).toBe("git branch -d done/one done/two")
     expect(deleteBranchesCommand({ branches: ["wip"], force: true })).toBe("git branch -D wip")
   })
 
-  it("rename-branch and set-upstream", () => {
+  it("renameBranch and setUpstream", () => {
     expect(renameBranchCommand({ branch: "feature", newName: "feature/login" })).toBe(
       "git branch -m feature feature/login",
     )

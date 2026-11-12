@@ -18,7 +18,7 @@ export function RenameBranchDialog({
   branchNames: string[]
   onClose: () => void
 }) {
-  const operation = useOperation(repoId, "rename-branch")
+  const operation = useOperation(repoId, "renameBranch")
   const [newName, setNewName] = useState(branch)
   const problem = newName === branch ? "请输入新的分支名" : branchNameProblem(newName, branchNames)
   const request = { branch, newName }
