@@ -54,6 +54,19 @@ func (s *Server) searchCommits(w http.ResponseWriter, r *http.Request, repo *wor
 	writeData(w, oids)
 }
 
+// getSubmodules answers GET /api/v1/repos/{repoId}/submodules with each
+// submodule's path and the commit the index records for it.
+func (s *Server) getSubmodules(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
+	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
+	defer cancel()
+	submodules, err := query.Submodules(ctx, repo.Reader())
+	if err != nil {
+		writeGitError(w, err)
+		return
+	}
+	writeData(w, submodules)
+}
+
 // graphOptions reads the scope and remotes parameters shared by the graph
 // and search, answering 400 for an unknown value.
 func graphOptions(w http.ResponseWriter, r *http.Request) (query.GraphOptions, bool) {

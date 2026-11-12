@@ -209,6 +209,38 @@ func TestSearchFindsCommitsByTheirFullMessage(t *testing.T) {
 	}
 }
 
+func TestSubmodulesAreListedWithTheirRecordedCommit(t *testing.T) {
+	library := gittest.Init(t)
+	pinned := library.Commit("lib.txt", "v1\n", "library v1")
+	r := gittest.Init(t)
+	r.Commit("a.txt", "a\n", "first")
+	f := newFixture(t, r)
+
+	type submodule struct {
+		Path string `json:"path"`
+		Oid  string `json:"oid"`
+	}
+	list := func() []submodule {
+		t.Helper()
+		response := f.get(t, "/api/v1/repos/"+f.repoID+"/submodules")
+		if response.Code != http.StatusOK {
+			t.Fatalf("submodules: status %d: %s", response.Code, response.Body)
+		}
+		return decode[struct{ Data []submodule }](t, response).Data
+	}
+	if got := list(); got == nil || len(got) != 0 {
+		t.Fatalf("without submodules: %+v, want []", got)
+	}
+
+	r.Git("-c", "protocol.file.allow=always", "submodule", "--quiet", "add", library.Dir, "libs/my lib")
+	r.Git("commit", "--quiet", "-m", "add library")
+	library.Commit("lib.txt", "v2\n", "library v2")
+
+	if got := list(); !slices.Equal(got, []submodule{{Path: "libs/my lib", Oid: pinned}}) {
+		t.Fatalf("submodules = %+v, want libs/my lib at %s", got, pinned)
+	}
+}
+
 func TestGraphRejectsUnknownOptions(t *testing.T) {
 	f := newFixture(t, gittest.Init(t))
 

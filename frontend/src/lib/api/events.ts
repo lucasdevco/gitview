@@ -61,6 +61,9 @@ const DEPENDS_ON: Record<string, readonly ChangedArea[]> = {
   refs: ["refs"],
   graph: ["refs"],
   search: ["refs"],
+  // A submodule's pinned commit is staged in the index; .gitmodules is a
+  // working tree file.
+  submodules: ["refs", "index", "worktree"],
   // A commit and its diffs never change.
   commit: [],
   // The command log only grows with gitview's own writes, which refresh it.

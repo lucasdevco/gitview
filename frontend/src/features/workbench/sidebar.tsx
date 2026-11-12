@@ -1,13 +1,14 @@
-import { ChevronDown, FolderGit2, Monitor, Network, Search } from "lucide-react"
+import { ChevronDown, Monitor, Search } from "lucide-react"
 import { useState } from "react"
 import type { StashAction } from "@/features/stash/stash-sheets"
 import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
 import type { Stash } from "@/lib/api/stashes"
 import { cn } from "@/lib/utils"
-import { Row, Section } from "./sidebar-parts"
+import { Row } from "./sidebar-parts"
 import { BranchesSection, RemotesSection, TagsSection } from "./sidebar-refs"
 import { StashesSection } from "./sidebar-stashes"
+import { SubmodulesSection, SubtreesSection } from "./sidebar-submodules"
 
 /** The main area: a WORKSPACE view, or the stash selected under 已贮藏. */
 export type WorkbenchView = "status" | "history" | "search" | "stash"
@@ -79,8 +80,8 @@ export function Sidebar({
           onSelect={onSelectStash}
           onAction={onStashAction}
         />
-        <Section icon={FolderGit2} title="子模块" />
-        <Section icon={Network} title="子树" />
+        <SubmodulesSection repoId={summary.id} />
+        <SubtreesSection />
       </nav>
       <div className="flex shrink-0 items-center gap-1.5 border-t px-2 py-1.5">
         <Search className="size-3.5 text-muted-foreground" />
