@@ -114,8 +114,12 @@ func (r *Repo) runJob(ctx context.Context, j *job, op WriteFunc) {
 }
 
 // runner is the runner the job's commands go through: it reports what git
-// prints as the job's progress. Jobs that need more from their commands —
-// such as answering credential prompts through the browser — wrap it here.
+// prints as the job's progress. This is the place for anything else a
+// remote operation needs from its commands. Credential prompts, for one:
+// wrap next so commands run with GIT_ASKPASS / SSH_ASKPASS pointing at the
+// gitview helper plus a per-job secret; the helper calls back into the
+// server with the job's ID, the job publishes a prompt event and waits for
+// the answer or for its context to be canceled.
 func (j *job) runner(next git.Runner) git.Runner {
 	return git.Reporting(next, j.report)
 }
