@@ -2,10 +2,13 @@ import { useQuery } from "@tanstack/react-query"
 import { ChevronDown, Ellipsis, X } from "lucide-react"
 import { useState } from "react"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { DiffPanel } from "@/features/diff/diff-panel"
+import { DiffPanel, type HunkAction } from "@/features/diff/diff-panel"
 import { describeChange, shortenPath } from "@/features/diff/file-path"
 import { FileStatusIcon } from "@/features/diff/file-status-icon"
+import type { DiffHunk } from "@/features/diff/parse-diff"
+import { OperationSheet } from "@/features/operations/operation-sheet"
 import { useApi } from "@/lib/api/context"
+import type { HunkRequest } from "@/lib/api/operations"
 import { useOperation } from "@/lib/api/use-operation"
 import {
   diffRequestFor,
@@ -14,11 +17,18 @@ import {
   type WorktreeStatus,
   worktreeStatusQuery,
 } from "@/lib/api/worktree"
+import { discardHunkCommand } from "@/lib/command-preview"
 import { cn } from "@/lib/utils"
 import { CommitPanel } from "./commit-panel"
-import { type Area, toggleRequest } from "./staging"
+import { type Area, type HunkOperation, hunkOperations, hunkRequest, toggleRequest } from "./staging"
 
 type Selection = { path: string; area: Area }
+
+const hunkLabels: Record<HunkOperation, string> = {
+  stageHunk: "暂存区块",
+  unstageHunk: "取消暂存区块",
+  discardHunk: "丢弃区块",
+}
 
 const byPath = (a: FileChange, b: FileChange) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
 
@@ -31,11 +41,18 @@ function fileGroups(status?: WorktreeStatus): Record<Area, FileChange[]> {
   }
 }
 
-/** The selected file if it is still listed, otherwise the first file (staged first). */
+/**
+ * The selected file if it is still listed; if it moved to the other list (its
+ * last hunk was staged or unstaged), the file there; otherwise the first file
+ * (staged first).
+ */
 function resolveSelection(groups: Record<Area, FileChange[]>, selected?: Selection) {
   if (selected) {
-    const file = groups[selected.area].find((change) => change.path === selected.path)
-    if (file) return { file, area: selected.area }
+    const other: Area = selected.area === "staged" ? "unstaged" : "staged"
+    for (const area of [selected.area, other]) {
+      const file = groups[area].find((change) => change.path === selected.path)
+      if (file) return { file, area }
+    }
   }
   const area: Area = groups.staged.length ? "staged" : "unstaged"
   const file = groups[area][0]
@@ -46,14 +63,19 @@ function resolveSelection(groups: Record<Area, FileChange[]>, selected?: Selecti
  * 文件状态: staged and unstaged files of the working tree on the left, the
  * selected file's diff on the right, the commit area below. Checking a file
  * stages it, unchecking unstages it; the group title's checkbox does so for
- * every file in the group.
+ * every file in the group. Each hunk of the diff can be staged, unstaged or,
+ * after confirmation, discarded on its own.
  */
 export function FileStatusView({ repoId }: { repoId: string }) {
   const api = useApi()
   const status = useQuery(worktreeStatusQuery(api, repoId))
   const stage = useOperation(repoId, "stage")
   const unstage = useOperation(repoId, "unstage")
+  const stageHunk = useOperation(repoId, "stageHunk")
+  const unstageHunk = useOperation(repoId, "unstageHunk")
+  const discardHunk = useOperation(repoId, "discardHunk")
   const [selected, setSelected] = useState<Selection>()
+  const [discarding, setDiscarding] = useState<{ file: FileChange; hunk: DiffHunk }>()
 
   const groups = fileGroups(status.data)
   const resolved = resolveSelection(groups, selected)
@@ -64,12 +86,24 @@ export function FileStatusView({ repoId }: { repoId: string }) {
   })
 
   const select = (path: string, area: Area) => setSelected({ path, area })
-  const busy = stage.isPending || unstage.isPending
+  // Every change waits for the previous one and the refresh after it, so a
+  // hunk button never acts on a diff that is out of date.
+  const writes = [
+    { mutation: stage, failed: "暂存失败：" },
+    { mutation: unstage, failed: "取消暂存失败：" },
+    { mutation: stageHunk, failed: "暂存区块失败：" },
+    { mutation: unstageHunk, failed: "取消暂存区块失败：" },
+    { mutation: discardHunk, failed: "丢弃区块失败：" },
+  ]
+  const busy = writes.some(({ mutation }) => mutation.isPending)
+  const failure = writes.find(({ mutation }) => mutation.error)
+  const resetErrors = () => {
+    for (const { mutation } of writes) mutation.reset()
+  }
   const toggle = (area: Area, files: FileChange[]) => {
     const toggled = toggleRequest(area, files)
     if (!toggled || busy) return
-    stage.reset()
-    unstage.reset()
+    resetErrors()
     const mutation = toggled.op === "stage" ? stage : unstage
     mutation.mutate(toggled.request, {
       onSuccess: () => {
@@ -80,7 +114,24 @@ export function FileStatusView({ repoId }: { repoId: string }) {
       },
     })
   }
-  const toggleError = stage.error ?? unstage.error
+
+  const hunkMutations = { stageHunk, unstageHunk, discardHunk }
+  const runHunk = (op: HunkOperation, request: HunkRequest) => {
+    if (busy) return
+    resetErrors()
+    hunkMutations[op].mutate(request)
+  }
+  const hunkActions: HunkAction[] = resolved
+    ? hunkOperations(resolved.area, resolved.file).map((op) => ({
+        label: hunkLabels[op],
+        tone: op === "discardHunk" ? "danger" : undefined,
+        disabled: busy,
+        onClick: (hunk) => {
+          if (op === "discardHunk") setDiscarding({ file: resolved.file, hunk })
+          else runHunk(op, hunkRequest(resolved.file, resolved.area, hunk))
+        },
+      }))
+    : []
 
   let placeholder = "选择一个文件查看差异"
   if (status.isPending) placeholder = "正在读取文件状态…"
@@ -102,23 +153,20 @@ export function FileStatusView({ repoId }: { repoId: string }) {
                   <ChevronDown className="size-3" />
                 </span>
               </div>
-              {toggleError && (
+              {failure && (
                 <div
                   role="alert"
                   className="flex items-start gap-2 border-b bg-destructive/5 px-3 py-1.5 text-destructive"
                 >
                   <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
-                    {stage.error ? "暂存失败：" : "取消暂存失败："}
-                    {toggleError.message}
+                    {failure.failed}
+                    {failure.mutation.error?.message}
                   </span>
                   <button
                     type="button"
                     aria-label="关闭错误"
                     className="rounded p-0.5 hover:bg-accent"
-                    onClick={() => {
-                      stage.reset()
-                      unstage.reset()
-                    }}
+                    onClick={resetErrors}
                   >
                     <X className="size-3.5" />
                   </button>
@@ -166,6 +214,7 @@ export function FileStatusView({ repoId }: { repoId: string }) {
               diff={diff.data}
               loading={diff.isFetching}
               error={diff.error}
+              hunkActions={hunkActions}
               placeholder={placeholder}
             />
           </ResizablePanel>
@@ -175,7 +224,51 @@ export function FileStatusView({ repoId }: { repoId: string }) {
       <ResizablePanel minSize="18%">
         <CommitPanel repoId={repoId} stagedCount={groups.staged.length} />
       </ResizablePanel>
+      {discarding && (
+        <DiscardHunkSheet
+          {...discarding}
+          onClose={() => setDiscarding(undefined)}
+          onConfirm={() => {
+            runHunk("discardHunk", hunkRequest(discarding.file, "unstaged", discarding.hunk))
+            setDiscarding(undefined)
+          }}
+        />
+      )}
     </ResizablePanelGroup>
+  )
+}
+
+/** Confirms 丢弃区块: the hunk's unstaged change is lost for good. */
+function DiscardHunkSheet({
+  file,
+  hunk,
+  onClose,
+  onConfirm,
+}: {
+  file: FileChange
+  hunk: DiffHunk
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <OperationSheet
+      title="丢弃区块"
+      showTitle
+      width={460}
+      command={discardHunkCommand()}
+      confirmLabel="丢弃"
+      onClose={onClose}
+      onConfirm={onConfirm}
+    >
+      <p className="break-words">
+        确定要丢弃 <span className="font-medium">{file.path}</span> 的块 {hunk.index}（行 {hunk.from}-{hunk.to}
+        ）中未暂存的改动吗？
+      </p>
+      <p className="text-destructive">
+        {file.status === "untracked" ? "这是未跟踪文件，丢弃将删除整个文件，" : "工作区中的这些改动将被还原，"}
+        此操作无法撤销。
+      </p>
+    </OperationSheet>
   )
 }
 

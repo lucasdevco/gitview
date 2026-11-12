@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
   commitCommand,
+  discardHunkCommand,
   formatGitCommand,
   stageCommand,
+  stageHunkCommand,
   stashApplyCommand,
   stashDropCommand,
   stashPushCommand,
   unstageCommand,
+  unstageHunkCommand,
 } from "./command-preview"
 
 // Expected strings are the ones the backend reports for the same requests
@@ -48,6 +51,14 @@ describe("commitCommand", () => {
     expect(commitCommand({ message: "both", amend: true, noVerify: true })).toBe(
       "git commit --amend --no-verify -m both",
     )
+  })
+})
+
+describe("hunk operations", () => {
+  it("apply a patch of the one hunk, read from standard input", () => {
+    expect(stageHunkCommand()).toBe("git apply --cached")
+    expect(unstageHunkCommand()).toBe("git apply --cached -R")
+    expect(discardHunkCommand()).toBe("git apply -R")
   })
 })
 

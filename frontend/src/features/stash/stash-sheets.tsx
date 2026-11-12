@@ -1,8 +1,9 @@
 // The 贮藏 dialog and the confirmations for applying and deleting a stash.
+import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { Check, Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { ApiError } from "@/lib/api/client"
-import type { Stash } from "@/lib/api/stashes"
+import { type Stash, stashKeys } from "@/lib/api/stashes"
 import { useOperation } from "@/lib/api/use-operation"
 import { stashApplyCommand, stashDropCommand, stashPushCommand } from "@/lib/command-preview"
 
@@ -12,7 +13,7 @@ import { stashApplyCommand, stashDropCommand, stashPushCommand } from "@/lib/com
  * nothing to stash.
  */
 export function StashDialog({ repoId, dirty, onClose }: { repoId: string; dirty: boolean; onClose: () => void }) {
-  const push = useOperation(repoId, "stash-push")
+  const push = useOperation(repoId, "stashPush")
   const [message, setMessage] = useState("")
   const [keepIndex, setKeepIndex] = useState(false)
   const request = { message, keepIndex }
@@ -66,9 +67,17 @@ export function StashActionSheet({
   action: StashAction
   onClose: () => void
 }) {
-  const operation = useOperation(repoId, kind === "apply" ? "stash-apply" : "stash-drop")
+  const queryClient = useQueryClient()
+  const operation = useOperation(repoId, kind === "apply" ? "stashApply" : "stashDrop")
   const request = { index: stash.index, oid: stash.oid }
   const apply = kind === "apply"
+  const confirm = () =>
+    operation.mutate(request, {
+      onSuccess: onClose,
+      // Dropping an older stash leaves refs/stash unchanged, so no change
+      // event refreshes the list; a refused request means the list is stale.
+      onSettled: () => queryClient.invalidateQueries({ queryKey: stashKeys.list(repoId) }),
+    })
   return (
     <OperationSheet
       title={apply ? "应用贮藏" : "删除贮藏"}
@@ -78,7 +87,7 @@ export function StashActionSheet({
       onClose={onClose}
       confirmLabel={operation.isPending ? "正在执行…" : apply ? "应用" : "删除"}
       disabled={operation.isPending}
-      onConfirm={() => operation.mutate(request, { onSuccess: onClose })}
+      onConfirm={confirm}
     >
       <p>
         {apply ? "将贮藏的更改应用到工作区，贮藏仍会保留：" : "确定要删除这个贮藏吗？删除后无法在 gitview 中恢复："}

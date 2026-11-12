@@ -45,7 +45,25 @@ export function commitCommand({ message, amend, noVerify }: CommitRequest): stri
   ])
 }
 
-/** `stash-push`: stash every change, untracked files included. */
+// The hunk operations pipe a patch of the one hunk into git apply, so the
+// command is the same whichever hunk is chosen.
+
+/** `stageHunk`: add one hunk to the index. */
+export function stageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached"])
+}
+
+/** `unstageHunk`: remove one hunk from the index. */
+export function unstageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached", "-R"])
+}
+
+/** `discardHunk`: revert one hunk in the working tree. */
+export function discardHunkCommand(): string {
+  return formatGitCommand(["apply", "-R"])
+}
+
+/** `stashPush`: stash every change, untracked files included. */
 export function stashPushCommand({ message, keepIndex }: StashPushRequest): string {
   const trimmed = message?.trim() ?? ""
   return formatGitCommand([
@@ -57,12 +75,12 @@ export function stashPushCommand({ message, keepIndex }: StashPushRequest): stri
   ])
 }
 
-/** `stash-apply`: apply a stash and keep it. */
+/** `stashApply`: apply a stash and keep it. */
 export function stashApplyCommand({ index }: StashRequest): string {
   return formatGitCommand(["stash", "apply", `stash@{${index}}`])
 }
 
-/** `stash-drop`: delete a stash. */
+/** `stashDrop`: delete a stash. */
 export function stashDropCommand({ index }: StashRequest): string {
   return formatGitCommand(["stash", "drop", `stash@{${index}}`])
 }

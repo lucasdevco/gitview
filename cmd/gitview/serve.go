@@ -27,6 +27,7 @@ func serve(parent context.Context, config serveConfig) error {
 		return err
 	}
 	ws := workspace.New()
+	defer ws.Close()
 	repo, err := ws.Open(ctx, config.Repository)
 	if err != nil {
 		return err
@@ -52,6 +53,8 @@ func serve(parent context.Context, config serveConfig) error {
 
 	select {
 	case <-ctx.Done():
+		// End event streams first; Shutdown waits for open requests.
+		ws.Close()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {

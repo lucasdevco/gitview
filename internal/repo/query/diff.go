@@ -75,7 +75,9 @@ func Diff(ctx context.Context, r *repo.Repository, request DiffRequest) (FileDif
 	if err := request.validate(); err != nil {
 		return FileDiff{}, err
 	}
-	options := []string{"--no-color", "--no-ext-diff", "--no-textconv", "--find-renames"}
+	// Fixed a/ and b/ prefixes, whatever diff.noprefix or diff.mnemonicPrefix
+	// say, keep the patch appliable by the hunk operations.
+	options := []string{"--no-color", "--no-ext-diff", "--no-textconv", "--find-renames", "--src-prefix=a/", "--dst-prefix=b/"}
 	var command *git.Command
 	switch request.Source {
 	case DiffStaged:

@@ -60,13 +60,13 @@ func (r *Repo) Write(ctx context.Context, op WriteFunc) ([]git.LogEntry, error) 
 }
 
 // beginWrite runs after the write lock is taken, before the operation's
-// first command. Live refresh hooks in here to pause change detection, so
-// gitview's own intermediate states are not reported as outside changes.
-func (r *Repo) beginWrite() {}
+// first command. It pauses change detection, so gitview's own intermediate
+// states are not reported as outside changes.
+func (r *Repo) beginWrite() { r.changes.pause() }
 
-// endWrite runs after the operation, while the write lock is still held.
-// Live refresh hooks in here to resume change detection and refresh once.
-func (r *Repo) endWrite() {}
+// endWrite runs after the operation, while the write lock is still held. It
+// resumes change detection and reports what the write changed in one event.
+func (r *Repo) endWrite() { r.changes.resume() }
 
 // Commands returns the repository's recent write commands, oldest first.
 func (r *Repo) Commands() []git.LogEntry { return r.commands.Entries() }

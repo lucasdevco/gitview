@@ -8,7 +8,13 @@ import { type DiffHunk, type DiffLine, parseDiff } from "./parse-diff"
 import { type DiffMatch, findDiffMatches } from "./search"
 
 /** A button in a hunk header, e.g. "暂存区块". It acts on the hunk it is shown for. */
-export type HunkAction = { label: string; onClick: (hunk: DiffHunk) => void; tone?: "danger" }
+export type HunkAction = {
+  label: string
+  onClick: (hunk: DiffHunk) => void
+  tone?: "danger"
+  /** Shown but not clickable, e.g. while another change is being written. */
+  disabled?: boolean
+}
 
 export type DiffPanelProps = {
   /** The file being shown; nothing selected shows a hint. */
@@ -193,9 +199,10 @@ function DiffBody({
                   <button
                     key={action.label}
                     type="button"
+                    disabled={action.disabled}
                     onClick={() => action.onClick(hunk)}
                     className={cn(
-                      "rounded border bg-background px-2 py-px text-[11px] text-foreground hover:bg-muted",
+                      "rounded border bg-background px-2 py-px text-[11px] text-foreground hover:bg-muted disabled:opacity-50 disabled:hover:bg-background",
                       action.tone === "danger" && "text-destructive",
                     )}
                   >

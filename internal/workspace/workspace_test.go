@@ -9,10 +9,18 @@ import (
 	"gitview/internal/workspace"
 )
 
+// open returns a new workspace that is closed when the test ends.
+func open(t *testing.T) *workspace.Workspace {
+	t.Helper()
+	ws := workspace.New()
+	t.Cleanup(ws.Close)
+	return ws
+}
+
 func TestOpeningTheSameRepositoryTwiceReturnsOneInstance(t *testing.T) {
 	r := gittest.Init(t)
 	r.Commit("pkg/a.txt", "a\n", "first")
-	ws := workspace.New()
+	ws := open(t)
 
 	first, err := ws.Open(context.Background(), r.Dir)
 	if err != nil {
@@ -32,11 +40,11 @@ func TestOpeningTheSameRepositoryTwiceReturnsOneInstance(t *testing.T) {
 
 func TestRepositoryIDIsStableAndURLSafe(t *testing.T) {
 	r := gittest.Init(t)
-	a, err := workspace.New().Open(context.Background(), r.Dir)
+	a, err := open(t).Open(context.Background(), r.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := workspace.New().Open(context.Background(), r.Dir)
+	b, err := open(t).Open(context.Background(), r.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,13 +59,13 @@ func TestRepositoryIDIsStableAndURLSafe(t *testing.T) {
 }
 
 func TestUnknownRepositoryIsNotFound(t *testing.T) {
-	if _, ok := workspace.New().Repo("missing"); ok {
+	if _, ok := open(t).Repo("missing"); ok {
 		t.Fatal("expected no repository")
 	}
 }
 
 func TestOpenFailureLeavesWorkspaceEmpty(t *testing.T) {
-	ws := workspace.New()
+	ws := open(t)
 	if _, err := ws.Open(context.Background(), filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Fatal("expected error")
 	}

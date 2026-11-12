@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import "@/index.css"
 import { createApiClient } from "@/lib/api/client"
 import { ApiProvider } from "@/lib/api/context"
+import { LiveRefresh } from "@/lib/api/live-refresh"
 import { takeSessionToken } from "@/lib/api/session"
 import { routeTree } from "@/routeTree.gen"
 
@@ -37,6 +38,7 @@ createRoot(rootElement).render(
   <StrictMode>
     <ApiProvider client={api}>
       <QueryClientProvider client={queryClient}>
+        <LiveRefresh token={session.token} />
         <TooltipProvider>
           <RouterProvider router={router} />
         </TooltipProvider>

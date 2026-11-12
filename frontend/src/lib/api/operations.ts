@@ -39,7 +39,21 @@ export type CommitRequest = {
   noVerify?: boolean
 }
 
-/** `stash-push`: save every change, untracked files included, and clean the working tree. */
+/** A hunk's `@@ -oldStart,oldCount +newStart,newCount @@` header range. */
+export type HunkRange = { oldStart: number; oldCount: number; newStart: number; newCount: number }
+
+/**
+ * One hunk of one file's diff. The server re-reads the diff and rejects a
+ * hunk that is no longer there, so the request never acts on unseen changes.
+ */
+export type HunkRequest = {
+  path: string
+  /** Original path of a staged rename, as in the staged diff. */
+  oldPath?: string
+  hunk: HunkRange
+}
+
+/** `stashPush`: save every change, untracked files included, and clean the working tree. */
 export type StashPushRequest = {
   /** Describes the stash; git writes "WIP on <branch>: …" when empty. */
   message?: string
@@ -48,7 +62,7 @@ export type StashPushRequest = {
 }
 
 /**
- * `stash-apply` / `stash-drop`: one stash, by its index and its oid from the
+ * `stashApply` / `stashDrop`: one stash, by its index and its oid from the
  * stash list. The server refuses the request if the stash at `index` is no
  * longer `oid`.
  */
@@ -59,9 +73,18 @@ export type OperationRequests = {
   stage: FilesRequest
   unstage: FilesRequest
   commit: CommitRequest
-  "stash-push": StashPushRequest
-  "stash-apply": StashRequest
-  "stash-drop": StashRequest
+  /** Add one hunk of an unstaged or untracked file to the index. */
+  stageHunk: HunkRequest
+  /** Remove one hunk of a staged file from the index. */
+  unstageHunk: HunkRequest
+  /** Revert one unstaged hunk in the working tree; cannot be undone. */
+  discardHunk: HunkRequest
+  /** Stash every change, untracked files included. */
+  stashPush: StashPushRequest
+  /** Apply a stash to the working tree and keep it. */
+  stashApply: StashRequest
+  /** Delete a stash; cannot be undone. */
+  stashDrop: StashRequest
 }
 
 export type OperationName = keyof OperationRequests

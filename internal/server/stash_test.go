@@ -3,8 +3,6 @@ package server_test
 import (
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -50,15 +48,6 @@ func stashDiffParams(oid, path string) url.Values {
 	return params
 }
 
-func readFile(t *testing.T, r *gittest.Repo, path string) string {
-	t.Helper()
-	content, err := os.ReadFile(filepath.Join(r.Dir, path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(content)
-}
-
 func TestStashSavesTrackedAndUntrackedChangesAndCleansTheWorkingTree(t *testing.T) {
 	r := gittest.Init(t)
 	base := r.Commit("notes.txt", "one\ntwo\n", "base")
@@ -68,7 +57,7 @@ func TestStashSavesTrackedAndUntrackedChangesAndCleansTheWorkingTree(t *testing.
 	r.Write("new dir/untracked.txt", "fresh\n")
 	f := newFixture(t, r)
 
-	commands := f.mustOperate(t, "stash-push", map[string]any{"message": "half-done login"})
+	commands := f.mustOperate(t, "stashPush", map[string]any{"message": "half-done login"})
 
 	if got := commandStrings(commands); len(got) != 1 || got[0] != "git stash push --include-untracked -m 'half-done login'" {
 		t.Fatalf("unexpected commands: %q", got)
@@ -112,7 +101,7 @@ func TestStashWithoutMessageAndKeepingStagedChanges(t *testing.T) {
 	r.Write("b.txt", "untracked b\n")
 	f := newFixture(t, r)
 
-	commands := f.mustOperate(t, "stash-push", map[string]any{"message": "  ", "keepIndex": true})
+	commands := f.mustOperate(t, "stashPush", map[string]any{"message": "  ", "keepIndex": true})
 
 	if got := commandStrings(commands); len(got) != 1 || got[0] != "git stash push --include-untracked --keep-index" {
 		t.Fatalf("unexpected commands: %q", got)
@@ -138,7 +127,7 @@ func TestStashOfACleanWorkingTreeIsRejected(t *testing.T) {
 	r.Commit("a.txt", "a\n", "base")
 	f := newFixture(t, r)
 
-	code, response := f.operate(t, "stash-push", map[string]any{})
+	code, response := f.operate(t, "stashPush", map[string]any{})
 
 	if code != http.StatusBadRequest || response.Error.Code != "invalid_request" ||
 		!strings.Contains(response.Error.Message, "no local changes") {
@@ -157,9 +146,9 @@ func TestStashListIsNewestFirst(t *testing.T) {
 		t.Fatalf("expected an empty list, got %+v", list)
 	}
 	r.Write("a.txt", "first\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "first"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "first"})
 	r.Write("a.txt", "second\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "second"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "second"})
 
 	list := f.stashes(t)
 	if len(list) != 2 || list[0].Message != "On main: second" || list[1].Message != "On main: first" ||
@@ -177,10 +166,10 @@ func TestApplyStashRestoresItsChangesAndKeepsIt(t *testing.T) {
 	r.Write("a.txt", "changed\n")
 	r.Write("new.txt", "new\n")
 	f := newFixture(t, r)
-	f.mustOperate(t, "stash-push", map[string]any{"message": "work"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "work"})
 	stash := f.stashes(t)[0]
 
-	commands := f.mustOperate(t, "stash-apply", map[string]any{"index": 0, "oid": stash.Oid})
+	commands := f.mustOperate(t, "stashApply", map[string]any{"index": 0, "oid": stash.Oid})
 
 	if got := commandStrings(commands); len(got) != 1 || got[0] != "git stash apply 'stash@{0}'" {
 		t.Fatalf("unexpected commands: %q", got)
@@ -201,11 +190,11 @@ func TestApplyingAConflictingStashReportsTheConflict(t *testing.T) {
 	r.Commit("a.txt", "base\n", "base")
 	r.Write("a.txt", "from stash\n")
 	f := newFixture(t, r)
-	f.mustOperate(t, "stash-push", map[string]any{"message": "work"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "work"})
 	r.Commit("a.txt", "committed meanwhile\n", "conflicting change")
 	stash := f.stashes(t)[0]
 
-	code, response := f.operate(t, "stash-apply", map[string]any{"index": 0, "oid": stash.Oid})
+	code, response := f.operate(t, "stashApply", map[string]any{"index": 0, "oid": stash.Oid})
 
 	if code != http.StatusConflict || response.Error.Code != "conflict" {
 		t.Fatalf("unexpected response %d: %+v", code, response.Error)
@@ -230,12 +219,12 @@ func TestDropStashRemovesOnlyThatStash(t *testing.T) {
 	r.Commit("a.txt", "a\n", "base")
 	f := newFixture(t, r)
 	r.Write("a.txt", "first\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "first"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "first"})
 	r.Write("a.txt", "second\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "second"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "second"})
 	list := f.stashes(t)
 
-	commands := f.mustOperate(t, "stash-drop", map[string]any{"index": 1, "oid": list[1].Oid})
+	commands := f.mustOperate(t, "stashDrop", map[string]any{"index": 1, "oid": list[1].Oid})
 
 	if got := commandStrings(commands); len(got) != 1 || got[0] != "git stash drop 'stash@{1}'" {
 		t.Fatalf("unexpected commands: %q", got)
@@ -250,10 +239,10 @@ func TestStashOperationsRefuseAStashThatChanged(t *testing.T) {
 	r.Commit("a.txt", "a\n", "base")
 	f := newFixture(t, r)
 	r.Write("a.txt", "first\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "first"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "first"})
 	first := f.stashes(t)[0]
 	r.Write("a.txt", "second\n")
-	f.mustOperate(t, "stash-push", map[string]any{"message": "second"})
+	f.mustOperate(t, "stashPush", map[string]any{"message": "second"})
 
 	cases := []struct {
 		name string
@@ -261,10 +250,10 @@ func TestStashOperationsRefuseAStashThatChanged(t *testing.T) {
 		body map[string]any
 		want string
 	}{
-		{"index moved", "stash-drop", map[string]any{"index": 0, "oid": first.Oid}, "no longer the stash you selected"},
-		{"index gone", "stash-apply", map[string]any{"index": 5, "oid": first.Oid}, "no stash@{5}"},
-		{"negative index", "stash-drop", map[string]any{"index": -1, "oid": first.Oid}, "negative"},
-		{"missing oid", "stash-apply", map[string]any{"index": 1}, "missing oid"},
+		{"index moved", "stashDrop", map[string]any{"index": 0, "oid": first.Oid}, "no longer the stash you selected"},
+		{"index gone", "stashApply", map[string]any{"index": 5, "oid": first.Oid}, "no stash@{5}"},
+		{"negative index", "stashDrop", map[string]any{"index": -1, "oid": first.Oid}, "negative"},
+		{"missing oid", "stashApply", map[string]any{"index": 1}, "missing oid"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

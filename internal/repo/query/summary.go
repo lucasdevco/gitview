@@ -47,7 +47,7 @@ type Summary struct {
 // Summarize reads the repository's name, current branch, HEAD, in-progress
 // operation and commit identity.
 func Summarize(ctx context.Context, r *repo.Repository) (Summary, error) {
-	summary := Summary{Name: r.Name(), Root: r.Root, State: inProgressState(r.GitDir)}
+	summary := Summary{Name: r.Name(), Root: r.Root, State: InProgressState(r.GitDir)}
 
 	branch, found, err := readOptional(ctx, r.Runner, git.Read("symbolic-ref", "--quiet", "--short", "HEAD"))
 	if err != nil {
@@ -85,10 +85,11 @@ func readOptional(ctx context.Context, runner git.Runner, command *git.Command) 
 	return strings.TrimSpace(string(result.Stdout)), true, nil
 }
 
-// inProgressState inspects the state files git leaves in the git directory.
+// InProgressState reads the operation in progress from the state files git
+// leaves in the git directory, without running git.
 // Rebase is checked first because a conflicted rebase step also leaves
 // CHERRY_PICK_HEAD behind.
-func inProgressState(gitDir string) State {
+func InProgressState(gitDir string) State {
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(gitDir, name))
 		return err == nil
