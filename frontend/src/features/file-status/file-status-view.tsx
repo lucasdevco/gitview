@@ -130,6 +130,10 @@ export function FileStatusView({ repoId }: { repoId: string }) {
   const runHunk = (op: HunkOperation, request: HunkRequest) => {
     if (busy) return
     resetErrors()
+    // Stay on this side of the file even when it was only selected by
+    // default: once part of it is staged it is listed on both sides, and the
+    // default (staged first) would jump away from the hunks still to review.
+    if (resolved) setSelected({ path: resolved.file.path, area: resolved.area })
     hunkMutations[op].mutate(request)
   }
   const hunkActions: HunkAction[] = resolved
