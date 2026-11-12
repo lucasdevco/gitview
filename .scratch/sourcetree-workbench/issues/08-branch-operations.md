@@ -4,7 +4,7 @@
 
 **Blocked by:** 03, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] checkout、branch create / delete / rename / set-upstream 写操作
 - [ ] 检出因本地改动冲突失败时显示 git 的原因与建议
@@ -13,3 +13,7 @@
 - [ ] 右键菜单结构与原型一致
 - [ ] 筛选器过滤分支树与标签
 - [ ] API 测试覆盖各分支操作及失败场景
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

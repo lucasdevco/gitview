@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `POST .../operations/{op}` 写接口框架：JSON 请求体，仅 POST + `application/json`，响应带实际执行的 git 命令与分类错误
 - [ ] 按仓库写锁：并发写请求串行执行（API 测试验证），读请求不受影响
@@ -13,3 +13,7 @@
 - [ ] 无已暂存文件或信息为空时提交按钮不可用；空仓库可完成首次提交
 - [ ] hook 失败时界面显示 hook 输出（API 测试用失败的 pre-commit hook 验证）
 - [ ] 命令日志栏显示最近执行的命令；命令预览生成逻辑有 vitest 覆盖
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

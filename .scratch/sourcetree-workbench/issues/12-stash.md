@@ -4,10 +4,14 @@
 
 **Blocked by:** 04, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] stash push（`-m`、`--keep-index`，含未跟踪文件策略按 Sourcetree 默认）、stash apply、stash drop
 - [ ] `GET .../stashes` 与 `GET .../stashes/{index}`（文件与 diff）
 - [ ] 贮藏对话框与原型/截图一致
 - [ ] 侧边栏贮藏列表、查看、应用、删除（删除前确认）
 - [ ] API 测试覆盖贮藏、保留暂存、应用冲突、删除
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

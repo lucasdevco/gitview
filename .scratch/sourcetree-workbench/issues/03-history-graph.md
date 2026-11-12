@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `GET .../graph` 一次返回全部提交的 oid、parents、作者、邮箱、作者时间、提交时间、主题（`%x00` 分隔），支持所有分支/当前分支范围，不分页截断
 - [ ] `GET .../refs` 用一次 `for-each-ref` 返回本地分支、远程分支、标签及上游与领先/落后，不逐分支调用 `rev-list`
@@ -14,3 +14,7 @@
 - [ ] 搜索视图按提交信息、作者、哈希前缀过滤
 - [ ] vitest 覆盖泳道布局（分叉、合并、多父提交、泳道复用）、分支树构建、日期格式化
 - [ ] API 测试覆盖含合并与多分支的临时仓库
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

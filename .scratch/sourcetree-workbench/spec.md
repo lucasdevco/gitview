@@ -1,6 +1,6 @@
 # Spec：Sourcetree 风格 Git 工作台（首批功能）
 
-Status: ready-for-agent
+Status: resolved
 
 相关决策：[ADR-0001 从只读分析工具演进为读写 Git 工作台](../../docs/adr/0001-read-write-git-workbench.md)
 界面原型：`/prototype/workbench` 路由（内存假数据），已对照 Sourcetree 截图校准（截图在本地 `docs/prototype/sourcetree/`，不入库）。

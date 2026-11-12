@@ -4,9 +4,13 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] merge（`--no-ff`、`--log`、`--no-commit`）、rebase、merge --abort 写操作
 - [ ] 进行中状态检测（读取 `MERGE_HEAD`、`rebase-merge`、`rebase-apply`、`CHERRY_PICK_HEAD` 等，含 rebase 期间 `CHERRY_PICK_HEAD` 的歧义处理）
 - [ ] 冲突时界面显示进行中状态横幅、冲突文件标记与“中止合并”
 - [ ] API 测试覆盖快进合并、合并提交、冲突合并与中止
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

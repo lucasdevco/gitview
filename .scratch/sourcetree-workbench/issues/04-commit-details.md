@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `GET .../commits/{oid}` 返回正文与文件列表（`--name-status -z`），含重命名
 - [ ] `GET .../diff` 支持 commit 来源，根提交与合并提交行为正确
@@ -12,3 +12,7 @@
 - [ ] 父级链接可点击跳转并滚动到父提交
 - [ ] “未提交的更改”行与虚拟节点正确参与泳道布局（vitest 覆盖）
 - [ ] API 测试覆盖普通提交、根提交、合并提交、重命名
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

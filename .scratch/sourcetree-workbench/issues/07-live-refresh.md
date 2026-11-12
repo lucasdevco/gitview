@@ -4,7 +4,7 @@
 
 **Blocked by:** 03, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `.git` 目录（`HEAD`、`refs/`、`packed-refs`、`index`、进行中状态文件）用 fsnotify 监听
 - [ ] 工作区不递归监听：页面可见时按间隔轮询 status，窗口获得焦点时立即刷新
@@ -13,3 +13,7 @@
 - [ ] 前端按 `changed` 精确失效对应查询
 - [ ] 写操作期间暂停检测，结束后刷新一次
 - [ ] 测试：外部修改仓库后事件在限定时间内到达（Go 测试订阅 SSE）
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

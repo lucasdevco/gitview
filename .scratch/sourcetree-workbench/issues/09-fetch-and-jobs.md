@@ -4,10 +4,14 @@
 
 **Blocked by:** 05, 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Job 框架：写操作可作为 Job 启动，返回 `jobId`；解析 `--progress` 输出并经 SSE 推送；支持取消
 - [ ] fetch 操作支持 `--all`、`--prune`、`--tags`
 - [ ] 抓取对话框与原型一致，显示命令预览
 - [ ] 界面显示进度与取消入口
 - [ ] API 测试用本地 bare 仓库作为 origin，覆盖抓取新提交、修剪、取消
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

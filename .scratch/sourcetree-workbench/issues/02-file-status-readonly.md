@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] `GET .../status` 基于 `status --porcelain=v2 -z` 返回已暂存、未暂存、未跟踪、冲突文件，正确处理重命名与含空格/中文/特殊字符的路径
 - [ ] `GET .../diff` 支持 staged / unstaged / untracked 三种来源，开启重命名检测；二进制和超大 diff 返回标记而不是全文
@@ -13,3 +13,7 @@
 - [ ] 二进制/超大文件在界面上有明确提示
 - [ ] vitest 覆盖 diff 解析（块头、行号、新增/删除文件、无换行结尾）
 - [ ] API 测试在临时真实仓库上覆盖各类文件状态与三种 diff
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

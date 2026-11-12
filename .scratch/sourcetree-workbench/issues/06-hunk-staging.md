@@ -4,9 +4,13 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] 服务端根据所选块构造 patch，暂存用 `git apply --cached`，取消暂存用 `git apply --cached -R`，丢弃用 `git apply -R`
 - [ ] 丢弃区块弹出确认，取消则不改动
 - [ ] 操作后文件列表与 diff 立即反映新状态
 - [ ] API 测试覆盖多块文件中只暂存/取消/丢弃其中一块，并用 git 读出的结果断言
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.

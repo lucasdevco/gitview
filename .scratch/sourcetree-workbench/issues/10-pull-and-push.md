@@ -4,10 +4,14 @@
 
 **Blocked by:** 09
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] pull（merge / rebase、`--no-commit`、`--log`、`--no-ff`）与 push（多分支、`-u`、`--tags`）作为 Job 运行
 - [ ] `GIT_ASKPASS` / `SSH_ASKPASS` 指向 gitview helper 子命令，helper 回调本地服务，前端弹窗收集；凭据不落盘、不进命令日志（测试断言命令日志不含凭据）
 - [ ] 推送被拒绝时显示分类错误与建议
 - [ ] 角标、提交区“立即推送”、右键“推送到”“拿来”接通
 - [ ] API 测试用本地 bare 仓库覆盖拉取（快进、合并、变基）、推送、被拒推送；凭据流程通过 helper 回调接口测试
+
+## Comments
+
+- 2026-11-12: Resolved on integration branch `sourcetree-workbench` (implemented test-first, merged, code-reviewed, browser E2E checked). See `git log e39e52e..sourcetree-workbench`.
