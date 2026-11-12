@@ -2,7 +2,9 @@ package query_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gitview/internal/gittest"
@@ -87,6 +89,57 @@ func diverged(t *testing.T) (*gittest.Repo, string) {
 	topic := r.Commit("a.txt", "topic\n", "topic change")
 	r.Git("checkout", "--quiet", "main")
 	return r, topic
+}
+
+func TestCherryPickStartedDuringARebaseIsReportedAsCherryPicking(t *testing.T) {
+	r, topic := diverged(t)
+	r.Commit("b.txt", "main\n", "another main change")
+	// Stop the rebase at its first commit, as an "edit" step does.
+	r.Git("-c", "sequence.editor=sed -i.bak -e 1s/^pick/edit/", "rebase", "--quiet", "-i", "HEAD~1")
+	if got := summarize(t, r).State; got != query.StateRebasing {
+		t.Fatalf("stopped rebase: state = %q, want rebasing", got)
+	}
+
+	r.GitFails("cherry-pick", topic)
+
+	if got := summarize(t, r).State; got != query.StateCherryPicking {
+		t.Fatalf("state = %q, want cherry-picking: the cherry-pick has to be resolved first", got)
+	}
+}
+
+func TestCherryPickHeadLeftByTheStoppedRebaseStepIsReportedAsRebasing(t *testing.T) {
+	r, _ := diverged(t)
+	r.GitFails("rebase", "topic")
+	gitDir := filepath.Join(r.Dir, ".git")
+	stopped, err := os.ReadFile(filepath.Join(gitDir, "rebase-merge", "stopped-sha"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Older git versions leave CHERRY_PICK_HEAD naming the commit the rebase
+	// stopped at.
+	full := r.Git("rev-parse", strings.TrimSpace(string(stopped)))
+	if err := os.WriteFile(filepath.Join(gitDir, "CHERRY_PICK_HEAD"), []byte(full+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := summarize(t, r).State; got != query.StateRebasing {
+		t.Fatalf("state = %q, want rebasing", got)
+	}
+}
+
+func TestSummaryOfAConflictedMergeOffersGitsMergeMessage(t *testing.T) {
+	r, _ := diverged(t)
+	r.GitFails("merge", "topic")
+
+	got := summarize(t, r).MergeMessage
+
+	if want := "Merge branch 'topic'"; got != want {
+		t.Fatalf("merge message = %q, want %q without git's comment lines", got, want)
+	}
+	r.Git("merge", "--abort")
+	if got := summarize(t, r).MergeMessage; got != "" {
+		t.Fatalf("merge message after abort = %q, want empty", got)
+	}
 }
 
 func TestSummaryReportsInProgressOperations(t *testing.T) {

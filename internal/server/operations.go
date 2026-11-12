@@ -48,6 +48,13 @@ var operations = map[string]operation{
 	"stashPush":  newOperation(ops.StashPush),
 	"stashApply": newOperation(ops.StashApply),
 	"stashDrop":  newOperation(ops.StashDrop),
+
+	// Merge and rebase; a conflict leaves the repository merging or
+	// rebasing until it is concluded or aborted.
+	"merge":       newOperation(ops.Merge),
+	"abortMerge":  newOperation(ops.AbortMerge),
+	"rebase":      newOperation(ops.Rebase),
+	"abortRebase": newOperation(ops.AbortRebase),
 }
 
 // maxOperationBody bounds an operation's JSON request body.
