@@ -25,6 +25,9 @@ type MergeRequest struct {
 	NoCommit bool `json:"noCommit"`
 }
 
+// Validate rejects a missing branch or one git would read as an option.
+func (request MergeRequest) Validate() error { return validateBranchName("branch", request.Branch) }
+
 // Merge merges a branch into the current branch. When the branches
 // conflict, git stops with the merge in progress and the conflicted files
 // unmerged; that is reported as git.Conflict, and the repository's state
@@ -32,9 +35,6 @@ type MergeRequest struct {
 //
 //	git merge [--no-ff] [--log] [--no-commit] <branch>
 func Merge(ctx context.Context, r *repo.Repository, request MergeRequest) error {
-	if err := validateBranchArgument("branch", request.Branch); err != nil {
-		return err
-	}
 	command := git.Write("merge").
 		ArgIf(request.NoFastForward, "--no-ff").
 		ArgIf(request.Log, "--log").
@@ -59,15 +59,18 @@ type RebaseRequest struct {
 //
 //	git rebase <onto>
 func Rebase(ctx context.Context, r *repo.Repository, request RebaseRequest) error {
-	if err := validateBranchArgument("onto", request.Onto); err != nil {
-		return err
-	}
 	_, err := r.Runner.Run(ctx, git.Write("rebase", request.Onto))
 	return err
 }
 
+// Validate rejects a missing onto or one git would read as an option.
+func (request RebaseRequest) Validate() error { return validateBranchName("onto", request.Onto) }
+
 // AbortRequest is the empty request of the abort operations.
 type AbortRequest struct{}
+
+// Validate accepts the empty request.
+func (AbortRequest) Validate() error { return nil }
 
 // AbortMerge abandons the merge in progress and restores the branch, index
 // and working tree to how they were before it. Without a merge in progress

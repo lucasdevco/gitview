@@ -20,6 +20,10 @@ type StashPushRequest struct {
 	KeepIndex bool `json:"keepIndex"`
 }
 
+// Validate accepts every stash push request; whether there is anything to
+// stash is up to the working tree.
+func (StashPushRequest) Validate() error { return nil }
+
 // StashPush saves every change in the working tree, untracked files included
 // (as Sourcetree does), and returns it to a clean state.
 //
@@ -48,6 +52,15 @@ type StashRequest struct {
 	Index int `json:"index"`
 	// Oid is the stash's commit id from the stash list.
 	Oid string `json:"oid"`
+}
+
+// Validate rejects a request without the stash's oid. Whether the index
+// names that stash is checked when it is applied or dropped.
+func (request StashRequest) Validate() error {
+	if request.Oid == "" {
+		return invalid("missing oid; pass the stash's oid from the stash list")
+	}
+	return nil
 }
 
 // StashApply applies a stash to the working tree and keeps it in the list.
@@ -80,9 +93,6 @@ func StashDrop(ctx context.Context, r *repo.Repository, request StashRequest) er
 // verifyStash checks that the stash at request.Index is still request.Oid
 // and returns its name, e.g. "stash@{0}".
 func verifyStash(ctx context.Context, r *repo.Repository, request StashRequest) (string, error) {
-	if request.Oid == "" {
-		return "", invalid("missing oid; pass the stash's oid from the stash list")
-	}
 	stash, err := query.FindStash(ctx, r, request.Index)
 	var invalidQuery *query.InvalidRequestError
 	var notFound *query.StashNotFoundError

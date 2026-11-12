@@ -2,7 +2,6 @@ package ops
 
 import (
 	"context"
-	"strings"
 
 	"gitview/internal/git"
 	"gitview/internal/repo"
@@ -41,11 +40,13 @@ func (request PullRequest) Validate() error {
 	if request.Branch != "" && request.Remote == "" {
 		return invalid("branch %q needs the remote it is on; pass remote, such as origin", request.Branch)
 	}
-	if strings.HasPrefix(request.Remote, "-") {
-		return invalid("remote %q is not a remote name; pass the name of a configured remote such as origin", request.Remote)
+	if request.Remote != "" {
+		if err := validateRemoteName(request.Remote); err != nil {
+			return err
+		}
 	}
-	if strings.HasPrefix(request.Branch, "-") {
-		return invalid("branch %q is not a branch name; pass the branch's name on the remote, such as main", request.Branch)
+	if request.Branch != "" {
+		return validateBranchName("remote branch", request.Branch)
 	}
 	return nil
 }
@@ -61,9 +62,6 @@ func (request PullRequest) Validate() error {
 // The integration mode is always explicit, so pull never stops to ask how
 // to reconcile diverged branches.
 func Pull(ctx context.Context, r *repo.Repository, request PullRequest) error {
-	if err := request.Validate(); err != nil {
-		return err
-	}
 	command := git.Write("pull", "--progress")
 	if request.Rebase {
 		command.Arg("--rebase")

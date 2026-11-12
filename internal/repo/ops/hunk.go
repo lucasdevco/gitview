@@ -54,9 +54,6 @@ func StageHunk(ctx context.Context, r *repo.Repository, request HunkRequest) err
 //
 //	git apply --cached -R
 func UnstageHunk(ctx context.Context, r *repo.Repository, request HunkRequest) error {
-	if err := request.validate(); err != nil {
-		return err
-	}
 	patch, err := hunkPatch(ctx, r, query.DiffStaged, request)
 	if err != nil {
 		return err
@@ -79,7 +76,9 @@ func DiscardHunk(ctx context.Context, r *repo.Repository, request HunkRequest) e
 	return err
 }
 
-func (r HunkRequest) validate() error {
+// Validate rejects a missing path, paths outside the repository and an empty
+// hunk range.
+func (r HunkRequest) Validate() error {
 	if r.Path == "" {
 		return invalid("missing path; pass the file path relative to the repository root")
 	}
@@ -99,9 +98,6 @@ func (r HunkRequest) validate() error {
 // a tracked file's index-to-working-tree diff, or an untracked file's
 // content.
 func unstagedHunkPatch(ctx context.Context, r *repo.Repository, request HunkRequest) ([]byte, error) {
-	if err := request.validate(); err != nil {
-		return nil, err
-	}
 	listed, err := r.Runner.Run(ctx, git.Read("ls-files", "-z", "--", literal(request.Path)))
 	if err != nil {
 		return nil, err

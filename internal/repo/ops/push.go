@@ -2,7 +2,6 @@ package ops
 
 import (
 	"context"
-	"strings"
 
 	"gitview/internal/git"
 	"gitview/internal/repo"
@@ -32,37 +31,21 @@ type PushBranch struct {
 // Validate rejects a request without a remote or without anything to push,
 // and branch names that git would read as options or refspec syntax.
 func (request PushRequest) Validate() error {
-	if request.Remote == "" {
-		return invalid("missing remote; pass the name of a configured remote such as origin")
-	}
-	if strings.HasPrefix(request.Remote, "-") {
-		return invalid("remote %q is not a remote name; pass the name of a configured remote such as origin", request.Remote)
+	if err := validateRemoteName(request.Remote); err != nil {
+		return err
 	}
 	if len(request.Branches) == 0 && !request.Tags {
 		return invalid("nothing to push; pass at least one branch, or set tags")
 	}
 	for _, branch := range request.Branches {
-		if err := validatePushBranch("local", branch.Local, false); err != nil {
+		if err := validateBranchName("local branch", branch.Local); err != nil {
 			return err
 		}
-		if err := validatePushBranch("remote", branch.Remote, true); err != nil {
-			return err
+		if branch.Remote != "" {
+			if err := validateBranchName("remote branch", branch.Remote); err != nil {
+				return err
+			}
 		}
-	}
-	return nil
-}
-
-// validatePushBranch accepts a plain branch name: one that cannot be read
-// as an option ("-f"), a forced refspec ("+main") or a src:dst pair.
-func validatePushBranch(field, name string, optional bool) error {
-	if name == "" {
-		if optional {
-			return nil
-		}
-		return invalid("missing %s branch; pass a local branch name such as \"main\"", field)
-	}
-	if strings.HasPrefix(name, "-") || strings.HasPrefix(name, "+") || strings.ContainsAny(name, ": \t\n") {
-		return invalid("%s branch %q is not a branch name; branch names cannot start with \"-\" or \"+\" or contain \":\" or spaces", field, name)
 	}
 	return nil
 }
@@ -76,9 +59,6 @@ func validatePushBranch(field, name string, optional bool) error {
 //
 //	git push --progress [-u] [--tags] <remote> <local>:<remote-branch>...
 func Push(ctx context.Context, r *repo.Repository, request PushRequest) error {
-	if err := request.Validate(); err != nil {
-		return err
-	}
 	var tracked, untracked []string
 	for _, branch := range request.Branches {
 		destination := branch.Remote

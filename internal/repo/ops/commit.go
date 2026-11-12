@@ -18,15 +18,20 @@ type CommitRequest struct {
 	NoVerify bool `json:"noVerify"`
 }
 
+// Validate rejects an empty message.
+func (request CommitRequest) Validate() error {
+	if strings.TrimSpace(request.Message) == "" {
+		return invalid("missing commit message; write a message describing the change")
+	}
+	return nil
+}
+
 // Commit records the staged changes. Repository hooks run as they do on the
 // command line unless NoVerify is set; a failing hook is reported as
 // git.HookFailed with the hook's output.
 //
 //	git commit [--amend] [--no-verify] -m <message>
 func Commit(ctx context.Context, r *repo.Repository, request CommitRequest) error {
-	if strings.TrimSpace(request.Message) == "" {
-		return invalid("missing commit message; write a message describing the change")
-	}
 	command := git.Write("commit").
 		ArgIf(request.Amend, "--amend").
 		ArgIf(request.NoVerify, "--no-verify").

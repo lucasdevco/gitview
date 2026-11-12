@@ -3,7 +3,6 @@ package ops
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"gitview/internal/git"
 	"gitview/internal/repo"
@@ -31,8 +30,8 @@ func (request FetchRequest) Validate() error {
 	if request.All && request.Remote != "" {
 		return invalid("choose either all remotes or remote %q, not both", request.Remote)
 	}
-	if strings.HasPrefix(request.Remote, "-") {
-		return invalid("remote %q is not a remote name; pass the name of a configured remote such as origin", request.Remote)
+	if request.Remote != "" {
+		return validateRemoteName(request.Remote)
 	}
 	return nil
 }
@@ -40,9 +39,6 @@ func (request FetchRequest) Validate() error {
 // Fetch downloads commits, branches and tags from remotes and updates the
 // remote-tracking branches. It runs as a job: git reports its progress.
 func Fetch(ctx context.Context, r *repo.Repository, request FetchRequest) error {
-	if err := request.Validate(); err != nil {
-		return err
-	}
 	command := git.Write("fetch", "--progress").
 		ArgIf(request.All, "--all").
 		ArgIf(request.Remote != "", request.Remote).
@@ -66,13 +62,13 @@ type FetchIntoRequest struct {
 // Validate rejects missing names and names git would read as options or
 // refspec syntax.
 func (request FetchIntoRequest) Validate() error {
-	if request.Remote == "" || strings.HasPrefix(request.Remote, "-") {
-		return invalid("remote %q is not a remote name; pass the name of a configured remote such as origin", request.Remote)
-	}
-	if err := validatePushBranch("remote", request.Branch, false); err != nil {
+	if err := validateRemoteName(request.Remote); err != nil {
 		return err
 	}
-	return validatePushBranch("local", request.Local, false)
+	if err := validateBranchName("remote branch", request.Branch); err != nil {
+		return err
+	}
+	return validateBranchName("local branch", request.Local)
 }
 
 // FetchInto (Sourcetree's 拿来) fetches a remote branch and fast-forwards a
@@ -83,9 +79,6 @@ func (request FetchIntoRequest) Validate() error {
 //
 //	git fetch --progress <remote> <branch>:<local>
 func FetchInto(ctx context.Context, r *repo.Repository, request FetchIntoRequest) error {
-	if err := request.Validate(); err != nil {
-		return err
-	}
 	_, err := r.Runner.Run(ctx, git.Write("fetch", "--progress", request.Remote, request.Branch+":"+request.Local))
 	var gitErr *git.Error
 	if errors.As(err, &gitErr) && gitErr.Kind == git.PushRejected {

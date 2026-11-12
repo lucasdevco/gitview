@@ -4,14 +4,28 @@
 // Every operation takes a request struct decoded from the JSON body of
 // POST /api/v1/repos/{repoId}/operations/{op} and must be run through
 // workspace.Repo.Write, which serializes writes, retries index.lock conflicts
-// and records the commands in the command log. An operation reports a request
-// it cannot carry out as *InvalidRequestError before running any command.
+// and records the commands in the command log.
+//
+// Every request type implements Request. Its Validate checks the request on
+// its own and is called once, before the operation runs (the server does so
+// before taking the write lock or queueing a job); an operation assumes a
+// valid request and checks only what needs the repository, such as whether
+// a new branch name is taken. Both report a request that cannot be carried
+// out as *InvalidRequestError before any write command runs.
 package ops
 
 import (
 	"fmt"
 	"path/filepath"
 )
+
+// Request is an operation's request. Validate rejects, without looking at
+// the repository, a request that cannot be carried out as asked — missing
+// fields, names git would read as options — with an *InvalidRequestError
+// that says what to change.
+type Request interface {
+	Validate() error
+}
 
 // InvalidRequestError reports a request that cannot be carried out as asked.
 // Its message says what to change.

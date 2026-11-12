@@ -24,7 +24,8 @@ import (
 //	func Name(ctx context.Context, r *repo.Repository, request NameRequest) error
 //
 // and register it here with newOperation. The request struct is decoded from
-// the JSON body; the response lists the git commands it ran.
+// the JSON body and must implement ops.Request; the response lists the git
+// commands it ran.
 //
 // Long-running operations that talk to remotes (fetch, pull, push) are
 // registered with newJob instead: the response is 202 Accepted with the
@@ -80,27 +81,26 @@ type operation struct {
 }
 
 // newOperation registers an operation that runs within the request.
-func newOperation[Request any](run func(context.Context, *repo.Repository, Request) error) operation {
+func newOperation[Request ops.Request](run func(context.Context, *repo.Repository, Request) error) operation {
 	return operation{prepare: prepareWrite(run)}
 }
 
 // newJob registers an operation that runs as a background job.
-func newJob[Request any](run func(context.Context, *repo.Repository, Request) error) operation {
+func newJob[Request ops.Request](run func(context.Context, *repo.Repository, Request) error) operation {
 	return operation{prepare: prepareWrite(run), background: true}
 }
 
-func prepareWrite[Request any](run func(context.Context, *repo.Repository, Request) error) func([]byte) (workspace.WriteFunc, error) {
+// prepareWrite decodes and validates a request. Every request is validated
+// here, and only here, so an invalid one is rejected with 400 before it
+// waits for the write lock or starts a job.
+func prepareWrite[Request ops.Request](run func(context.Context, *repo.Repository, Request) error) func([]byte) (workspace.WriteFunc, error) {
 	return func(body []byte) (workspace.WriteFunc, error) {
 		var request Request
 		if err := decodeOperationBody(body, &request); err != nil {
 			return nil, err
 		}
-		// A request that can tell it is invalid on its own is rejected before
-		// it waits for the write lock or starts a job.
-		if validator, ok := any(request).(interface{ Validate() error }); ok {
-			if err := validator.Validate(); err != nil {
-				return nil, err
-			}
+		if err := request.Validate(); err != nil {
+			return nil, err
 		}
 		return func(ctx context.Context, r *repo.Repository) error { return run(ctx, r, request) }, nil
 	}
