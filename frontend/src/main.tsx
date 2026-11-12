@@ -7,11 +7,10 @@ import "@/index.css"
 import { createApiClient } from "@/lib/api/client"
 import { ApiProvider } from "@/lib/api/context"
 import { LiveRefresh } from "@/lib/api/live-refresh"
+import { followSystemTheme } from "@/lib/theme"
 import { routeTree } from "@/routeTree.gen"
 
-if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-  document.documentElement.classList.add("dark")
-}
+followSystemTheme(document.documentElement)
 
 const api = createApiClient()
 
