@@ -39,11 +39,40 @@ export type CommitRequest = {
   noVerify?: boolean
 }
 
+/** A local branch to check out. */
+export type CheckoutRequest = { branch: string }
+
+export type CreateBranchRequest = {
+  name: string
+  /** Commit or revision to start at; empty or absent means the working copy's parent (HEAD). */
+  startPoint?: string
+  /** Switch to the new branch after creating it. */
+  checkout?: boolean
+}
+
+export type DeleteBranchesRequest = {
+  branches: string[]
+  /** Delete even when not merged (`-D`). Without it git refuses with `branch_not_merged`. */
+  force?: boolean
+}
+
+export type RenameBranchRequest = { branch: string; newName: string }
+
+/** Make `branch` track `upstream`, e.g. "origin/main". */
+export type SetUpstreamRequest = { branch: string; upstream: string }
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
   unstage: FilesRequest
   commit: CommitRequest
+
+  // Branches
+  checkout: CheckoutRequest
+  "create-branch": CreateBranchRequest
+  "delete-branches": DeleteBranchesRequest
+  "rename-branch": RenameBranchRequest
+  "set-upstream": SetUpstreamRequest
 }
 
 export type OperationName = keyof OperationRequests

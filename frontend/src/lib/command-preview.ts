@@ -6,7 +6,14 @@
 //
 // Adding an operation: add a builder here next to its request type and a
 // vitest case using the string the backend's API test expects.
-import type { CommitRequest } from "@/lib/api/operations"
+import type {
+  CheckoutRequest,
+  CommitRequest,
+  CreateBranchRequest,
+  DeleteBranchesRequest,
+  RenameBranchRequest,
+  SetUpstreamRequest,
+} from "@/lib/api/operations"
 
 /** Renders `git <args...>` the way a user would type it in a POSIX shell. */
 export function formatGitCommand(args: readonly string[]): string {
@@ -43,4 +50,29 @@ export function commitCommand({ message, amend, noVerify }: CommitRequest): stri
     "-m",
     message,
   ])
+}
+
+/** `checkout`: switch to a local branch. */
+export function checkoutCommand({ branch }: CheckoutRequest): string {
+  return formatGitCommand(["switch", branch])
+}
+
+/** `create-branch`: a new branch at the start point (default HEAD), switched to when `checkout`. */
+export function createBranchCommand({ name, startPoint, checkout }: CreateBranchRequest): string {
+  return formatGitCommand([...(checkout ? ["switch", "-c"] : ["branch"]), name, ...(startPoint ? [startPoint] : [])])
+}
+
+/** `delete-branches`: `-d` refuses unmerged branches, `-D` (force) does not. */
+export function deleteBranchesCommand({ branches, force }: DeleteBranchesRequest): string {
+  return formatGitCommand(["branch", force ? "-D" : "-d", ...branches])
+}
+
+/** `rename-branch`. */
+export function renameBranchCommand({ branch, newName }: RenameBranchRequest): string {
+  return formatGitCommand(["branch", "-m", branch, newName])
+}
+
+/** `set-upstream`: make a branch track another (usually remote-tracking) branch. */
+export function setUpstreamCommand({ branch, upstream }: SetUpstreamRequest): string {
+  return formatGitCommand(["branch", `--set-upstream-to=${upstream}`, branch])
 }

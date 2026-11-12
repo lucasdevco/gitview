@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest"
-import { commitCommand, formatGitCommand, stageCommand, unstageCommand } from "./command-preview"
+import {
+  checkoutCommand,
+  commitCommand,
+  createBranchCommand,
+  deleteBranchesCommand,
+  formatGitCommand,
+  renameBranchCommand,
+  setUpstreamCommand,
+  stageCommand,
+  unstageCommand,
+} from "./command-preview"
 
 // Expected strings are the ones the backend reports for the same requests
 // (internal/server/operations_test.go), so previews match the command log.
@@ -39,6 +49,34 @@ describe("commitCommand", () => {
     expect(commitCommand({ message: "wip", noVerify: true })).toBe("git commit --no-verify -m wip")
     expect(commitCommand({ message: "both", amend: true, noVerify: true })).toBe(
       "git commit --amend --no-verify -m both",
+    )
+  })
+})
+
+describe("branch operations", () => {
+  it("checkout switches to a local branch", () => {
+    expect(checkoutCommand({ branch: "feature/login" })).toBe("git switch feature/login")
+  })
+
+  it("create-branch uses git branch, or git switch -c when checking out", () => {
+    expect(createBranchCommand({ name: "feature/login" })).toBe("git branch feature/login")
+    expect(createBranchCommand({ name: "hotfix", startPoint: "0123456789", checkout: true })).toBe(
+      "git switch -c hotfix 0123456789",
+    )
+    expect(createBranchCommand({ name: "x", startPoint: "", checkout: false })).toBe("git branch x")
+  })
+
+  it("delete-branches lists every branch, with -D when forced", () => {
+    expect(deleteBranchesCommand({ branches: ["done/one", "done/two"] })).toBe("git branch -d done/one done/two")
+    expect(deleteBranchesCommand({ branches: ["wip"], force: true })).toBe("git branch -D wip")
+  })
+
+  it("rename-branch and set-upstream", () => {
+    expect(renameBranchCommand({ branch: "feature", newName: "feature/login" })).toBe(
+      "git branch -m feature feature/login",
+    )
+    expect(setUpstreamCommand({ branch: "feature", upstream: "origin/main" })).toBe(
+      "git branch --set-upstream-to=origin/main feature",
     )
   })
 })

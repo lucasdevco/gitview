@@ -1,8 +1,10 @@
 // Sidebar sections for refs: the local branch tree, tags and remotes.
 import { ChevronDown, ChevronRight, Cloud, Folder, GitBranch, Tag } from "lucide-react"
 import { Fragment, type ReactNode, useState } from "react"
+import { BranchContextMenu } from "@/features/branches/branch-context-menu"
+import { useBranchActions } from "@/features/branches/branch-operations"
 import { buildRefTree, type RefTreeNode } from "@/features/history/ref-tree"
-import type { Branch, Refs } from "@/lib/api/history"
+import type { Branch, Refs, Remote } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
 import { cn } from "@/lib/utils"
 import { Row, Section } from "./sidebar-parts"
@@ -48,29 +50,43 @@ function LocalBranchRow({
   branch,
   label,
   depth,
+  currentBranch,
+  remotes,
   onReveal,
 }: {
   branch: Branch
   label: string
   depth: number
+  currentBranch: string
+  remotes: Remote[]
   onReveal: Reveal
 }) {
+  const actions = useBranchActions()
   const tracking =
     branch.upstream &&
     (branch.upstreamGone
       ? `，跟踪的 ${branch.upstream} 已不存在`
       : `，跟踪 ${branch.upstream}（领先 ${branch.ahead}，落后 ${branch.behind}）`)
   return (
-    <Row depth={depth} title={`${branch.name}${tracking || ""}。单击定位到提交`} onClick={() => onReveal(branch.oid)}>
-      <span className={cn("-ml-3.5 size-2 shrink-0 rounded-full", branch.current ? "bg-chart-5" : "bg-transparent")} />
-      <span className={cn("truncate", branch.current && "font-semibold")}>{label}</span>
-      {(branch.ahead > 0 || branch.behind > 0) && (
-        <span className="ml-auto shrink-0 rounded bg-muted-foreground/60 px-1 text-[10px] leading-4 text-background">
-          {branch.ahead > 0 && `${branch.ahead}↑`}
-          {branch.behind > 0 && `${branch.behind}↓`}
-        </span>
-      )}
-    </Row>
+    <BranchContextMenu branch={branch} currentBranch={currentBranch} remotes={remotes} actions={actions}>
+      <Row
+        depth={depth}
+        title={`${branch.name}${tracking || ""}。单击定位到提交，双击检出，右键查看更多操作`}
+        onClick={() => onReveal(branch.oid)}
+        onDoubleClick={() => !branch.current && actions?.checkout(branch.name)}
+      >
+        <span
+          className={cn("-ml-3.5 size-2 shrink-0 rounded-full", branch.current ? "bg-chart-5" : "bg-transparent")}
+        />
+        <span className={cn("truncate", branch.current && "font-semibold")}>{label}</span>
+        {(branch.ahead > 0 || branch.behind > 0) && (
+          <span className="ml-auto shrink-0 rounded bg-muted-foreground/60 px-1 text-[10px] leading-4 text-background">
+            {branch.ahead > 0 && `${branch.ahead}↑`}
+            {branch.behind > 0 && `${branch.behind}↓`}
+          </span>
+        )}
+      </Row>
+    </BranchContextMenu>
   )
 }
 
@@ -115,7 +131,18 @@ export function BranchesSection({
         depth={1}
         leaf={(node, depth) => {
           const branch = byName.get(node.path)
-          return branch && <LocalBranchRow branch={branch} label={node.name} depth={depth} onReveal={onReveal} />
+          return (
+            branch && (
+              <LocalBranchRow
+                branch={branch}
+                label={node.name}
+                depth={depth}
+                currentBranch={summary.branch}
+                remotes={refs?.remotes ?? []}
+                onReveal={onReveal}
+              />
+            )
+          )
         }}
       />
     </Section>
