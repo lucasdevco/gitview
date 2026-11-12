@@ -1,14 +1,18 @@
-import { Archive, ChevronDown, FolderGit2, Monitor, Network, Search } from "lucide-react"
+import { ChevronDown, FolderGit2, Monitor, Network, Search } from "lucide-react"
 import { useState } from "react"
+import type { StashAction } from "@/features/stash/stash-sheets"
 import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
+import type { Stash } from "@/lib/api/stashes"
 import { cn } from "@/lib/utils"
 import { Row, Section } from "./sidebar-parts"
 import { BranchesSection, RemotesSection, TagsSection } from "./sidebar-refs"
+import { StashesSection } from "./sidebar-stashes"
 
-export type WorkbenchView = "status" | "history" | "search"
+/** The main area: a WORKSPACE view, or the stash selected under 已贮藏. */
+export type WorkbenchView = "status" | "history" | "search" | "stash"
 
-const VIEWS: [WorkbenchView, string][] = [
+const VIEWS: [Exclude<WorkbenchView, "stash">, string][] = [
   ["status", "文件状态"],
   ["history", "历史"],
   ["search", "搜索"],
@@ -24,6 +28,9 @@ export function Sidebar({
   view,
   onView,
   onReveal,
+  selectedStash,
+  onSelectStash,
+  onStashAction,
 }: {
   summary: RepoSummary
   /** Branches, remotes and tags; undefined while loading. */
@@ -32,6 +39,11 @@ export function Sidebar({
   onView: (view: WorkbenchView) => void
   /** Show a commit in the history view. */
   onReveal: (oid: string) => void
+  /** Oid of the stash shown when `view` is "stash". */
+  selectedStash?: string
+  onSelectStash: (stash: Stash) => void
+  /** Asks to apply or delete a stash; the caller confirms first. */
+  onStashAction: (action: StashAction) => void
 }) {
   const [filter, setFilter] = useState("")
   const [workspaceOpen, setWorkspaceOpen] = useState(true)
@@ -61,7 +73,12 @@ export function Sidebar({
         <BranchesSection summary={summary} refs={refs} filter={match} onReveal={onReveal} />
         <TagsSection refs={refs} filter={match} onReveal={onReveal} />
         <RemotesSection refs={refs} filter={match} onReveal={onReveal} />
-        <Section icon={Archive} title="已贮藏" />
+        <StashesSection
+          repoId={summary.id}
+          selected={view === "stash" ? selectedStash : undefined}
+          onSelect={onSelectStash}
+          onAction={onStashAction}
+        />
         <Section icon={FolderGit2} title="子模块" />
         <Section icon={Network} title="子树" />
       </nav>

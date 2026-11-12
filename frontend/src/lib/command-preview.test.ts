@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { commitCommand, formatGitCommand, stageCommand, unstageCommand } from "./command-preview"
+import {
+  commitCommand,
+  formatGitCommand,
+  stageCommand,
+  stashApplyCommand,
+  stashDropCommand,
+  stashPushCommand,
+  unstageCommand,
+} from "./command-preview"
 
 // Expected strings are the ones the backend reports for the same requests
 // (internal/server/operations_test.go), so previews match the command log.
@@ -40,5 +48,20 @@ describe("commitCommand", () => {
     expect(commitCommand({ message: "both", amend: true, noVerify: true })).toBe(
       "git commit --amend --no-verify -m both",
     )
+  })
+})
+
+describe("stash", () => {
+  it("always includes untracked files and trims the message like the backend", () => {
+    expect(stashPushCommand({ message: "half-done login" })).toBe(
+      "git stash push --include-untracked -m 'half-done login'",
+    )
+    expect(stashPushCommand({ message: "  ", keepIndex: true })).toBe("git stash push --include-untracked --keep-index")
+    expect(stashPushCommand({})).toBe("git stash push --include-untracked")
+  })
+
+  it("names the stash by its reflog entry", () => {
+    expect(stashApplyCommand({ index: 0, oid: "abc" })).toBe("git stash apply 'stash@{0}'")
+    expect(stashDropCommand({ index: 1, oid: "abc" })).toBe("git stash drop 'stash@{1}'")
   })
 })

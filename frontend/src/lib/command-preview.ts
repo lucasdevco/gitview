@@ -6,7 +6,7 @@
 //
 // Adding an operation: add a builder here next to its request type and a
 // vitest case using the string the backend's API test expects.
-import type { CommitRequest } from "@/lib/api/operations"
+import type { CommitRequest, StashPushRequest, StashRequest } from "@/lib/api/operations"
 
 /** Renders `git <args...>` the way a user would type it in a POSIX shell. */
 export function formatGitCommand(args: readonly string[]): string {
@@ -43,4 +43,26 @@ export function commitCommand({ message, amend, noVerify }: CommitRequest): stri
     "-m",
     message,
   ])
+}
+
+/** `stash-push`: stash every change, untracked files included. */
+export function stashPushCommand({ message, keepIndex }: StashPushRequest): string {
+  const trimmed = message?.trim() ?? ""
+  return formatGitCommand([
+    "stash",
+    "push",
+    "--include-untracked",
+    ...(keepIndex ? ["--keep-index"] : []),
+    ...(trimmed ? ["-m", trimmed] : []),
+  ])
+}
+
+/** `stash-apply`: apply a stash and keep it. */
+export function stashApplyCommand({ index }: StashRequest): string {
+  return formatGitCommand(["stash", "apply", `stash@{${index}}`])
+}
+
+/** `stash-drop`: delete a stash. */
+export function stashDropCommand({ index }: StashRequest): string {
+  return formatGitCommand(["stash", "drop", `stash@{${index}}`])
 }

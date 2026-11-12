@@ -39,11 +39,29 @@ export type CommitRequest = {
   noVerify?: boolean
 }
 
+/** `stash-push`: save every change, untracked files included, and clean the working tree. */
+export type StashPushRequest = {
+  /** Describes the stash; git writes "WIP on <branch>: …" when empty. */
+  message?: string
+  /** Keep the staged changes in the index and working tree (`--keep-index`). */
+  keepIndex?: boolean
+}
+
+/**
+ * `stash-apply` / `stash-drop`: one stash, by its index and its oid from the
+ * stash list. The server refuses the request if the stash at `index` is no
+ * longer `oid`.
+ */
+export type StashRequest = { index: number; oid: string }
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
   unstage: FilesRequest
   commit: CommitRequest
+  "stash-push": StashPushRequest
+  "stash-apply": StashRequest
+  "stash-drop": StashRequest
 }
 
 export type OperationName = keyof OperationRequests

@@ -33,15 +33,20 @@ export type WorktreeStatus = {
 
 /**
  * staged: HEAD vs. index; unstaged: index vs. working tree; untracked: whole
- * file as added; commit: a commit vs. its first parent (nothing for a root commit).
+ * file as added; commit: a commit vs. its first parent (nothing for a root
+ * commit); stash: a file saved in a stash vs. the commit it was made on.
  */
-export type DiffSource = "staged" | "unstaged" | "untracked" | "commit"
+export type DiffSource = "staged" | "unstaged" | "untracked" | "commit" | "stash"
 
 export type DiffRequest = {
   path: string
   /** Original path of a rename, so the diff shows a rename. */
   oldPath?: string
-} & ({ source: Exclude<DiffSource, "commit"> } | { source: "commit"; commit: string })
+} & (
+  | { source: Exclude<DiffSource, "commit" | "stash"> }
+  /** `commit` is the commit id, or for source "stash" the stash's oid. */
+  | { source: "commit" | "stash"; commit: string }
+)
 
 export type FileDiff = {
   path: string
@@ -72,7 +77,7 @@ export const worktreeKeys = {
       request.source,
       request.path,
       request.oldPath ?? "",
-      request.source === "commit" ? request.commit : "",
+      "commit" in request ? request.commit : "",
     ] as const,
 }
 
@@ -88,7 +93,7 @@ export function getFileDiff(
 ): Promise<FileDiff> {
   const params = new URLSearchParams({ source: request.source, path: request.path })
   if (request.oldPath) params.set("oldPath", request.oldPath)
-  if (request.source === "commit") params.set("commit", request.commit)
+  if ("commit" in request) params.set("commit", request.commit)
   return client.get(`${repoPath(repoId, "diff")}?${params}`, signal)
 }
 
