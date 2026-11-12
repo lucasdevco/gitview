@@ -49,6 +49,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/repos/{repoId}", s.withRepo(s.getRepo))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/status", s.withRepo(s.getStatus))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/diff", s.withRepo(s.getDiff))
+	mux.HandleFunc("GET /api/v1/repos/{repoId}/graph", s.withRepo(s.getGraph))
+	mux.HandleFunc("GET /api/v1/repos/{repoId}/refs", s.withRepo(s.getRefs))
+	mux.HandleFunc("GET /api/v1/repos/{repoId}/commits/{oid}", s.withRepo(s.getCommit))
 	s.registerOperations(mux)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")

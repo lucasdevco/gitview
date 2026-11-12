@@ -31,15 +31,17 @@ export type WorktreeStatus = {
   conflicted: FileChange[]
 }
 
-/** staged: HEAD vs. index; unstaged: index vs. working tree; untracked: whole file as added. */
-export type DiffSource = "staged" | "unstaged" | "untracked"
+/**
+ * staged: HEAD vs. index; unstaged: index vs. working tree; untracked: whole
+ * file as added; commit: a commit vs. its first parent (nothing for a root commit).
+ */
+export type DiffSource = "staged" | "unstaged" | "untracked" | "commit"
 
 export type DiffRequest = {
-  source: DiffSource
   path: string
-  /** Original path of a staged rename, so the diff shows a rename. */
+  /** Original path of a rename, so the diff shows a rename. */
   oldPath?: string
-}
+} & ({ source: Exclude<DiffSource, "commit"> } | { source: "commit"; commit: string })
 
 export type FileDiff = {
   path: string
@@ -64,7 +66,14 @@ export const worktreeKeys = {
   /** Prefix of every diff query of a repository. */
   diffs: (repoId: string) => [...repoKeys.repo(repoId), "diff"] as const,
   diff: (repoId: string, request: DiffRequest) =>
-    [...repoKeys.repo(repoId), "diff", request.source, request.path, request.oldPath ?? ""] as const,
+    [
+      ...repoKeys.repo(repoId),
+      "diff",
+      request.source,
+      request.path,
+      request.oldPath ?? "",
+      request.source === "commit" ? request.commit : "",
+    ] as const,
 }
 
 export function getWorktreeStatus(client: ApiClient, repoId: string, signal?: AbortSignal): Promise<WorktreeStatus> {
@@ -79,6 +88,7 @@ export function getFileDiff(
 ): Promise<FileDiff> {
   const params = new URLSearchParams({ source: request.source, path: request.path })
   if (request.oldPath) params.set("oldPath", request.oldPath)
+  if (request.source === "commit") params.set("commit", request.commit)
   return client.get(`${repoPath(repoId, "diff")}?${params}`, signal)
 }
 

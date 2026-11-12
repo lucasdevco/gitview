@@ -21,9 +21,24 @@ func (s *Server) getStatus(w http.ResponseWriter, r *http.Request, repo *workspa
 	writeData(w, status)
 }
 
-// getDiff answers GET /api/v1/repos/{repoId}/diff?source=&path=&oldPath=.
-// source is staged, unstaged or untracked; oldPath is the original name of
-// a staged rename.
+// writeQueryError reports a failed read query: a bad request, a missing
+// commit or a git failure.
+func writeQueryError(w http.ResponseWriter, err error) {
+	var invalid *query.InvalidRequestError
+	var missing *query.CommitNotFoundError
+	switch {
+	case errors.As(err, &invalid):
+		writeError(w, http.StatusBadRequest, "invalid_request", invalid.Message)
+	case errors.As(err, &missing):
+		writeError(w, http.StatusNotFound, "commit_not_found", missing.Error())
+	default:
+		writeGitError(w, err)
+	}
+}
+
+// getDiff answers GET /api/v1/repos/{repoId}/diff?source=&path=&oldPath=&commit=.
+// source is staged, unstaged, untracked or commit; oldPath is the original
+// name of a renamed file; commit is the commit id for source=commit.
 func (s *Server) getDiff(w http.ResponseWriter, r *http.Request, repo *workspace.Repo) {
 	ctx, cancel := context.WithTimeout(r.Context(), readTimeout)
 	defer cancel()
@@ -32,14 +47,10 @@ func (s *Server) getDiff(w http.ResponseWriter, r *http.Request, repo *workspace
 		Source:  query.DiffSource(params.Get("source")),
 		Path:    params.Get("path"),
 		OldPath: params.Get("oldPath"),
+		Commit:  params.Get("commit"),
 	})
-	var invalid *query.InvalidRequestError
-	if errors.As(err, &invalid) {
-		writeError(w, http.StatusBadRequest, "invalid_request", invalid.Message)
-		return
-	}
 	if err != nil {
-		writeGitError(w, err)
+		writeQueryError(w, err)
 		return
 	}
 	writeData(w, diff)
