@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { commitCommand, formatGitCommand, stageCommand, unstageCommand } from "./command-preview"
+import {
+  commitCommand,
+  discardHunkCommand,
+  formatGitCommand,
+  stageCommand,
+  stageHunkCommand,
+  unstageCommand,
+  unstageHunkCommand,
+} from "./command-preview"
 
 // Expected strings are the ones the backend reports for the same requests
 // (internal/server/operations_test.go), so previews match the command log.
@@ -40,5 +48,13 @@ describe("commitCommand", () => {
     expect(commitCommand({ message: "both", amend: true, noVerify: true })).toBe(
       "git commit --amend --no-verify -m both",
     )
+  })
+})
+
+describe("hunk operations", () => {
+  it("apply a patch of the one hunk, read from standard input", () => {
+    expect(stageHunkCommand()).toBe("git apply --cached")
+    expect(unstageHunkCommand()).toBe("git apply --cached -R")
+    expect(discardHunkCommand()).toBe("git apply -R")
   })
 })

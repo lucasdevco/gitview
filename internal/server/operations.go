@@ -30,6 +30,11 @@ var operations = map[string]operation{
 	"stage":   newOperation(ops.Stage),
 	"unstage": newOperation(ops.Unstage),
 	"commit":  newOperation(ops.Commit),
+
+	// One hunk of a file's diff.
+	"stageHunk":   newOperation(ops.StageHunk),
+	"unstageHunk": newOperation(ops.UnstageHunk),
+	"discardHunk": newOperation(ops.DiscardHunk),
 }
 
 // maxOperationBody bounds an operation's JSON request body.

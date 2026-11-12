@@ -1,5 +1,6 @@
-// Rules of the file status view's checkboxes and commit button.
-import type { FilesRequest } from "@/lib/api/operations"
+// Rules of the file status view's checkboxes, hunk buttons and commit button.
+import type { DiffHunk } from "@/features/diff/parse-diff"
+import type { FilesRequest, HunkRequest } from "@/lib/api/operations"
 import type { FileChange, WorktreeStatus } from "@/lib/api/worktree"
 
 export type Area = "staged" | "unstaged"
@@ -29,6 +30,31 @@ export function toggleRequest(
       : files.filter((file) => file.status !== "conflicted").map((file) => file.path)
   if (!paths.length) return undefined
   return { op: area === "staged" ? "unstage" : "stage", request: { paths } }
+}
+
+export type HunkOperation = "stageHunk" | "unstageHunk" | "discardHunk"
+
+/**
+ * The buttons in each hunk header of a file listed in `area`: 暂存区块 and
+ * 丢弃区块 for unstaged and untracked files, 取消暂存区块 for staged ones.
+ * Conflicted files have none; their hunks are resolved, not staged.
+ */
+export function hunkOperations(area: Area, file: FileChange): HunkOperation[] {
+  if (area === "staged") return ["unstageHunk"]
+  if (file.status === "conflicted") return []
+  return ["stageHunk", "discardHunk"]
+}
+
+/** The request naming `hunk` of the diff shown for `file` in `area`. */
+export function hunkRequest(file: FileChange, area: Area, hunk: DiffHunk): HunkRequest {
+  const range = {
+    oldStart: hunk.oldStart,
+    oldCount: hunk.oldCount,
+    newStart: hunk.newStart,
+    newCount: hunk.newCount,
+  }
+  if (area === "staged" && file.oldPath) return { path: file.path, oldPath: file.oldPath, hunk: range }
+  return { path: file.path, hunk: range }
 }
 
 /** Whether the commit button is enabled. */

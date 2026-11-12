@@ -39,11 +39,31 @@ export type CommitRequest = {
   noVerify?: boolean
 }
 
+/** A hunk's `@@ -oldStart,oldCount +newStart,newCount @@` header range. */
+export type HunkRange = { oldStart: number; oldCount: number; newStart: number; newCount: number }
+
+/**
+ * One hunk of one file's diff. The server re-reads the diff and rejects a
+ * hunk that is no longer there, so the request never acts on unseen changes.
+ */
+export type HunkRequest = {
+  path: string
+  /** Original path of a staged rename, as in the staged diff. */
+  oldPath?: string
+  hunk: HunkRange
+}
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
   unstage: FilesRequest
   commit: CommitRequest
+  /** Add one hunk of an unstaged or untracked file to the index. */
+  stageHunk: HunkRequest
+  /** Remove one hunk of a staged file from the index. */
+  unstageHunk: HunkRequest
+  /** Revert one unstaged hunk in the working tree; cannot be undone. */
+  discardHunk: HunkRequest
 }
 
 export type OperationName = keyof OperationRequests
