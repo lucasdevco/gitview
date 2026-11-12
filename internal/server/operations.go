@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -180,43 +179,15 @@ func (s *Server) runOperation(w http.ResponseWriter, r *http.Request, repo *work
 	writeData(w, operationResult{Commands: nonNil(commands)})
 }
 
-// writeOperationError reports a failed operation. Besides code and message,
-// the error carries git's output (for a failed hook, the hook's output) and
-// the commands that ran before and including the failing one.
+// writeOperationError reports a failed operation. Besides code, message and
+// hint, the error carries git's output (for a failed hook, the hook's
+// output) and the commands that ran before and including the failing one.
 func writeOperationError(w http.ResponseWriter, err error, commands []git.LogEntry) {
-	status, described := describeFailure(err)
+	status, described := describeError(err)
 	writeJSON(w, status, map[string]any{"error": struct {
-		failure
+		apiError
 		Commands []git.LogEntry `json:"commands"`
 	}{described, nonNil(commands)}})
-}
-
-// failure is why an operation or job failed, as the API reports it.
-type failure struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	// Output is what git printed about the failure; absent when git did not
-	// fail.
-	Output *string `json:"output,omitempty"`
-}
-
-func describeFailure(err error) (int, failure) {
-	status, code, message := describeError(err)
-	described := failure{Code: code, Message: message}
-	var gitErr *git.Error
-	if errors.As(err, &gitErr) {
-		output := gitErr.Output()
-		described.Output = &output
-		switch gitErr.Kind {
-		case git.HookFailed:
-			described.Message = fmt.Sprintf("the %s hook failed; fix what it reports, or skip hooks for this commit", gitErr.Hook)
-		case git.PushRejected:
-			described.Message = "the remote rejected the push, usually because it has commits that your branch does not; pull first, then push again"
-		case git.AuthenticationFailed:
-			described.Message = "the remote did not accept the credentials; check the user name and password or token, or the SSH key, and try again"
-		}
-	}
-	return status, described
 }
 
 // listCommands answers GET /api/v1/repos/{repoId}/commands: the repository's

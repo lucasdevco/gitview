@@ -24,6 +24,7 @@ type jobProgress struct {
 type jobError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Hint    string `json:"hint"`
 	Output  string `json:"output"`
 }
 

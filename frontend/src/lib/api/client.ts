@@ -8,15 +8,23 @@ export class ApiError extends Error {
   readonly code: string
   /** What git printed about a failed operation; for a failed hook, the hook's output. */
   readonly output?: string
+  /** How to resolve the failure, in English, as the API suggests it. */
+  readonly hint?: string
   /** The git commands a failed operation ran, the failing one last. */
   readonly commands?: CommandEntry[]
 
-  constructor(status: number, code: string, message: string, details?: { output?: string; commands?: CommandEntry[] }) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: { output?: string; hint?: string; commands?: CommandEntry[] },
+  ) {
     super(message)
     this.name = "ApiError"
     this.status = status
     this.code = code
     this.output = details?.output
+    this.hint = details?.hint
     this.commands = details?.commands
   }
 }
@@ -54,6 +62,7 @@ export function createApiClient({ token, fetch: fetchImpl = globalThis.fetch }: 
       if (typeof envelope?.code === "string" && typeof envelope?.message === "string") {
         throw new ApiError(response.status, envelope.code, envelope.message, {
           output: typeof envelope.output === "string" ? envelope.output : undefined,
+          hint: typeof envelope.hint === "string" ? envelope.hint : undefined,
           commands: Array.isArray(envelope.commands) ? envelope.commands : undefined,
         })
       }

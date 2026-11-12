@@ -33,13 +33,13 @@ func (s *Server) registerJobs(mux *http.ServeMux) {
 type jobView struct {
 	workspace.Job
 	// Error is why the job failed; absent unless its state is "failed".
-	Error *failure `json:"error,omitempty"`
+	Error *apiError `json:"error,omitempty"`
 }
 
 func viewJob(job workspace.Job) jobView {
 	view := jobView{Job: job}
 	if job.Err != nil {
-		_, described := describeFailure(job.Err)
+		_, described := describeError(job.Err)
 		view.Error = &described
 	}
 	return view

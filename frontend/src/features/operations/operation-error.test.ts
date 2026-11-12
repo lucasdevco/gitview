@@ -34,6 +34,35 @@ describe("describeOperationError", () => {
     expect(summary("nothing_in_progress")).toBe("没有进行中的合并或变基")
   })
 
+  it("names and advises on every kind of git failure the API reports", () => {
+    // The error kinds in internal/git/errors.go.
+    const kinds = [
+      "git_not_installed",
+      "not_a_repository",
+      "lock_conflict",
+      "authentication_failed",
+      "conflict",
+      "ref_not_found",
+      "push_rejected",
+      "unsupported_git_version",
+      "hook_failed",
+      "local_changes",
+      "branch_not_merged",
+      "nothing_in_progress",
+      "git_failed",
+    ]
+    for (const kind of kinds) {
+      const described = describeOperationError(new ApiError(500, kind, "m", { output: "o" }))
+      expect(described.advice, kind).toBeTruthy()
+      if (kind !== "git_failed") expect(described.summary, kind).not.toBe("操作失败")
+    }
+  })
+
+  it("shows the API's hint for an error it has no copy for", () => {
+    const error = new ApiError(500, "something_new", "m", { output: "o", hint: "do the thing" })
+    expect(describeOperationError(error)).toEqual({ summary: "操作失败", advice: "do the thing", output: "o" })
+  })
+
   it("suggests pulling first when the remote rejected a push", () => {
     const output = ` ! [rejected]        main -> main (fetch first)
 error: failed to push some refs to '../origin'`

@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"gitview/internal/git"
-	"gitview/internal/repo/ops"
 	"gitview/internal/repo/query"
 	webassets "gitview/internal/web"
 	"gitview/internal/workspace"
@@ -116,40 +114,10 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 }
 
 // writeGitError reports a failed git command with its classified kind as the
-// error code and git's own message.
+// error code, git's own message and a hint on how to resolve it.
 func writeGitError(w http.ResponseWriter, err error) {
-	status, code, message := describeError(err)
-	writeError(w, status, code, message)
-}
-
-// describeError maps an error to its HTTP status, API error code and
-// message. A git failure's code is its classified kind.
-func describeError(err error) (status int, code, message string) {
-	var gitErr *git.Error
-	var invalid *ops.InvalidRequestError
-	switch {
-	case errors.As(err, &invalid):
-		return http.StatusBadRequest, "invalid_request", invalid.Message
-	case errors.As(err, &gitErr):
-		status = http.StatusInternalServerError
-		switch gitErr.Kind {
-		case git.RefNotFound:
-			status = http.StatusNotFound
-		case git.LockConflict, git.Conflict, git.PushRejected:
-			status = http.StatusConflict
-		case git.HookFailed:
-			status = http.StatusUnprocessableEntity
-		case git.LocalChanges, git.BranchNotMerged, git.NothingInProgress:
-			status = http.StatusConflict
-		}
-		return status, string(gitErr.Kind), gitErr.Error()
-	case errors.Is(err, context.DeadlineExceeded):
-		return http.StatusGatewayTimeout, "timeout", "git did not answer in time; try again"
-	case errors.Is(err, context.Canceled):
-		return http.StatusServiceUnavailable, "canceled", "the request was canceled before it started"
-	default:
-		return http.StatusInternalServerError, "internal", err.Error()
-	}
+	status, described := describeError(err)
+	writeJSON(w, status, map[string]any{"error": described})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

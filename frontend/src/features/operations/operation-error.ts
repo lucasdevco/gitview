@@ -11,10 +11,22 @@ export type OperationErrorDescription = {
   output: string
 }
 
+// Keyed by API error code; every git error kind (internal/git/errors.go) has
+// an entry. A code without one falls back to the API's English hint.
 const KNOWN: Record<string, Omit<OperationErrorDescription, "output">> = {
+  git_not_installed: {
+    summary: "找不到 git",
+    advice: "请安装 git（2.32 或更新版本）并确保它在 gitview 进程的 PATH 中，然后重启 gitview。",
+  },
+  unsupported_git_version: { summary: "git 版本过旧", advice: "请将 git 升级到 2.32 或更新版本，然后重启 gitview。" },
+  not_a_repository: {
+    summary: "这里不再是 Git 仓库",
+    advice: "仓库可能已被移动或删除。请用仓库当前的路径重新启动 gitview。",
+  },
   local_changes: { summary: "本地改动会被覆盖", advice: "请先提交或贮藏这些改动，然后重试。" },
   branch_not_merged: { summary: "分支尚未完全合并", advice: "确认不再需要只在这些分支上的提交后，可以强制删除。" },
-  ref_not_found: { summary: "找不到指定的分支或提交" },
+  ref_not_found: { summary: "找不到指定的分支或提交", advice: "它可能已被删除或改名。请刷新后选择现有的分支或提交。" },
+  git_failed: { summary: "操作失败", advice: "请查看下方 git 的输出了解原因，处理后重试。" },
   lock_conflict: {
     summary: "仓库正被其他 git 进程使用",
     advice: "等其他 git 操作结束后重试；若没有其他 git 进程在运行，可删除 .git/index.lock。",
@@ -43,5 +55,6 @@ export function isConflict(error: Error): boolean {
 export function describeOperationError(error: Error): OperationErrorDescription {
   const apiError = error instanceof ApiError ? error : undefined
   const known = apiError ? KNOWN[apiError.code] : undefined
-  return { summary: "操作失败", ...known, output: apiError?.output || error.message }
+  const advice = known?.advice ?? apiError?.hint
+  return { summary: "操作失败", ...known, ...(advice && { advice }), output: apiError?.output || error.message }
 }

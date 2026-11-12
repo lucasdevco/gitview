@@ -47,7 +47,7 @@ export type Job = {
   /** The git commands the job ran, once it has finished. */
   commands: CommandEntry[]
   /** Why the job failed; only when `state` is "failed". */
-  error?: { code: string; message: string; output?: string }
+  error?: { code: string; message: string; hint?: string; output?: string }
 }
 
 /** A "job.updated" event: a job changed state or git printed progress. */
@@ -192,6 +192,6 @@ export function pendingPrompt(jobs: readonly Job[] | undefined): { job: Job; pro
 /** A failed job's error as an ApiError, the way a failed operation throws it. */
 export function jobError(job: Job): ApiError | undefined {
   if (job.state !== "failed" || !job.error) return undefined
-  const { code, message, output } = job.error
-  return new ApiError(500, code, message, { output, commands: job.commands })
+  const { code, message, hint, output } = job.error
+  return new ApiError(500, code, message, { output, hint, commands: job.commands })
 }

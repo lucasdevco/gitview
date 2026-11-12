@@ -99,7 +99,7 @@ func TestRejectedPushExplainsThatTheRemoteHasNewCommits(t *testing.T) {
 	if done.State != "failed" || done.Error == nil || done.Error.Code != "push_rejected" {
 		t.Fatalf("push: %+v", done)
 	}
-	if !strings.Contains(done.Error.Output, "[rejected]") || !strings.Contains(done.Error.Message, "pull") {
+	if !strings.Contains(done.Error.Output, "[rejected]") || !strings.Contains(done.Error.Hint, "pull") {
 		t.Fatalf("error = %+v, want git's output and advice to pull first", done.Error)
 	}
 	if got := s.origin.Git("rev-parse", "main"); got != theirs {
