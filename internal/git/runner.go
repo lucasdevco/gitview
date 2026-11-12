@@ -54,6 +54,10 @@ func (r *ExecRunner) Dir() string { return r.dir }
 func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) {
 	cmd := exec.CommandContext(ctx, r.executable, command.args...)
 	cmd.Dir = r.dir
+	if command.input != nil {
+		// A fresh reader per run, so a retried command reads the input again.
+		cmd.Stdin = bytes.NewReader(command.input)
+	}
 	cmd.Env = environment(command.write)
 	// On cancellation, interrupt git instead of killing it so it can remove
 	// its lock files; kill only if it has not exited shortly after.
