@@ -1,5 +1,6 @@
-// The 推送 dialog: pick a remote, the local branches to push (each to its
-// remote branch, optionally tracking it), and whether to push all tags.
+// The 推送 dialog: pick a remote, the local branches to push (each to a
+// remote branch — its upstream there or the same name, editable — and
+// optionally tracking it), and whether to push all tags.
 // Pushing runs as a background job; a rejected push is explained in the job
 // strip with the advice to pull first.
 import { useState } from "react"
@@ -9,7 +10,7 @@ import type { Refs } from "@/lib/api/history"
 import type { PushRequest } from "@/lib/api/jobs"
 import { useStartJob } from "@/lib/api/use-job"
 import { pushCommands } from "@/lib/command-preview"
-import { defaultRemote, pushRows } from "./remotes"
+import { defaultRemote, type PushRowEdit, pushBranch, pushRows, remoteBranchProblem } from "./remotes"
 
 export type PushDialogOptions = {
   /** The remote to push to; by default the current branch's, else origin. */
@@ -36,22 +37,23 @@ export function PushDialog({
   const [selected, setSelected] = useState<ReadonlySet<string>>(
     () => new Set(initial?.branches ?? locals.filter((branch) => branch.current).map((branch) => branch.name)),
   )
-  // 跟踪？ changes the user made, for the chosen remote.
-  const [track, setTrack] = useState<Record<string, boolean>>({})
+  // Remote branch names typed and 跟踪？ toggled, for the chosen remote.
+  const [edits, setEdits] = useState<Record<string, PushRowEdit>>({})
   const [tags, setTags] = useState(false)
 
   const rows = pushRows(locals, remotes, remote)
   const chosen = rows.filter((row) => selected.has(row.local))
   const request: PushRequest = {
     remote,
-    branches: chosen.map((row) => ({
-      local: row.local,
-      remote: row.remote,
-      // -u only where it changes something: a branch already tracking there keeps tracking.
-      track: (track[row.local] ?? row.track) && !row.track,
-    })),
+    branches: chosen.map((row) => pushBranch(row, edits[row.local] ?? {})),
     tags,
   }
+  const problems = chosen.flatMap((row) => {
+    const problem = remoteBranchProblem(edits[row.local]?.remote ?? row.remote)
+    return problem ? [`${row.local}：${problem}`] : []
+  })
+  const edit = (local: string, change: PushRowEdit) =>
+    setEdits((previous) => ({ ...previous, [local]: { ...previous[local], ...change } }))
   const allChecked = rows.length > 0 && chosen.length === rows.length
   const url = remotes.find((candidate) => candidate.name === remote)?.url
   const toggle = (name: string, on: boolean) =>
@@ -67,7 +69,7 @@ export function PushDialog({
       width={680}
       command={pushCommands(request).join(" && ") || "git push"}
       onClose={onClose}
-      disabled={!remote || (chosen.length === 0 && !tags) || start.isPending}
+      disabled={!remote || (chosen.length === 0 && !tags) || problems.length > 0 || start.isPending}
       onConfirm={() => start.mutate(request, { onSuccess: onClose })}
     >
       <div className="flex items-center gap-2">
@@ -77,7 +79,7 @@ export function PushDialog({
           value={remote}
           onChange={(event) => {
             setRemote(event.target.value)
-            setTrack({})
+            setEdits({})
           }}
         >
           {remotes.map((candidate) => (
@@ -109,17 +111,30 @@ export function PushDialog({
                   onChange={(event) => toggle(row.local, event.target.checked)}
                 />
                 <span className="truncate pr-2">{row.local}</span>
-                <span className="truncate pr-2">{row.remote}</span>
+                <input
+                  aria-label={`${row.local} 推送到的远程分支`}
+                  value={edits[row.local]?.remote ?? row.remote}
+                  onChange={(event) => edit(row.local, { remote: event.target.value })}
+                  aria-invalid={
+                    selected.has(row.local) && !!remoteBranchProblem(edits[row.local]?.remote ?? row.remote)
+                  }
+                  className="mr-2 h-5 min-w-0 rounded border border-transparent bg-transparent px-1 hover:border-border focus:border-ring focus:bg-background focus:outline-none aria-[invalid=true]:border-destructive"
+                />
                 <input
                   type="checkbox"
                   aria-label={`跟踪 ${row.local}`}
-                  checked={track[row.local] ?? row.track}
-                  onChange={(event) => setTrack({ ...track, [row.local]: event.target.checked })}
+                  checked={edits[row.local]?.track ?? row.track}
+                  onChange={(event) => edit(row.local, { track: event.target.checked })}
                 />
               </div>
             ))}
           </div>
         </div>
+        {problems.length > 0 && (
+          <p role="alert" className="text-destructive">
+            {problems[0]}
+          </p>
+        )}
         <Check
           label="全选"
           checked={allChecked}

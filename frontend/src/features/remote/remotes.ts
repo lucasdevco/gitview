@@ -79,6 +79,32 @@ export type PushRow = {
   track: boolean
 }
 
+/** What the user changed in a 推送 row: the remote branch typed, 跟踪？ toggled. */
+export type PushRowEdit = { remote?: string; track?: boolean }
+
+/**
+ * The branch to push for a row and the user's edits. `-u` only where it
+ * changes something: a branch already tracking the remote branch it is
+ * pushed to keeps tracking without it.
+ */
+export function pushBranch(row: PushRow, edit: PushRowEdit): PushBranch {
+  const remote = (edit.remote ?? row.remote).trim()
+  const tracked = row.track && remote === row.remote
+  return { local: row.local, remote, track: (edit.track ?? row.track) && !tracked }
+}
+
+/**
+ * Why `name` cannot be pushed to as a remote branch, by the same rules as
+ * the API: present, not starting with "-" or "+", without ":" or whitespace.
+ */
+export function remoteBranchProblem(name: string): string | undefined {
+  const trimmed = name.trim()
+  if (!trimmed) return "请输入远程分支名"
+  if (/^[-+]/.test(trimmed) || /[:\s]/.test(trimmed))
+    return `“${trimmed}”不是有效的分支名：不能以 - 或 + 开头，不能包含冒号或空白`
+  return undefined
+}
+
 /** The 推送 dialog's rows for pushing to `remote`. */
 export function pushRows(branches: readonly Branch[], remotes: readonly Remote[], remote: string): PushRow[] {
   return branches.map((branch) => {

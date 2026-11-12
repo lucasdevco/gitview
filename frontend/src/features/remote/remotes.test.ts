@@ -1,6 +1,15 @@
 import { expect, test } from "vitest"
 import type { Branch, Refs } from "@/lib/api/history"
-import { defaultPullBranch, defaultRemote, pushRows, pushTarget, pushTargetName, splitUpstream } from "./remotes"
+import {
+  defaultPullBranch,
+  defaultRemote,
+  pushBranch,
+  pushRows,
+  pushTarget,
+  pushTargetName,
+  remoteBranchProblem,
+  splitUpstream,
+} from "./remotes"
 
 const branch = (name: string, fields: Partial<Branch> = {}): Branch => ({
   name,
@@ -79,4 +88,25 @@ test("push rows go to each branch's upstream on that remote and start tracked on
     { local: "topic", remote: "topic", track: false },
     { local: "new", remote: "new", track: false },
   ])
+})
+
+test("a push row goes to the remote branch the user typed, tracking only when that changes something", () => {
+  const tracking = { local: "main", remote: "trunk", track: true }
+  const untracked = { local: "new", remote: "new", track: false }
+  // Untouched: no -u for a branch already tracking there.
+  expect(pushBranch(tracking, {})).toEqual({ local: "main", remote: "trunk", track: false })
+  expect(pushBranch(untracked, { track: true })).toEqual({ local: "new", remote: "new", track: true })
+  // Renamed on the remote: tracking the new name is a change.
+  expect(pushBranch(tracking, { remote: "release" })).toEqual({ local: "main", remote: "release", track: true })
+  expect(pushBranch(tracking, { remote: " release ", track: false })).toEqual({
+    local: "main",
+    remote: "release",
+    track: false,
+  })
+})
+
+test("remote branch names are checked like the API checks them", () => {
+  expect(remoteBranchProblem("feature/x")).toBeUndefined()
+  expect(remoteBranchProblem("")).toBe("请输入远程分支名")
+  for (const name of ["-f", "+main", "a:b", "a b"]) expect(remoteBranchProblem(name)).toBeTruthy()
 })
