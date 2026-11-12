@@ -19,9 +19,9 @@ const entry = {
 }
 
 describe("runOperation", () => {
-  it("POSTs the request as JSON with the session token and returns the commands it ran", async () => {
+  it("POSTs the request as JSON and returns the commands it ran", async () => {
     const calls: Call[] = []
-    const client = createApiClient({ token: "secret", fetch: respond(200, { data: { commands: [entry] } }, calls) })
+    const client = createApiClient({ fetch: respond(200, { data: { commands: [entry] } }, calls) })
 
     await expect(runOperation(client, "abc", "stage", { paths: ["a.txt"] })).resolves.toEqual({ commands: [entry] })
 
@@ -29,14 +29,12 @@ describe("runOperation", () => {
     expect(calls[0].init?.method).toBe("POST")
     const headers = new Headers(calls[0].init?.headers)
     expect(headers.get("Content-Type")).toBe("application/json")
-    expect(headers.get("Authorization")).toBe("Bearer secret")
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ paths: ["a.txt"] })
   })
 
   it("keeps a failed operation's git output and commands on the ApiError", async () => {
     const failed = { ...entry, command: "git commit -m x", exitCode: 1, error: "hook_failed" }
     const client = createApiClient({
-      token: "secret",
       fetch: respond(
         422,
         {
@@ -66,7 +64,7 @@ describe("runOperation", () => {
 describe("getCommandLog", () => {
   it("reads the repository's recent write commands", async () => {
     const calls: Call[] = []
-    const client = createApiClient({ token: "secret", fetch: respond(200, { data: [entry] }, calls) })
+    const client = createApiClient({ fetch: respond(200, { data: [entry] }, calls) })
 
     await expect(getCommandLog(client, "abc")).resolves.toEqual([entry])
     expect(calls[0].url).toBe("/api/v1/repos/abc/commands")

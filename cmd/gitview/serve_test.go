@@ -17,9 +17,9 @@ import (
 	"gitview/internal/gittest"
 )
 
-var openURL = regexp.MustCompile(`Open (http://127\.0\.0\.1:\d+/)\?token=([A-Za-z0-9_-]{32,})`)
+var openURL = regexp.MustCompile(`^Open (http://127\.0\.0\.1:\d+/)$`)
 
-func TestServePrintsATokenURLThatUnlocksTheAPI(t *testing.T) {
+func TestServePrintsAPlainURLThatOpensTheAPI(t *testing.T) {
 	r := gittest.Init(t)
 	r.Commit("a.txt", "a\n", "first")
 	reader, writer := io.Pipe()
@@ -30,14 +30,14 @@ func TestServePrintsATokenURLThatUnlocksTheAPI(t *testing.T) {
 		_ = writer.Close()
 	}()
 
-	base, token := waitForURL(t, reader)
+	base := waitForURL(t, reader)
 	go func() { _, _ = io.Copy(io.Discard, reader) }()
 
-	if status := apiStatus(t, base+"api/v1/repos", ""); status != http.StatusUnauthorized {
-		t.Fatalf("request without token: status %d", status)
+	if status := apiStatus(t, base+"api/v1/repos", nil); status != http.StatusOK {
+		t.Fatalf("request from this machine: status %d", status)
 	}
-	if status := apiStatus(t, base+"api/v1/repos", token); status != http.StatusOK {
-		t.Fatalf("request with printed token: status %d", status)
+	if status := apiStatus(t, base+"api/v1/repos", http.Header{"Origin": {"https://evil.example"}}); status != http.StatusForbidden {
+		t.Fatalf("request from another site: status %d", status)
 	}
 
 	cancel()
@@ -48,28 +48,6 @@ func TestServePrintsATokenURLThatUnlocksTheAPI(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("serve did not shut down")
-	}
-}
-
-func TestServeGeneratesADifferentTokenEachRun(t *testing.T) {
-	r := gittest.Init(t)
-	tokens := map[string]bool{}
-	for range 2 {
-		reader, writer := io.Pipe()
-		ctx, cancel := context.WithCancel(context.Background())
-		done := make(chan error, 1)
-		go func() {
-			done <- serve(ctx, serveConfig{Repository: r.Dir, Port: 0, Stdout: writer})
-			_ = writer.Close()
-		}()
-		_, token := waitForURL(t, reader)
-		go func() { _, _ = io.Copy(io.Discard, reader) }()
-		tokens[token] = true
-		cancel()
-		<-done
-	}
-	if len(tokens) != 2 {
-		t.Fatal("expected a fresh token per run")
 	}
 }
 
@@ -98,7 +76,7 @@ func TestServeRefusesAnOldGit(t *testing.T) {
 	}
 }
 
-func waitForURL(t *testing.T, output io.Reader) (base, token string) {
+func waitForURL(t *testing.T, output io.Reader) (base string) {
 	t.Helper()
 	found := make(chan []string, 1)
 	go func() {
@@ -114,23 +92,23 @@ func waitForURL(t *testing.T, output io.Reader) (base, token string) {
 	select {
 	case match := <-found:
 		if match == nil {
-			t.Fatal("serve did not print an Open URL with a token")
+			t.Fatal("serve did not print an Open URL")
 		}
-		return match[1], match[2]
+		return match[1]
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for the Open URL")
 	}
-	return "", ""
+	return ""
 }
 
-func apiStatus(t *testing.T, url, token string) int {
+func apiStatus(t *testing.T, url string, header http.Header) int {
 	t.Helper()
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token != "" {
-		request.Header.Set("Authorization", "Bearer "+token)
+	for name, values := range header {
+		request.Header[name] = values
 	}
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {

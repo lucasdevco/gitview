@@ -87,7 +87,7 @@ func newServedFixture(t *testing.T, r *gittest.Repo) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	api, err := server.New(ws, token)
+	api, err := server.New(ws)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,8 +254,7 @@ func TestAskpassCallbackNeedsARunningJobsSecretFromLoopback(t *testing.T) {
 		status int
 	}{
 		{"another machine", []func(*http.Request){withSecret("guess")}, http.StatusForbidden},
-		// The fixture sends the session token; it is not a job secret.
-		{"session token", []func(*http.Request){fromLoopback}, http.StatusUnauthorized},
+		{"no secret", []func(*http.Request){fromLoopback}, http.StatusUnauthorized},
 		{"unknown secret", []func(*http.Request){fromLoopback, withSecret("guess")}, http.StatusUnauthorized},
 	}
 	for _, c := range cases {

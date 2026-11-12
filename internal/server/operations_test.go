@@ -33,7 +33,7 @@ type operationResponse struct {
 	} `json:"error"`
 }
 
-// post issues an authenticated same-origin JSON POST the way the frontend does.
+// post issues a same-origin JSON POST the way the frontend does.
 func (f fixture) post(t *testing.T, path string, body any, mutate ...func(*http.Request)) *httptest.ResponseRecorder {
 	t.Helper()
 	encoded, err := json.Marshal(body)
@@ -41,7 +41,6 @@ func (f fixture) post(t *testing.T, path string, body any, mutate ...func(*http.
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080"+path, strings.NewReader(string(encoded)))
-	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
 	for _, m := range mutate {
 		m(request)
@@ -325,8 +324,8 @@ func TestOperationsOnlyAcceptJSONPosts(t *testing.T) {
 	if response := f.post(t, path, body, func(r *http.Request) { r.Header.Set("Origin", "http://evil.example") }); response.Code != http.StatusForbidden {
 		t.Fatalf("cross-origin: status %d", response.Code)
 	}
-	if response := f.post(t, path, body, func(r *http.Request) { r.Header.Del("Authorization") }); response.Code != http.StatusUnauthorized {
-		t.Fatalf("no token: status %d", response.Code)
+	if response := f.post(t, path, body, func(r *http.Request) { r.Host = "evil.example:8080" }); response.Code != http.StatusForbidden {
+		t.Fatalf("DNS-rebound host: status %d", response.Code)
 	}
 	if staged := f.status(t).Staged; len(staged) != 0 {
 		t.Fatalf("rejected requests must not change the repository: %+v", staged)

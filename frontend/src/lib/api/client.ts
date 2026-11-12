@@ -1,5 +1,5 @@
-// HTTP client for the gitview API. Every request carries the session token;
-// failures surface as ApiError with the server's error code and message.
+// HTTP client for the gitview API, served from the page's own origin.
+// Failures surface as ApiError with the server's error code and message.
 import type { CommandEntry } from "./operations"
 
 /** A failed API request. `status` is 0 when the server could not be reached. */
@@ -37,20 +37,16 @@ export type ApiClient = {
 }
 
 export type ApiClientOptions = {
-  token: string | null
   fetch?: typeof fetch
 }
 
-export function createApiClient({ token, fetch: fetchImpl = globalThis.fetch }: ApiClientOptions): ApiClient {
+export function createApiClient({ fetch: fetchImpl = globalThis.fetch }: ApiClientOptions = {}): ApiClient {
   async function request<T>(path: string, init: RequestInit): Promise<T> {
-    if (!token) {
-      throw new ApiError(401, "missing_token", "缺少访问令牌。请打开 gitview 启动时在终端打印的链接（带有 ?token=）。")
-    }
     let response: Response
     try {
       response = await fetchImpl.call(globalThis, path, {
         ...init,
-        headers: { ...init.headers, Authorization: `Bearer ${token}`, Accept: "application/json" },
+        headers: { ...init.headers, Accept: "application/json" },
       })
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") throw error

@@ -14,8 +14,6 @@ import (
 	"gitview/internal/workspace"
 )
 
-const token = "test-token"
-
 type fixture struct {
 	handler http.Handler
 	repoID  string
@@ -29,18 +27,17 @@ func newFixture(t *testing.T, r *gittest.Repo) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	api, err := server.New(ws, token)
+	api, err := server.New(ws)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return fixture{handler: api.Handler(), repoID: opened.ID}
 }
 
-// get issues an authenticated same-origin request the way the frontend does.
+// get issues a same-origin request the way the frontend does.
 func (f fixture) get(t *testing.T, path string, mutate ...func(*http.Request)) *httptest.ResponseRecorder {
 	t.Helper()
 	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080"+path, nil)
-	request.Header.Set("Authorization", "Bearer "+token)
 	for _, m := range mutate {
 		m(request)
 	}
@@ -153,9 +150,6 @@ func TestRejectedRequests(t *testing.T) {
 		status int
 		code   string
 	}{
-		{"missing token", func(r *http.Request) { r.Header.Del("Authorization") }, http.StatusUnauthorized, "invalid_token"},
-		{"wrong token", func(r *http.Request) { r.Header.Set("Authorization", "Bearer nope") }, http.StatusUnauthorized, "invalid_token"},
-		{"token with wrong scheme", func(r *http.Request) { r.Header.Set("Authorization", "Basic "+token) }, http.StatusUnauthorized, "invalid_token"},
 		{"foreign host (DNS rebinding)", func(r *http.Request) { r.Host = "evil.example:8080" }, http.StatusForbidden, "forbidden_host"},
 		{"lan address host", func(r *http.Request) { r.Host = "192.168.1.10:8080" }, http.StatusForbidden, "forbidden_host"},
 		{"cross-site origin", func(r *http.Request) { r.Header.Set("Origin", "https://evil.example") }, http.StatusForbidden, "forbidden_origin"},
@@ -186,6 +180,7 @@ func TestAcceptedRequestVariants(t *testing.T) {
 		name   string
 		mutate func(*http.Request)
 	}{
+		{"no headers (curl)", func(*http.Request) {}},
 		{"same origin", func(r *http.Request) { r.Header.Set("Origin", "http://127.0.0.1:8080") }},
 		{"localhost host", func(r *http.Request) {
 			r.Host = "localhost:8080"
@@ -193,10 +188,7 @@ func TestAcceptedRequestVariants(t *testing.T) {
 		}},
 		{"ipv6 loopback host", func(r *http.Request) { r.Host = "[::1]:8080" }},
 		{"same-origin fetch metadata", func(r *http.Request) { r.Header.Set("Sec-Fetch-Site", "same-origin") }},
-		{"token in query for EventSource", func(r *http.Request) {
-			r.Header.Del("Authorization")
-			r.URL.RawQuery = "token=" + token
-		}},
+		{"leftover token in a bookmarked URL is ignored", func(r *http.Request) { r.URL.RawQuery = "token=old" }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -208,19 +200,34 @@ func TestAcceptedRequestVariants(t *testing.T) {
 	}
 }
 
-func TestPageLoadsWithoutTokenButOnlyOnLoopbackHosts(t *testing.T) {
+func TestAppPageReadsTheAPIWithoutCredentials(t *testing.T) {
 	f := newFixture(t, gittest.Init(t))
+	// What a browser sends for fetch() and EventSource from the gitview page.
+	fromApp := func(r *http.Request) {
+		r.Header.Set("Origin", "http://127.0.0.1:8080")
+		r.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
 
-	page := f.get(t, "/?token="+token, func(r *http.Request) { r.Header.Del("Authorization") })
+	page := f.get(t, "/", fromApp)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "<html") {
 		t.Fatalf("unexpected page response %d", page.Code)
 	}
 	if page.Header().Get("Referrer-Policy") != "no-referrer" {
-		t.Fatal("the page URL carries the token, so it must not leak through Referer")
+		t.Fatal("repository paths in page URLs must not leak through Referer")
 	}
+	repos := f.get(t, "/api/v1/repos", fromApp)
+	if repos.Code != http.StatusOK {
+		t.Fatalf("repos: status %d: %s", repos.Code, repos.Body)
+	}
+	if got := decode[struct{ Data []repoSummary }](t, repos).Data; len(got) != 1 || got[0].ID != f.repoID {
+		t.Fatalf("repos = %+v", got)
+	}
+}
+
+func TestPageLoadsOnlyOnLoopbackHosts(t *testing.T) {
+	f := newFixture(t, gittest.Init(t))
 
 	rebound := f.get(t, "/", func(r *http.Request) {
-		r.Header.Del("Authorization")
 		r.Host = "evil.example"
 	})
 	if rebound.Code != http.StatusForbidden {

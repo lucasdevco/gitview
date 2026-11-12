@@ -7,18 +7,13 @@ import "@/index.css"
 import { createApiClient } from "@/lib/api/client"
 import { ApiProvider } from "@/lib/api/context"
 import { LiveRefresh } from "@/lib/api/live-refresh"
-import { takeSessionToken } from "@/lib/api/session"
 import { routeTree } from "@/routeTree.gen"
 
 if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
   document.documentElement.classList.add("dark")
 }
 
-// Take the access token from the URL gitview printed, then hide it from the
-// address bar so it is not bookmarked or shared by accident.
-const session = takeSessionToken(window.location.href, window.sessionStorage)
-if (session.url !== window.location.href) window.history.replaceState(window.history.state, "", session.url)
-const api = createApiClient({ token: session.token })
+const api = createApiClient()
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -38,7 +33,7 @@ createRoot(rootElement).render(
   <StrictMode>
     <ApiProvider client={api}>
       <QueryClientProvider client={queryClient}>
-        <LiveRefresh token={session.token} />
+        <LiveRefresh />
         <TooltipProvider>
           <RouterProvider router={router} />
         </TooltipProvider>

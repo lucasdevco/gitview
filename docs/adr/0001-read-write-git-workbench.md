@@ -92,6 +92,8 @@ internal/
 - 写接口仅接受 `POST` + `application/json`；
 - 继续只监听回环地址。
 
+> **2026-11-12 更新：** 应用户要求（单用户、本机使用）取消启动 token，直接打开 `http://127.0.0.1:<port>/`。保留回环监听、`Host`/`Origin` 校验和写接口的 `POST` + JSON 约束，它们仍能阻止其他网页和 DNS rebinding 操纵 API；本机其他程序可直接调用 API，与它们能直接运行 `git` 等价。凭据 helper 回调仍要求回环来源与任务 secret。
+
 ## lazygit 对照
 
 以下基于本地 lazygit 源码（`/Users/nan-mac/Code/lazygit`）。lazygit 是单用户 TUI，gitview 是可被并发请求的本地 HTTP 服务，差异主要来自这一点。

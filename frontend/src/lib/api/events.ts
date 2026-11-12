@@ -36,10 +36,8 @@ export const WORKTREE_POLL_MS = 5000
 /** How long to wait before reopening a stream the browser gave up on. */
 const RECONNECT_DELAY_MS = 5000
 
-/** The event stream's address. EventSource cannot send headers, so the token goes in the query. */
-export function eventsUrl(token: string): string {
-  return `/api/v1/events?token=${encodeURIComponent(token)}`
-}
+/** The event stream's address. */
+const EVENTS_URL = "/api/v1/events"
 
 /** Parses one event's data; null for malformed data or kinds this page does not know. */
 export function parseServerEvent(data: string): ServerEvent | null {
@@ -135,7 +133,6 @@ export type EventStream = Pick<EventSource, "readyState" | "onopen" | "onmessage
 const CLOSED = 2
 
 export type ConnectEventsOptions = {
-  token: string
   queryClient: QueryClient
   createEventSource?: (url: string) => EventStream
 }
@@ -146,7 +143,6 @@ export type ConnectEventsOptions = {
  * refreshed after a reconnect.
  */
 export function connectEvents({
-  token,
   queryClient,
   createEventSource = (url) => new EventSource(url),
 }: ConnectEventsOptions): () => void {
@@ -155,7 +151,7 @@ export function connectEvents({
   let interrupted = false
 
   const open = () => {
-    const stream = createEventSource(eventsUrl(token))
+    const stream = createEventSource(EVENTS_URL)
     source = stream
     stream.onopen = () => {
       if (interrupted) void queryClient.invalidateQueries({ queryKey: repoKeys.all })

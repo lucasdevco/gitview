@@ -62,7 +62,10 @@ func (w *streamWriter) Flush() {}
 func (f fixture) subscribe(t *testing.T) *eventStream {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/api/v1/events?token="+token, nil).WithContext(ctx)
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/api/v1/events", nil).WithContext(ctx)
+	// What the browser's EventSource sends from the gitview page.
+	request.Header.Set("Origin", "http://127.0.0.1:8080")
+	request.Header.Set("Sec-Fetch-Site", "same-origin")
 	reader, writer := io.Pipe()
 	w := &streamWriter{header: http.Header{}, status: make(chan int, 1), body: writer}
 	done := make(chan struct{})
@@ -179,12 +182,12 @@ func TestEventStreamIsServerSentEvents(t *testing.T) {
 	}
 }
 
-func TestEventStreamRequiresToken(t *testing.T) {
+func TestEventStreamRefusesOtherOrigins(t *testing.T) {
 	r := gittest.Init(t)
 	response := newFixture(t, r).get(t, "/api/v1/events", func(request *http.Request) {
-		request.Header.Del("Authorization")
+		request.Header.Set("Origin", "https://evil.example")
 	})
-	if response.Code != http.StatusUnauthorized {
+	if response.Code != http.StatusForbidden {
 		t.Fatalf("status %d", response.Code)
 	}
 }

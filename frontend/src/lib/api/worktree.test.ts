@@ -5,7 +5,6 @@ import { diffRequestFor, getFileDiff } from "./worktree"
 test("diff paths with reserved URL characters reach the server intact", async () => {
   const urls: string[] = []
   const client = createApiClient({
-    token: "t",
     fetch: async (input) => {
       urls.push(String(input))
       return new Response(JSON.stringify({ data: {} }), { status: 200 })
