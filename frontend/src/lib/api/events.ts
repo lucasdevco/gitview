@@ -3,7 +3,10 @@
 // repository that changed, and only the queries depending on them are
 // refreshed. Outside edits to working tree files are not pushed: the
 // working tree is polled while the page is visible and refreshed on focus.
+// "job.updated" events keep the job list (see jobs.ts) current.
 import type { QueryClient, QueryKey } from "@tanstack/react-query"
+import { applyJobUpdate, isFinished, type Job, type JobUpdate, jobKeys } from "./jobs"
+import { operationKeys } from "./operations"
 import { repoKeys } from "./queries"
 
 /** A part of a repository whose changes the server reports separately. */
@@ -14,15 +17,17 @@ export type ChangedArea = "refs" | "index" | "worktree" | "state"
  * (job progress, credential requests, ...) to this union, to KNOWN_TYPES and
  * to handleServerEvent.
  */
-export type ServerEvent = {
-  type: "repo.changed"
-  repoId: string
-  /** Increases with every change of the repository. */
-  version: number
-  changed: ChangedArea[]
-}
+export type ServerEvent =
+  | {
+      type: "repo.changed"
+      repoId: string
+      /** Increases with every change of the repository. */
+      version: number
+      changed: ChangedArea[]
+    }
+  | JobUpdate
 
-const KNOWN_TYPES: ReadonlySet<string> = new Set<ServerEvent["type"]>(["repo.changed"])
+const KNOWN_TYPES: ReadonlySet<string> = new Set<ServerEvent["type"]>(["repo.changed", "job.updated"])
 
 /** How often working tree queries refresh while the page is visible. */
 export const WORKTREE_POLL_MS = 5000
@@ -66,6 +71,8 @@ const DEPENDS_ON: Record<string, readonly ChangedArea[]> = {
   stashes: ["refs"],
   // A stash's file diffs never change.
   stash: [],
+  // Job events keep the job list current.
+  jobs: [],
 }
 
 const DIFF_DEPENDS_ON: Record<string, readonly ChangedArea[]> = {
@@ -102,7 +109,23 @@ export function handleServerEvent(queryClient: QueryClient, event: ServerEvent) 
   switch (event.type) {
     case "repo.changed":
       return refreshChanged(queryClient, event.repoId, event.changed)
+    case "job.updated":
+      return updateJob(queryClient, event)
   }
+}
+
+/**
+ * Applies a job's state and progress to the job list. Once the job has
+ * finished, the list is refetched for its commands and error, and the
+ * command log for the commands it ran.
+ */
+function updateJob(queryClient: QueryClient, update: JobUpdate) {
+  queryClient.setQueryData<Job[]>(jobKeys.list(update.repoId), (jobs) => applyJobUpdate(jobs, update))
+  if (!isFinished(update.state)) return
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: jobKeys.list(update.repoId) }),
+    queryClient.invalidateQueries({ queryKey: operationKeys.commandLog(update.repoId) }),
+  ])
 }
 
 /** The part of EventSource that connectEvents uses. */

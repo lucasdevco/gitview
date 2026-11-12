@@ -5,10 +5,12 @@ import {
   connectEvents,
   type EventStream,
   eventsUrl,
+  handleServerEvent,
   parseServerEvent,
   refreshChanged,
   watchWorktree,
 } from "./events"
+import type { Job } from "./jobs"
 
 const keys = {
   repos: ["repos"],
@@ -25,6 +27,7 @@ const keys = {
   stashList: ["repos", "r1", "stashes"],
   stashFiles: ["repos", "r1", "stashes", 0, "abc"],
   stashDiff: ["repos", "r1", "stash", "abc", "diff", "a.txt", ""],
+  jobs: ["repos", "r1", "jobs"],
   otherRepoStatus: ["repos", "r2", "status"],
 } satisfies Record<string, QueryKey>
 
@@ -87,6 +90,46 @@ test("server events are parsed by type and unknown kinds are ignored", () => {
   })
   expect(parseServerEvent('{"type":"from.the.future"}')).toBeNull()
   expect(parseServerEvent("not json")).toBeNull()
+})
+
+test("job updates are parsed like other events", () => {
+  expect(
+    parseServerEvent('{"type":"job.updated","repoId":"r1","jobId":"j1","operation":"fetch","state":"queued"}'),
+  ).toEqual({ type: "job.updated", repoId: "r1", jobId: "j1", operation: "fetch", state: "queued" })
+})
+
+test("a job's progress updates the job list in place, without refetching anything", async () => {
+  const client = cachedQueries()
+  const job: Job = { id: "j1", repoId: "r1", operation: "fetch", state: "queued", commands: [] }
+  client.setQueryData(keys.jobs, [job])
+  const progress = { phase: "Receiving objects", percent: 40, text: "Receiving objects:  40% (4/10)" }
+  await handleServerEvent(client, {
+    type: "job.updated",
+    repoId: "r1",
+    jobId: "j1",
+    operation: "fetch",
+    state: "running",
+    progress,
+  })
+  expect(client.getQueryData(keys.jobs)).toEqual([{ ...job, state: "running", progress }])
+  expect(invalidated(client)).toEqual([])
+})
+
+test("a finished job refreshes the job list, for its commands and error, and the command log", async () => {
+  const client = cachedQueries()
+  client.setQueryData(keys.jobs, [])
+  await handleServerEvent(client, {
+    type: "job.updated",
+    repoId: "r1",
+    jobId: "j1",
+    operation: "fetch",
+    state: "failed",
+  })
+  expect(invalidated(client)).toEqual(["commands", "jobs"])
+})
+
+test("repository changes do not refetch the job list; job events keep it current", async () => {
+  expect(await refreshedBy(["refs", "index", "worktree", "state"])).not.toContain("jobs")
 })
 
 test("the event stream URL carries the token, since EventSource cannot set headers", () => {

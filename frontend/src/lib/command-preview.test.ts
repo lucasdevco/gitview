@@ -5,6 +5,7 @@ import {
   createBranchCommand,
   deleteBranchesCommand,
   discardHunkCommand,
+  fetchCommand,
   formatGitCommand,
   renameBranchCommand,
   setUpstreamCommand,
@@ -107,5 +108,15 @@ describe("stash", () => {
   it("names the stash by its reflog entry", () => {
     expect(stashApplyCommand({ index: 0, oid: "abc" })).toBe("git stash apply 'stash@{0}'")
     expect(stashDropCommand({ index: 1, oid: "abc" })).toBe("git stash drop 'stash@{1}'")
+  })
+})
+
+describe("fetch", () => {
+  it("asks for progress and passes the options in dialog order", () => {
+    expect(fetchCommand({ all: true })).toBe("git fetch --progress --all")
+    expect(fetchCommand({ remote: "origin", prune: true, tags: true })).toBe(
+      "git fetch --progress origin --prune --tags",
+    )
+    expect(fetchCommand({})).toBe("git fetch --progress")
   })
 })

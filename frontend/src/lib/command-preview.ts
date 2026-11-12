@@ -6,6 +6,8 @@
 //
 // Adding an operation: add a builder here next to its request type and a
 // vitest case using the string the backend's API test expects.
+
+import type { FetchRequest } from "@/lib/api/jobs"
 import type {
   CheckoutRequest,
   CommitRequest,
@@ -117,4 +119,18 @@ export function stashApplyCommand({ index }: StashRequest): string {
 /** `stashDrop`: delete a stash. */
 export function stashDropCommand({ index }: StashRequest): string {
   return formatGitCommand(["stash", "drop", `stash@{${index}}`])
+}
+
+// Jobs ask git for progress, which it prints only to a terminal otherwise.
+
+/** `fetch` (a job): download from all remotes, one remote, or git's default remote. */
+export function fetchCommand({ all, remote, prune, tags }: FetchRequest): string {
+  return formatGitCommand([
+    "fetch",
+    "--progress",
+    ...(all ? ["--all"] : []),
+    ...(remote ? [remote] : []),
+    ...(prune ? ["--prune"] : []),
+    ...(tags ? ["--tags"] : []),
+  ])
 }
