@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 // Git prints nothing of its own when a hook stops a command; only the hook's
@@ -12,18 +13,31 @@ import (
 // failedHook reads the child-process events git records there: each hook runs
 // as a child with child_class "hook".
 
+//
+// The events include the argv of every process git starts, which for
+// network commands can hold a remote URL with an embedded token (only git
+// versions newer than our 2.32 minimum redact it). So the file is readable by the user alone,
+// in a directory only the user can enter, and both are removed as soon as
+// the command has finished and the events have been read.
+
 // hookTrace is a temporary trace2 event file for one write command.
-type hookTrace struct{ path string }
+type hookTrace struct{ dir, path string }
 
 // newHookTrace creates the event file. On failure it returns nil and the
 // command runs without hook detection.
 func newHookTrace() *hookTrace {
-	file, err := os.CreateTemp("", "gitview-trace2-*.jsonl")
+	dir, err := os.MkdirTemp("", "gitview-trace2-") // mode 0700
 	if err != nil {
 		return nil
 	}
+	path := filepath.Join(dir, "events.jsonl")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return nil
+	}
 	_ = file.Close()
-	return &hookTrace{path: file.Name()}
+	return &hookTrace{dir: dir, path: path}
 }
 
 // env is the variable that makes git write its events to the file.
@@ -71,4 +85,4 @@ func (t *hookTrace) failedHook() string {
 	return ""
 }
 
-func (t *hookTrace) remove() { _ = os.Remove(t.path) }
+func (t *hookTrace) remove() { _ = os.RemoveAll(t.dir) }

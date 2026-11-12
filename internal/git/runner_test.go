@@ -85,6 +85,40 @@ func TestWriteCommandsMayTakeOptionalLocks(t *testing.T) {
 	}
 }
 
+// git's trace2 events (read to detect failed hooks) include the argv of
+// every process git starts, which can contain a remote URL with a token.
+// They go to a file only the user can read, in a directory only the user can
+// enter, and nothing of it remains once the command has finished.
+func TestWriteCommandTraceIsPrivateAndRemovedAfterwards(t *testing.T) {
+	for _, exit := range []string{"0", "1"} {
+		t.Run("exit "+exit, func(t *testing.T) {
+			temp := t.TempDir()
+			t.Setenv("TMPDIR", temp)
+			script := `printf 'path=%s\n' "$GIT_TRACE2_EVENT"
+printf 'dir=%s\n' "$(ls -ld "$(dirname "$GIT_TRACE2_EVENT")" | cut -c1-10)"
+printf 'file=%s\n' "$(ls -l "$GIT_TRACE2_EVENT" | cut -c1-10)"
+exit ` + exit + "\n"
+			runner := git.NewRunner(t.TempDir(), git.WithExecutable(fakeGit(t, script)))
+
+			result, err := runner.Run(context.Background(), git.Write("push", "origin"))
+			stdout := result.Stdout
+			var gitErr *git.Error
+			if errors.As(err, &gitErr) {
+				stdout = []byte(gitErr.Stdout)
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			seen := envOf(stdout)
+			if !strings.HasPrefix(seen["path"], temp) || seen["dir"] != "drwx------" || seen["file"] != "-rw-------" {
+				t.Fatalf("trace while git ran: %v", seen)
+			}
+			if left, _ := os.ReadDir(temp); len(left) != 0 {
+				t.Fatalf("left behind in the temporary directory: %v", left)
+			}
+		})
+	}
+}
+
 func TestBuilderPassesEachArgumentVerbatim(t *testing.T) {
 	runner := git.NewRunner(t.TempDir(), git.WithExecutable(fakeGit(t, `for a in "$@"; do printf '%s\n' "$a"; done`+"\n")))
 	command := git.Read("log").
