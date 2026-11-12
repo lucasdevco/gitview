@@ -22,6 +22,9 @@ const (
 	DiffUnstaged DiffSource = "unstaged"
 	// DiffUntracked shows an untracked file's whole content as added.
 	DiffUntracked DiffSource = "untracked"
+	// DiffCommit compares a commit with its first parent, or with nothing
+	// for a root commit. Set DiffRequest.Commit.
+	DiffCommit DiffSource = "commit"
 )
 
 // MaxDiffBytes is the largest patch returned in full. Larger diffs are
@@ -33,9 +36,12 @@ type DiffRequest struct {
 	Source DiffSource
 	// Path is the file's path relative to the repository root.
 	Path string
-	// OldPath is the path before a staged rename or copy. Pass it so the
-	// diff pairs both names and shows a rename instead of an added file.
+	// OldPath is the path before a rename or copy (staged or in a commit).
+	// Pass it so the diff pairs both names and shows a rename instead of an
+	// added file.
 	OldPath string
+	// Commit is the commit id to diff; required for DiffCommit only.
+	Commit string
 }
 
 // FileDiff is one file's diff.
@@ -71,6 +77,14 @@ func Diff(ctx context.Context, r *repo.Repository, request DiffRequest) (FileDif
 		command = git.Read("diff", "--cached").Arg(options...).Arg("--").ArgIf(request.OldPath != "", literal(request.OldPath)).Arg(literal(request.Path))
 	case DiffUnstaged:
 		command = git.Read("diff").Arg(options...).Arg("--", literal(request.Path))
+	case DiffCommit:
+		commit, err := readCommit(ctx, r, request.Commit)
+		if err != nil {
+			return FileDiff{}, err
+		}
+		command = git.Read("diff-tree", "-r", "--patch", "--no-color", "--no-ext-diff", "--no-textconv").
+			Arg(commitDiffArgs(commit.GraphCommit)...).
+			Arg("--").ArgIf(request.OldPath != "", literal(request.OldPath)).Arg(literal(request.Path))
 	case DiffUntracked:
 		info, err := os.Lstat(filepath.Join(r.Root, request.Path))
 		if err != nil {
@@ -105,10 +119,14 @@ func Diff(ctx context.Context, r *repo.Repository, request DiffRequest) (FileDif
 func (r DiffRequest) validate() error {
 	switch r.Source {
 	case DiffStaged, DiffUnstaged, DiffUntracked:
+	case DiffCommit:
+		if r.Commit == "" {
+			return &InvalidRequestError{Message: "missing commit; pass the commit id whose change to show"}
+		}
 	case "":
-		return &InvalidRequestError{Message: "missing diff source; use staged, unstaged or untracked"}
+		return &InvalidRequestError{Message: "missing diff source; use staged, unstaged, untracked or commit"}
 	default:
-		return &InvalidRequestError{Message: fmt.Sprintf("unknown diff source %q; use staged, unstaged or untracked", r.Source)}
+		return &InvalidRequestError{Message: fmt.Sprintf("unknown diff source %q; use staged, unstaged, untracked or commit", r.Source)}
 	}
 	if r.Path == "" {
 		return &InvalidRequestError{Message: "missing path; pass the file path relative to the repository root"}

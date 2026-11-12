@@ -87,27 +87,37 @@ func parseGraph(output []byte) ([]GraphCommit, error) {
 		if len(fields) != graphFieldCount {
 			return nil, fmt.Errorf("unexpected git log record %q", line)
 		}
-		authorTime, err := strconv.ParseInt(fields[4], 10, 64)
+		commit, err := parseGraphRecord(fields)
 		if err != nil {
-			return nil, fmt.Errorf("bad author time in git log record %q: %w", line, err)
+			return nil, err
 		}
-		commitTime, err := strconv.ParseInt(fields[5], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("bad commit time in git log record %q: %w", line, err)
-		}
-		parents := strings.Fields(fields[1])
-		if parents == nil {
-			parents = []string{}
-		}
-		commits = append(commits, GraphCommit{
-			Oid:        fields[0],
-			Parents:    parents,
-			Author:     fields[2],
-			Email:      fields[3],
-			AuthorTime: authorTime,
-			CommitTime: commitTime,
-			Subject:    fields[6],
-		})
+		commits = append(commits, commit)
 	}
 	return commits, nil
+}
+
+// parseGraphRecord turns the fields of one %H %P %an %ae %at %ct %s record
+// into a GraphCommit.
+func parseGraphRecord(fields []string) (GraphCommit, error) {
+	authorTime, err := strconv.ParseInt(fields[4], 10, 64)
+	if err != nil {
+		return GraphCommit{}, fmt.Errorf("bad author time %q for commit %s: %w", fields[4], fields[0], err)
+	}
+	commitTime, err := strconv.ParseInt(fields[5], 10, 64)
+	if err != nil {
+		return GraphCommit{}, fmt.Errorf("bad commit time %q for commit %s: %w", fields[5], fields[0], err)
+	}
+	parents := strings.Fields(fields[1])
+	if parents == nil {
+		parents = []string{}
+	}
+	return GraphCommit{
+		Oid:        fields[0],
+		Parents:    parents,
+		Author:     fields[2],
+		Email:      fields[3],
+		AuthorTime: authorTime,
+		CommitTime: commitTime,
+		Subject:    fields[6],
+	}, nil
 }
