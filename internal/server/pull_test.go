@@ -115,6 +115,21 @@ func TestPullThatConflictsReportsTheConflict(t *testing.T) {
 	}
 }
 
+func TestPullWithRebaseRefusesUncommittedChangesWithAdvice(t *testing.T) {
+	s := newRemoteSetup(t)
+	s.colleague.Commit("b.txt", "theirs\n", "their change")
+	s.colleague.Git("push", "--quiet", "origin", "main")
+	s.local.Write("a.txt", "uncommitted\n")
+	f := newFixture(t, s.local)
+
+	done := f.waitJob(t, f.startJob(t, "pull", map[string]any{"remote": "origin", "branch": "main", "rebase": true}).ID)
+
+	if done.State != "failed" || done.Error == nil || done.Error.Code != "local_changes" ||
+		!strings.Contains(done.Error.Hint, "stash") {
+		t.Fatalf("pull --rebase with local changes: %+v", done.Error)
+	}
+}
+
 func TestFetchIntoFastForwardsABranchThatIsNotCheckedOut(t *testing.T) {
 	s := newRemoteSetup(t)
 	s.colleague.Git("push", "--quiet", "origin", "main:feature")

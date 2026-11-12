@@ -113,6 +113,9 @@ var classifications = []struct {
 		"would be overwritten by",
 		"cannot rebase: You have unstaged changes",
 		"cannot rebase: Your index contains uncommitted changes",
+		// git pull --rebase checks before it fetches.
+		"cannot pull with rebase: You have unstaged changes",
+		"cannot pull with rebase: Your index contains uncommitted changes",
 	}},
 	{BranchNotMerged, []string{"is not fully merged"}},
 	{NothingInProgress, []string{"There is no merge to abort", "no rebase in progress"}},
