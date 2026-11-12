@@ -50,14 +50,15 @@ type indexStamp struct {
 	modTime time.Time
 }
 
-// takeSnapshot inspects HEAD, every ref, the index file and in-progress
-// state files.
+// takeSnapshot inspects HEAD, every ref with its upstream (a branch's
+// tracking is part of the refs area, though git keeps it in config), the
+// index file and in-progress state files.
 func takeSnapshot(ctx context.Context, r *repo.Repository) (snapshot, error) {
 	head, err := os.ReadFile(filepath.Join(r.GitDir, "HEAD"))
 	if err != nil {
 		return snapshot{}, err
 	}
-	refs, err := r.Runner.Run(ctx, git.Read("for-each-ref", "--format=%(objectname) %(refname)"))
+	refs, err := r.Runner.Run(ctx, git.Read("for-each-ref", "--format=%(objectname) %(refname) %(upstream)"))
 	if err != nil {
 		return snapshot{}, err
 	}

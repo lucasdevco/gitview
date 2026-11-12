@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { BranchActionsContext, useBranchOperations } from "@/features/branches/branch-operations"
 import { FileStatusView } from "@/features/file-status/file-status-view"
 import { pendingFileCount } from "@/features/file-status/staging"
 import { HistoryView, type Selection } from "@/features/history/history-view"
@@ -42,18 +43,22 @@ function Shell({ summary }: { summary?: RepoSummary }) {
     if (view === "status") setView("history")
     select(oid)
   }
+  const branches = useBranchOperations(summary, refs.data)
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <TitleBar
         name={summary?.name ?? ""}
         pendingCount={pendingFileCount(status.data)}
         onCommit={summary ? () => setView("status") : undefined}
+        onBranch={branches.actions && (() => branches.actions?.openBranchDialog())}
       />
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">
             {summary ? (
-              <Sidebar summary={summary} refs={refs.data} view={view} onView={setView} onReveal={reveal} />
+              <BranchActionsContext value={branches.actions}>
+                <Sidebar summary={summary} refs={refs.data} view={view} onView={setView} onReveal={reveal} />
+              </BranchActionsContext>
             ) : (
               <div className="h-full border-r bg-muted/50" />
             )}
@@ -76,6 +81,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         </ResizablePanelGroup>
       </div>
       <CommandLogBar repoId={summary?.id} />
+      {branches.dialogs}
     </div>
   )
 }

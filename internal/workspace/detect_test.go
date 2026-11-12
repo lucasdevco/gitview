@@ -52,6 +52,20 @@ func TestPollingNoticesRefChangesWithoutFileNotifications(t *testing.T) {
 	}
 }
 
+func TestChangingABranchUpstreamIsARefsChange(t *testing.T) {
+	r := gittest.Init(t)
+	r.Commit("a.txt", "a\n", "first")
+	r.Git("branch", "base")
+	r.Git("branch", "feature")
+	_, _, sub := openWith(t, detection{settle: time.Millisecond, poll: 20 * time.Millisecond}, r)
+
+	r.Git("branch", "--set-upstream-to=base", "feature")
+
+	if event := nextChange(t, sub, 2*time.Second); !slices.Equal(event.Changed, []Area{AreaRefs}) {
+		t.Fatalf("unexpected event %+v", event)
+	}
+}
+
 func TestFileNotificationsNoticeBranchesInNewDirectories(t *testing.T) {
 	r := gittest.Init(t)
 	r.Commit("a.txt", "a\n", "first")

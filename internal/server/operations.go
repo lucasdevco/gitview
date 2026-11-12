@@ -35,6 +35,13 @@ var operations = map[string]operation{
 	"stageHunk":   newOperation(ops.StageHunk),
 	"unstageHunk": newOperation(ops.UnstageHunk),
 	"discardHunk": newOperation(ops.DiscardHunk),
+
+	// Branches.
+	"checkout":       newOperation(ops.Checkout),
+	"createBranch":   newOperation(ops.CreateBranch),
+	"deleteBranches": newOperation(ops.DeleteBranches),
+	"renameBranch":   newOperation(ops.RenameBranch),
+	"setUpstream":    newOperation(ops.SetUpstream),
 }
 
 // maxOperationBody bounds an operation's JSON request body.
