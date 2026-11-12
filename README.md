@@ -2,34 +2,35 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-Explore contribution history, code hotspots, ownership, and function evolution in any local Git repository. One binary, no account, everything stays local.
+A Sourcetree-style Git client that runs in your browser. gitview pairs a familiar desktop-class Git workbench—commit graph, staging area, branches, diffs, and conflict resolution—with Git plumbing modeled on [lazygit](https://github.com/jesseduffield/lazygit)'s battle-tested approach. One binary, no account, everything stays local.
 
-> **Status:** gitview is currently a Web MVP under active development.
+> **Status:** early development. The read-only views below work today; write operations (stage, commit, branch, merge, rebase, push) are being built. See [ADR-0001](./docs/adr/0001-read-write-git-workbench.md) for the architecture.
 
 ## Why gitview?
 
-Git contains more than a commit list. It can help answer practical maintenance questions:
-
-- Who understands this area of the codebase?
-- Which files change often and carry concentrated ownership risk?
-- What caused a spike in activity during a particular month?
-- How has a function evolved, and which commits shaped it?
-- Where should a maintainer or new contributor start reading?
-
-gitview turns local Git history into a focused web interface. It is designed for understanding and maintaining projects—not for ranking individual developer performance.
+- **Sourcetree's workflow, without the desktop install** — a visual Git client served from a single local binary and opened in any browser.
+- **lazygit's Git engine** — every operation shells out to your system `git` with structured output, the same proven model lazygit uses, so behavior matches the command line, your config, hooks, and credentials.
+- **Local-first** — listens on loopback only; your repository never leaves your machine.
 
 ## Features
 
-- **Repository overview** — commits, contributors, additions, deletions, churn, monthly trends, and recent activity.
-- **Contributor details** — activity timeline, primary paths, and the commits behind each contributor's history.
-- **File hotspots** — find frequently changed files using an explicit score based on change frequency and churn.
-- **Code ownership** — inspect historical owners, recent maintainers, contribution share, and estimated bus factor.
-- **Function history** — browse functions, complexity, hotspots, contributors, and probable change history across Go, JavaScript/TypeScript, Python, Java, and Rust.
-- **Branches and commits** — inspect branch state, working-tree changes, commit metadata, and diffs.
-- **Revision comparison** — compare two Git revisions across totals, contributors, files, and commits.
-- **Monthly explanation** — explain activity changes through the contributors, paths, and commits that drove them.
-- **Focused filtering** — narrow analysis by author date and repository path; filters are preserved in the URL.
+### Available now
+
+- **Branches and commits** — local and remote branches with upstream ahead/behind, commit history, commit metadata, and diffs.
+- **Working tree** — changed and untracked files with their diffs.
+- **Repository insights** — contributors, file hotspots, code ownership, function history (Go, JavaScript/TypeScript, Python, Java, Rust), revision comparison, and monthly activity explanations.
 - **English and Simplified Chinese UI**.
+
+### In progress
+
+- Commit graph with all branches and lazy-loaded details.
+- Multiple repositories in tabs, with bookmarks.
+- Staging and unstaging by file, hunk, or line; commit and amend.
+- Checkout, create, rename, and delete branches; tags; stash.
+- Fetch, pull, and push with progress and credential prompts.
+- Merge, rebase, cherry-pick, and revert with a conflict resolution view.
+- Interactive rebase and reflog-based undo.
+- Live refresh when the repository changes outside gitview.
 
 ## Quick Start
 
@@ -51,13 +52,13 @@ make build
 
 `make build` compiles the React frontend, embeds it into the Go binary, and creates `./gitview`.
 
-### Analyze a repository
+### Open a repository
 
 ```bash
-# Analyze the current repository
+# Open the current repository
 ./gitview
 
-# Analyze another local repository
+# Open another local repository
 ./gitview /path/to/repository
 
 # Use a different port
@@ -70,22 +71,11 @@ gitview intentionally listens on loopback only. It does not expose a `--host` op
 
 ## How It Works
 
-gitview reads repository metadata and history through the system Git executable, calculates analysis results in memory, and serves an embedded React application from the same binary.
+gitview runs your system `git` with structured output formats, parses the results in Go, and serves an embedded React application from the same binary.
 
-- Repository code, hooks, and build scripts are not executed.
-- No account or external service is required.
-- Repository data stays on the local machine.
-- Analysis results distinguish direct Git facts from derived or approximate metrics.
-
-## Current Limitations
-
-- Function-level analysis supports Go, JavaScript/TypeScript, Python, Java, and Rust; other languages fall back to file-level analysis.
-- Function history is marked `probable`; moves, renames, and boundary changes may not be tracked precisely.
-- Analysis focuses on history reachable from the selected branch or revision.
-- There is no persistent index, background watcher, multi-repository mode, or GitHub/GitLab integration yet.
-- JSON/CSV export and static reports are not yet available.
-
-See the [roadmap](./docs/roadmap.md) for planned work.
+- No account or external service is required; repository data stays on the local machine.
+- The current release is read-only and does not execute repository hooks or build scripts.
+- Once write operations ship, they will behave like the `git` command line—including running hooks—and the local server will require a per-session token with Host/Origin checks.
 
 ## Development
 
@@ -118,24 +108,20 @@ make check
 ```text
 cmd/gitview/        CLI entry point and server lifecycle
 internal/gitrepo/   System Git adapter
-internal/overview/  Repository, contributor, file, ownership, and comparison analysis
+internal/overview/  Repository, contributor, file, ownership, and comparison insights
 internal/function/  Tree-sitter function parsing and history analysis
 internal/server/    Local HTTP API and SPA delivery
 internal/web/       Embedded frontend assets and backend-only fallback
 frontend/           React, TypeScript, Vite, Tailwind CSS, and shadcn/ui application
-docs/               Product requirements, metric definitions, architecture, and roadmap
+docs/adr/           Architecture decision records
 ```
 
 ## Documentation
 
-- [Documentation index](./docs/README.md)
-- [Product requirements](./docs/product-requirements.md)
-- [Metric definitions](./docs/metrics.md)
-- [Technical design](./docs/technical-design.md)
-- [UI interactions](./docs/ui-interaction.md)
-- [Roadmap](./docs/roadmap.md)
-- [Open questions and decisions](./docs/open-questions.md)
+- [ADR-0001: Evolving into a read-write Git workbench](./docs/adr/0001-read-write-git-workbench.md)
 
 ## Acknowledgements
 
-The product structure and local-first presentation were inspired by [agentsview](https://github.com/kenn-io/agentsview).
+- [lazygit](https://github.com/jesseduffield/lazygit) — the reference for how gitview drives Git: command building, state detection, interactive rebase, patch staging, and undo.
+- [Sourcetree](https://www.sourcetreeapp.com/) — the inspiration for the workbench layout and interaction model. gitview is an independent project and is not affiliated with or endorsed by Atlassian.
+- [agentsview](https://github.com/kenn-io/agentsview) — inspiration for the local-first presentation.

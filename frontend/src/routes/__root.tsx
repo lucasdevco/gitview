@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router"
+import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { AppHeader } from "@/components/app-header"
 import { useI18n } from "@/lib/i18n"
 
@@ -12,6 +12,9 @@ function NotFound() {
 }
 
 function RootLayout() {
+  // PROTOTYPE: the workbench prototype owns the whole window.
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  if (pathname.startsWith("/prototype")) return <Outlet />
   return (
     <div className="min-h-screen bg-background pt-11">
       <AppHeader />

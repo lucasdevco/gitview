@@ -20,6 +20,7 @@ import { Route as OwnershipRouteImport } from './routes/ownership'
 import { Route as CommitsCommitIdRouteImport } from './routes/commits.$commitId'
 import { Route as ContributorsContributorIdRouteImport } from './routes/contributors.$contributorId'
 import { Route as FunctionsFunctionIdRouteImport } from './routes/functions_.$functionId'
+import { Route as PrototypeWorkbenchRouteImport } from './routes/prototype.workbench'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -77,6 +78,11 @@ const FunctionsFunctionIdRoute = FunctionsFunctionIdRouteImport.update({
   path: '/functions/$functionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrototypeWorkbenchRoute = PrototypeWorkbenchRouteImport.update({
+  id: '/prototype/workbench',
+  path: '/prototype/workbench',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions/$functionId': typeof FunctionsFunctionIdRoute
+  '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions/$functionId': typeof FunctionsFunctionIdRoute
+  '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/commits/$commitId': typeof CommitsCommitIdRoute
   '/contributors/$contributorId': typeof ContributorsContributorIdRoute
   '/functions_/$functionId': typeof FunctionsFunctionIdRoute
+  '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions/$functionId'
+    | '/prototype/workbench'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -145,6 +155,7 @@ export interface FileRouteTypes {
     | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions/$functionId'
+    | '/prototype/workbench'
   id:
     | '__root__'
     | '/'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/commits/$commitId'
     | '/contributors/$contributorId'
     | '/functions_/$functionId'
+    | '/prototype/workbench'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -172,6 +184,7 @@ export interface RootRouteChildren {
   CommitsCommitIdRoute: typeof CommitsCommitIdRoute
   ContributorsContributorIdRoute: typeof ContributorsContributorIdRoute
   FunctionsFunctionIdRoute: typeof FunctionsFunctionIdRoute
+  PrototypeWorkbenchRoute: typeof PrototypeWorkbenchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -253,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FunctionsFunctionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/prototype/workbench': {
+      id: '/prototype/workbench'
+      path: '/prototype/workbench'
+      fullPath: '/prototype/workbench'
+      preLoaderRoute: typeof PrototypeWorkbenchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -268,6 +288,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommitsCommitIdRoute: CommitsCommitIdRoute,
   ContributorsContributorIdRoute: ContributorsContributorIdRoute,
   FunctionsFunctionIdRoute: FunctionsFunctionIdRoute,
+  PrototypeWorkbenchRoute: PrototypeWorkbenchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

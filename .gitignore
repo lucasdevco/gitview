@@ -3,6 +3,7 @@
 *.iml
 .env
 .env.*
+.claude
 !.env.example
 node_modules/
 dist/
@@ -10,9 +11,11 @@ coverage/
 *.tsbuildinfo
 *.test
 *.out
+
 /gitview
 /.air/
 prototype-ui/
+docs/prototype
 !internal/web/dist/
 internal/web/dist/*
 !internal/web/dist/.keep
