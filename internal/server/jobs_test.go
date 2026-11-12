@@ -33,6 +33,7 @@ type job struct {
 	Operation string         `json:"operation"`
 	State     string         `json:"state"`
 	Progress  *jobProgress   `json:"progress"`
+	Prompt    *jobPrompt     `json:"prompt"`
 	Commands  []commandEntry `json:"commands"`
 	Error     *jobError      `json:"error"`
 }
@@ -236,6 +237,7 @@ type jobUpdated struct {
 	Operation string       `json:"operation"`
 	State     string       `json:"state"`
 	Progress  *jobProgress `json:"progress"`
+	Prompt    *jobPrompt   `json:"prompt"`
 }
 
 // untilFinished collects the job's updates up to its final state.

@@ -45,21 +45,28 @@ type Job struct {
 	State     JobState `json:"state"`
 	// Progress is the last status line git printed; nil before the first.
 	Progress *git.Progress `json:"progress,omitempty"`
+	// Prompt is the credential prompt waiting for the user's answer; nil
+	// when the job waits for none.
+	Prompt *CredentialPrompt `json:"prompt,omitempty"`
 	// Commands are the git commands the job ran, once it has finished.
 	Commands []git.LogEntry `json:"commands"`
 	// Err is why the job failed; nil unless State is JobFailed.
 	Err error `json:"-"`
 }
 
-// JobUpdated reports that a job changed state or git printed progress.
-// Progress updates are thinned out; the final state is always reported. Get
-// the job for its commands and error.
+// JobUpdated reports that a job changed state, git printed progress, or a
+// credential prompt opened or closed. Progress updates are thinned out; the
+// final state and every prompt change are always reported. Get the job for
+// its commands and error.
 type JobUpdated struct {
 	RepoID    string        `json:"repoId"`
 	JobID     string        `json:"jobId"`
 	Operation string        `json:"operation"`
 	State     JobState      `json:"state"`
 	Progress  *git.Progress `json:"progress,omitempty"`
+	// Prompt is the credential prompt waiting for an answer, if any: answer
+	// it with POST .../jobs/{jobId}/prompt.
+	Prompt *CredentialPrompt `json:"prompt,omitempty"`
 }
 
 // EventType implements Event.
@@ -75,11 +82,18 @@ const jobHistory = 20
 
 // job is a running or finished background write.
 type job struct {
+	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
+	// secret authenticates the credential helper's calls for this job.
+	secret string
+	// credentials holds the variables that let git ask for credentials;
+	// empty when the workspace has no credential helper.
+	credentials []string
 
 	mu            sync.Mutex
 	snapshot      Job
+	pending       *pendingPrompt
 	lastPublished time.Time
 	publish       func(Event)
 }
@@ -90,11 +104,14 @@ type job struct {
 func (r *Repo) StartJob(operation string, op WriteFunc) Job {
 	ctx, cancel := context.WithCancel(context.Background())
 	j := &job{
+		ctx:      ctx,
 		cancel:   cancel,
 		done:     make(chan struct{}),
+		secret:   newSecret(),
 		snapshot: Job{ID: newJobID(), RepoID: r.ID, Operation: operation, State: JobQueued, Commands: []git.LogEntry{}},
 		publish:  r.publish,
 	}
+	j.credentials = j.credentialEnv(r.credentialHelper())
 	r.jobs.add(j)
 	go r.runJob(ctx, j, op)
 	return j.get()
@@ -114,14 +131,12 @@ func (r *Repo) runJob(ctx context.Context, j *job, op WriteFunc) {
 }
 
 // runner is the runner the job's commands go through: it reports what git
-// prints as the job's progress. This is the place for anything else a
-// remote operation needs from its commands. Credential prompts, for one:
-// wrap next so commands run with GIT_ASKPASS / SSH_ASKPASS pointing at the
-// gitview helper plus a per-job secret; the helper calls back into the
-// server with the job's ID, the job publishes a prompt event and waits for
-// the answer or for its context to be canceled.
+// prints as the job's progress, and, with a credential helper, runs git
+// with GIT_ASKPASS / SSH_ASKPASS pointing at it plus the job's secret (see
+// prompts.go). This is the place for anything else a remote operation
+// needs from its commands.
 func (j *job) runner(next git.Runner) git.Runner {
-	return git.Reporting(next, j.report)
+	return git.Reporting(withCredentials(next, j.credentials), j.report)
 }
 
 // Job returns the job with id, running or recently finished.
@@ -219,6 +234,7 @@ func (j *job) publishLocked() {
 		Operation: j.snapshot.Operation,
 		State:     j.snapshot.State,
 		Progress:  j.snapshot.Progress,
+		Prompt:    j.snapshot.Prompt,
 	})
 }
 

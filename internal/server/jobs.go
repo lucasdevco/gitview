@@ -15,10 +15,18 @@ import (
 //	GET  /api/v1/repos/{repoId}/jobs                  running and recent jobs, oldest first
 //	GET  /api/v1/repos/{repoId}/jobs/{jobId}          one job
 //	POST /api/v1/repos/{repoId}/jobs/{jobId}/cancel   stop a job
+//	POST /api/v1/repos/{repoId}/jobs/{jobId}/prompt   answer or decline the job's credential prompt
+//
+// A job waiting for credentials has a "prompt" ({id, text, secret}), also
+// carried by its job.updated events; answer it with
+// {"promptId": id, "answer": "..."}, or "answer": null to decline.
 func (s *Server) registerJobs(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/jobs", s.withRepo(s.listJobs))
 	mux.HandleFunc("GET /api/v1/repos/{repoId}/jobs/{jobId}", s.withRepo(s.getJob))
 	mux.HandleFunc("POST /api/v1/repos/{repoId}/jobs/{jobId}/cancel", s.withRepo(s.cancelJob))
+	// Credential prompts: the helper asks (askpass.go), the browser answers.
+	mux.HandleFunc("POST /api/v1/repos/{repoId}/jobs/{jobId}/prompt", s.withRepo(s.answerPrompt))
+	mux.HandleFunc("POST "+AskpassPath, s.answerAskpass)
 }
 
 // jobView is a job as the API returns it.

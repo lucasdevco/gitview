@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,7 +39,10 @@ type RemoteBranch struct {
 
 // Remote is a configured remote and its remote-tracking branches.
 type Remote struct {
-	Name     string         `json:"name"`
+	Name string `json:"name"`
+	// URL is where the remote fetches from, with any password in it
+	// replaced by "xxxxx"; empty for refs left behind by a removed remote.
+	URL      string         `json:"url"`
 	Branches []RemoteBranch `json:"branches"`
 }
 
@@ -65,13 +69,23 @@ const refFieldCount = 7
 func ReadRefs(ctx context.Context, r *repo.Repository) (Refs, error) {
 	refs := Refs{Branches: []Branch{}, Remotes: []Remote{}, Tags: []Tag{}}
 
-	result, err := r.Runner.Run(ctx, git.Read("remote"))
+	result, err := r.Runner.Run(ctx, git.Read("remote", "-v"))
 	if err != nil {
 		return Refs{}, err
 	}
 	remotes := map[string]*Remote{}
-	for _, name := range strings.Fields(string(result.Stdout)) {
-		remotes[name] = &Remote{Name: name, Branches: []RemoteBranch{}}
+	// "<name>\t<url> (fetch)" and "<name>\t<url> (push)" per remote.
+	for line := range strings.Lines(string(result.Stdout)) {
+		name, rest, ok := strings.Cut(strings.TrimSuffix(line, "\n"), "\t")
+		if !ok {
+			continue
+		}
+		if remotes[name] == nil {
+			remotes[name] = &Remote{Name: name, Branches: []RemoteBranch{}}
+		}
+		if address, isFetch := strings.CutSuffix(rest, " (fetch)"); isFetch {
+			remotes[name].URL = redactPassword(address)
+		}
 	}
 
 	result, err = r.Runner.Run(ctx, git.Read("for-each-ref",
@@ -146,6 +160,19 @@ func remoteOf(name string, remotes map[string]*Remote) string {
 		best, _, _ = strings.Cut(name, "/")
 	}
 	return best
+}
+
+// redactPassword hides a password written into a remote URL
+// (https://user:token@host/...), which the browser has no need to show.
+func redactPassword(address string) string {
+	parsed, err := url.Parse(address)
+	if err != nil || parsed.User == nil {
+		return address
+	}
+	if _, hasPassword := parsed.User.Password(); !hasPassword {
+		return address
+	}
+	return parsed.Redacted()
 }
 
 // parseTrack reads %(upstream:track,nobracket): "", "gone", "ahead 1",

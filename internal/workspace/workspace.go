@@ -27,6 +27,9 @@ type Repo struct {
 	changes   *changeDetector
 	jobs      jobList
 	publish   func(Event)
+	// credentialHelper returns the workspace's helper for jobs to ask for
+	// credentials through; nil without one.
+	credentialHelper func() *CredentialHelper
 }
 
 // Workspace is the set of open repositories. It is safe for concurrent use.
@@ -36,6 +39,7 @@ type Workspace struct {
 	repos     []*Repo
 	events    *eventHub
 	detection detection
+	helper    *CredentialHelper
 }
 
 // New returns an empty workspace.
@@ -61,7 +65,7 @@ func (w *Workspace) Open(ctx context.Context, path string) (*Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes, publish: w.Publish}
+	added := &Repo{ID: id, Repository: opened, writeLock: make(chan struct{}, 1), commands: git.NewCommandLog(commandLogSize), changes: changes, publish: w.Publish, credentialHelper: w.credentialHelper}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()

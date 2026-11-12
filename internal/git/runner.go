@@ -59,7 +59,8 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 		// A fresh reader per run, so a retried command reads the input again.
 		cmd.Stdin = bytes.NewReader(command.input)
 	}
-	cmd.Env = environment(command.write)
+	// Later entries win, so a command's own variables override inherited ones.
+	cmd.Env = append(environment(command.write), command.env...)
 	// On cancellation, interrupt git instead of killing it so it can remove
 	// its lock files; kill only if it has not exited shortly after.
 	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
@@ -109,6 +110,25 @@ func (r *ExecRunner) Run(ctx context.Context, command *Command) (Result, error) 
 		gitErr.Kind = Failed
 	}
 	return result, gitErr
+}
+
+// WithEnv wraps runner so every command it runs gets the variables in env
+// ("KEY=value") on top of the usual environment. They are never shown in
+// command logs or previews, so they may carry secrets meant for helpers git
+// starts, such as the credential helper's callback secret.
+func WithEnv(runner Runner, env ...string) Runner {
+	return envRunner{next: runner, env: env}
+}
+
+type envRunner struct {
+	next Runner
+	env  []string
+}
+
+func (r envRunner) Run(ctx context.Context, command *Command) (Result, error) {
+	extended := *command
+	extended.env = append(append([]string(nil), command.env...), r.env...)
+	return r.next.Run(ctx, &extended)
 }
 
 // environment returns the process environment for a git command: the current

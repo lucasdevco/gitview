@@ -14,7 +14,9 @@ import (
 //   - API requests must not come from another origin (Origin header, or
 //     Sec-Fetch-Site for browsers that omit Origin on GET);
 //   - API requests must carry the session token, as "Authorization: Bearer
-//     <token>" or, for EventSource which cannot set headers, "?token=<token>".
+//     <token>" or, for EventSource which cannot set headers, "?token=<token>";
+//     the credential helper's callback (AskpassPath) carries its job's
+//     secret instead.
 //
 // The page itself loads without a token: it is static and holds no
 // repository data. The frontend reads the token from the URL it was opened
@@ -33,6 +35,12 @@ func guard(token string, next http.Handler) http.Handler {
 		if !isSameOrigin(r) {
 			writeError(w, http.StatusForbidden, "forbidden_origin",
 				"cross-origin requests are not allowed; use the gitview page served from this address")
+			return
+		}
+		// The credential helper authenticates with its job's secret instead
+		// (see AskpassPath); the handler checks it.
+		if r.URL.Path == AskpassPath {
+			next.ServeHTTP(w, r)
 			return
 		}
 		if !hasToken(r, token) {

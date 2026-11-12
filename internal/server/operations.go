@@ -63,6 +63,10 @@ var operations = map[string]operation{
 
 	// Background jobs.
 	"fetch": newJob(ops.Fetch),
+	"pull":  newJob(ops.Pull),
+	"push":  newJob(ops.Push),
+	// 拿来: fast-forward a branch that is not checked out.
+	"fetchInto": newJob(ops.FetchInto),
 }
 
 // maxOperationBody bounds an operation's JSON request body.
@@ -203,8 +207,13 @@ func describeFailure(err error) (int, failure) {
 	if errors.As(err, &gitErr) {
 		output := gitErr.Output()
 		described.Output = &output
-		if gitErr.Kind == git.HookFailed {
+		switch gitErr.Kind {
+		case git.HookFailed:
 			described.Message = fmt.Sprintf("the %s hook failed; fix what it reports, or skip hooks for this commit", gitErr.Hook)
+		case git.PushRejected:
+			described.Message = "the remote rejected the push, usually because it has commits that your branch does not; pull first, then push again"
+		case git.AuthenticationFailed:
+			described.Message = "the remote did not accept the credentials; check the user name and password or token, or the SSH key, and try again"
 		}
 	}
 	return status, described

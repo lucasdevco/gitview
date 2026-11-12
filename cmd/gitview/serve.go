@@ -44,6 +44,16 @@ func serve(parent context.Context, config serveConfig) error {
 	if err != nil {
 		return fmt.Errorf("listen on 127.0.0.1:%d: %w", config.Port, err)
 	}
+	// Remotes that need credentials ask for them in the browser: git runs
+	// this binary as its credential helper, which calls back here.
+	if program, err := os.Executable(); err == nil {
+		ws.UseCredentialHelper(workspace.CredentialHelper{
+			Program: program,
+			URL:     "http://" + listener.Addr().String() + server.AskpassPath,
+		})
+	} else {
+		_, _ = fmt.Fprintf(config.Stdout, "Warning: remotes that ask for credentials will fail: %v\n", err)
+	}
 	httpServer := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	_, _ = fmt.Fprintf(config.Stdout, "Serving %s\n", repo.Root)

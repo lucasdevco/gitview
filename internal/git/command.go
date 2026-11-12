@@ -14,6 +14,9 @@ type Command struct {
 	// progress receives stderr line by line while the command runs; see
 	// Reporting.
 	progress func(Progress)
+	// env holds variables added to git's environment; see WithEnv. Like
+	// input, it is not part of String.
+	env []string
 }
 
 // Read starts a command that only inspects the repository. Read commands run

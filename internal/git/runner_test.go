@@ -48,6 +48,26 @@ func TestReadCommandsRunWithStableEnvironmentAndNoOptionalLocks(t *testing.T) {
 	}
 }
 
+func TestWithEnvAddsVariablesThatNeverAppearInTheCommand(t *testing.T) {
+	t.Setenv("GIT_ASKPASS", "/usr/bin/somebody-elses-helper")
+	runner := git.WithEnv(git.NewRunner(t.TempDir(), git.WithExecutable(fakeGit(t, "env\n"))),
+		"GIT_ASKPASS=/opt/gitview", "SECRET_FOR_HELPER=s3cret")
+	command := git.Write("push", "origin")
+
+	result, err := runner.Run(context.Background(), command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := envOf(result.Stdout)
+	// Added variables win over inherited ones.
+	if env["GIT_ASKPASS"] != "/opt/gitview" || env["SECRET_FOR_HELPER"] != "s3cret" || env["LC_ALL"] != "C" {
+		t.Fatalf("unexpected environment: %v", env)
+	}
+	if got := command.String(); got != "git push origin" {
+		t.Fatalf("String() = %q", got)
+	}
+}
+
 func TestWriteCommandsMayTakeOptionalLocks(t *testing.T) {
 	t.Setenv("GIT_OPTIONAL_LOCKS", "")
 	runner := git.NewRunner(t.TempDir(), git.WithExecutable(fakeGit(t, "env\n")))

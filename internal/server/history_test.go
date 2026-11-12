@@ -198,6 +198,7 @@ type refsBody struct {
 	} `json:"branches"`
 	Remotes []struct {
 		Name     string `json:"name"`
+		URL      string `json:"url"`
 		Branches []struct {
 			Name   string `json:"name"`
 			Branch string `json:"branch"`
@@ -216,7 +217,7 @@ func TestRefs(t *testing.T) {
 	origin := filepath.Join(t.TempDir(), "origin.git")
 	h.Git("init", "--quiet", "--bare", origin)
 	h.Git("remote", "add", "origin", origin)
-	h.Git("remote", "add", "backup", filepath.Join(t.TempDir(), "backup.git"))
+	h.Git("remote", "add", "backup", "https://ada:s3cret-token@example.com/backup.git")
 	h.Git("push", "--quiet", "-u", "origin", "main", "feature/login")
 	h.Git("remote", "set-head", "origin", "main")
 
@@ -262,6 +263,10 @@ func TestRefs(t *testing.T) {
 	if len(got.Remotes) != 2 || got.Remotes[0].Name != "backup" || len(got.Remotes[0].Branches) != 0 ||
 		got.Remotes[1].Name != "origin" {
 		t.Fatalf("remotes = %+v", got.Remotes)
+	}
+	// A password in a remote's URL is not shown.
+	if got.Remotes[0].URL != "https://ada:xxxxx@example.com/backup.git" || got.Remotes[1].URL != origin {
+		t.Fatalf("remote URLs = %q, %q", got.Remotes[0].URL, got.Remotes[1].URL)
 	}
 	remote := got.Remotes[1].Branches
 	if len(remote) != 2 ||
