@@ -10,72 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BranchesRouteImport } from './routes/branches'
-import { Route as CompareRouteImport } from './routes/compare'
-import { Route as ExplainRouteImport } from './routes/explain'
-import { Route as FileRouteImport } from './routes/file'
-import { Route as FunctionsRouteImport } from './routes/functions'
-import { Route as HotspotsRouteImport } from './routes/hotspots'
-import { Route as OwnershipRouteImport } from './routes/ownership'
-import { Route as CommitsCommitIdRouteImport } from './routes/commits.$commitId'
-import { Route as ContributorsContributorIdRouteImport } from './routes/contributors.$contributorId'
-import { Route as FunctionsFunctionIdRouteImport } from './routes/functions_.$functionId'
 import { Route as PrototypeWorkbenchRouteImport } from './routes/prototype.workbench'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BranchesRoute = BranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompareRoute = CompareRouteImport.update({
-  id: '/compare',
-  path: '/compare',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExplainRoute = ExplainRouteImport.update({
-  id: '/explain',
-  path: '/explain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FileRoute = FileRouteImport.update({
-  id: '/file',
-  path: '/file',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FunctionsRoute = FunctionsRouteImport.update({
-  id: '/functions',
-  path: '/functions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HotspotsRoute = HotspotsRouteImport.update({
-  id: '/hotspots',
-  path: '/hotspots',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OwnershipRoute = OwnershipRouteImport.update({
-  id: '/ownership',
-  path: '/ownership',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CommitsCommitIdRoute = CommitsCommitIdRouteImport.update({
-  id: '/commits/$commitId',
-  path: '/commits/$commitId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContributorsContributorIdRoute =
-  ContributorsContributorIdRouteImport.update({
-    id: '/contributors/$contributorId',
-    path: '/contributors/$contributorId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const FunctionsFunctionIdRoute = FunctionsFunctionIdRouteImport.update({
-  id: '/functions_/$functionId',
-  path: '/functions/$functionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrototypeWorkbenchRoute = PrototypeWorkbenchRouteImport.update({
@@ -86,104 +25,27 @@ const PrototypeWorkbenchRoute = PrototypeWorkbenchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/branches': typeof BranchesRoute
-  '/compare': typeof CompareRoute
-  '/explain': typeof ExplainRoute
-  '/file': typeof FileRoute
-  '/functions': typeof FunctionsRoute
-  '/hotspots': typeof HotspotsRoute
-  '/ownership': typeof OwnershipRoute
-  '/commits/$commitId': typeof CommitsCommitIdRoute
-  '/contributors/$contributorId': typeof ContributorsContributorIdRoute
-  '/functions/$functionId': typeof FunctionsFunctionIdRoute
   '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/branches': typeof BranchesRoute
-  '/compare': typeof CompareRoute
-  '/explain': typeof ExplainRoute
-  '/file': typeof FileRoute
-  '/functions': typeof FunctionsRoute
-  '/hotspots': typeof HotspotsRoute
-  '/ownership': typeof OwnershipRoute
-  '/commits/$commitId': typeof CommitsCommitIdRoute
-  '/contributors/$contributorId': typeof ContributorsContributorIdRoute
-  '/functions/$functionId': typeof FunctionsFunctionIdRoute
   '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/branches': typeof BranchesRoute
-  '/compare': typeof CompareRoute
-  '/explain': typeof ExplainRoute
-  '/file': typeof FileRoute
-  '/functions': typeof FunctionsRoute
-  '/hotspots': typeof HotspotsRoute
-  '/ownership': typeof OwnershipRoute
-  '/commits/$commitId': typeof CommitsCommitIdRoute
-  '/contributors/$contributorId': typeof ContributorsContributorIdRoute
-  '/functions_/$functionId': typeof FunctionsFunctionIdRoute
   '/prototype/workbench': typeof PrototypeWorkbenchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/branches'
-    | '/compare'
-    | '/explain'
-    | '/file'
-    | '/functions'
-    | '/hotspots'
-    | '/ownership'
-    | '/commits/$commitId'
-    | '/contributors/$contributorId'
-    | '/functions/$functionId'
-    | '/prototype/workbench'
+  fullPaths: '/' | '/prototype/workbench'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/branches'
-    | '/compare'
-    | '/explain'
-    | '/file'
-    | '/functions'
-    | '/hotspots'
-    | '/ownership'
-    | '/commits/$commitId'
-    | '/contributors/$contributorId'
-    | '/functions/$functionId'
-    | '/prototype/workbench'
-  id:
-    | '__root__'
-    | '/'
-    | '/branches'
-    | '/compare'
-    | '/explain'
-    | '/file'
-    | '/functions'
-    | '/hotspots'
-    | '/ownership'
-    | '/commits/$commitId'
-    | '/contributors/$contributorId'
-    | '/functions_/$functionId'
-    | '/prototype/workbench'
+  to: '/' | '/prototype/workbench'
+  id: '__root__' | '/' | '/prototype/workbench'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BranchesRoute: typeof BranchesRoute
-  CompareRoute: typeof CompareRoute
-  ExplainRoute: typeof ExplainRoute
-  FileRoute: typeof FileRoute
-  FunctionsRoute: typeof FunctionsRoute
-  HotspotsRoute: typeof HotspotsRoute
-  OwnershipRoute: typeof OwnershipRoute
-  CommitsCommitIdRoute: typeof CommitsCommitIdRoute
-  ContributorsContributorIdRoute: typeof ContributorsContributorIdRoute
-  FunctionsFunctionIdRoute: typeof FunctionsFunctionIdRoute
   PrototypeWorkbenchRoute: typeof PrototypeWorkbenchRoute
 }
 
@@ -194,76 +56,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/branches': {
-      id: '/branches'
-      path: '/branches'
-      fullPath: '/branches'
-      preLoaderRoute: typeof BranchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compare': {
-      id: '/compare'
-      path: '/compare'
-      fullPath: '/compare'
-      preLoaderRoute: typeof CompareRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explain': {
-      id: '/explain'
-      path: '/explain'
-      fullPath: '/explain'
-      preLoaderRoute: typeof ExplainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/file': {
-      id: '/file'
-      path: '/file'
-      fullPath: '/file'
-      preLoaderRoute: typeof FileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/functions': {
-      id: '/functions'
-      path: '/functions'
-      fullPath: '/functions'
-      preLoaderRoute: typeof FunctionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hotspots': {
-      id: '/hotspots'
-      path: '/hotspots'
-      fullPath: '/hotspots'
-      preLoaderRoute: typeof HotspotsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ownership': {
-      id: '/ownership'
-      path: '/ownership'
-      fullPath: '/ownership'
-      preLoaderRoute: typeof OwnershipRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/commits/$commitId': {
-      id: '/commits/$commitId'
-      path: '/commits/$commitId'
-      fullPath: '/commits/$commitId'
-      preLoaderRoute: typeof CommitsCommitIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contributors/$contributorId': {
-      id: '/contributors/$contributorId'
-      path: '/contributors/$contributorId'
-      fullPath: '/contributors/$contributorId'
-      preLoaderRoute: typeof ContributorsContributorIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/functions_/$functionId': {
-      id: '/functions_/$functionId'
-      path: '/functions/$functionId'
-      fullPath: '/functions/$functionId'
-      preLoaderRoute: typeof FunctionsFunctionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prototype/workbench': {
@@ -278,16 +70,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BranchesRoute: BranchesRoute,
-  CompareRoute: CompareRoute,
-  ExplainRoute: ExplainRoute,
-  FileRoute: FileRoute,
-  FunctionsRoute: FunctionsRoute,
-  HotspotsRoute: HotspotsRoute,
-  OwnershipRoute: OwnershipRoute,
-  CommitsCommitIdRoute: CommitsCommitIdRoute,
-  ContributorsContributorIdRoute: ContributorsContributorIdRoute,
-  FunctionsFunctionIdRoute: FunctionsFunctionIdRoute,
   PrototypeWorkbenchRoute: PrototypeWorkbenchRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,29 +1,10 @@
-import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
-import { AppHeader } from "@/components/app-header"
-import { useI18n } from "@/lib/i18n"
+import { createRootRoute, Outlet } from "@tanstack/react-router"
 
 function NotFound() {
-  const { t } = useI18n()
-  return (
-    <main className="flex min-h-[calc(100dvh-2.75rem)] items-center justify-center bg-background text-sm">
-      {t("Page not found")}
-    </main>
-  )
-}
-
-function RootLayout() {
-  // PROTOTYPE: the workbench prototype owns the whole window.
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
-  if (pathname.startsWith("/prototype")) return <Outlet />
-  return (
-    <div className="min-h-screen bg-background pt-11">
-      <AppHeader />
-      <Outlet />
-    </div>
-  )
+  return <main className="flex h-dvh items-center justify-center bg-background text-sm">页面不存在</main>
 }
 
 export const Route = createRootRoute({
-  component: RootLayout,
+  component: Outlet,
   notFoundComponent: NotFound,
 })
