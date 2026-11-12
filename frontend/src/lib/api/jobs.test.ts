@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import { ApiError } from "./client"
-import { applyJobUpdate, type Job, type JobUpdate, jobError, pendingPrompt } from "./jobs"
+import { applyJobUpdate, applyPromptAnswered, type Job, type JobUpdate, jobError, pendingPrompt } from "./jobs"
 
 const queued: Job = { id: "j1", repoId: "r1", operation: "fetch", state: "queued", commands: [] }
 const update = (fields: Partial<JobUpdate>): JobUpdate => ({
@@ -38,6 +38,16 @@ test("an update carries the job's credential prompt and clears it once answered"
   const asking = applyJobUpdate([queued], update({ prompt }))
   expect(asking).toEqual([{ ...queued, state: "running", prompt }])
   expect(applyJobUpdate(asking, update({}))).toEqual([{ ...queued, state: "running", prompt: undefined }])
+})
+
+test("answering a prompt closes it but keeps the next prompt that already arrived", () => {
+  const username = { id: "p1", text: "Username for 'https://example.com':", secret: false }
+  const password = { id: "p2", text: "Password for 'https://ada@example.com':", secret: true }
+  const asking: Job = { ...queued, state: "running", prompt: username }
+  expect(applyPromptAnswered([asking], "j1", "p1")).toEqual([{ ...asking, prompt: undefined }])
+  // The password prompt's event can arrive before the answer's response.
+  const askingAgain: Job = { ...asking, prompt: password }
+  expect(applyPromptAnswered([askingAgain], "j1", "p1")).toEqual([askingAgain])
 })
 
 test("the prompt waiting for an answer is the first asking job's", () => {

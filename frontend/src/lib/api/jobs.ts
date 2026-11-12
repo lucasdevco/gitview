@@ -183,6 +183,17 @@ export function applyJobUpdate(jobs: readonly Job[] | undefined, update: JobUpda
   return list.map((job) => (job.id === id ? { ...job, state, progress: progress ?? job.progress, prompt } : job))
 }
 
+/**
+ * Closes the prompt the user just answered. A prompt that replaced it (the
+ * password after the user name, delivered as an event before the answer's
+ * response) stays open.
+ */
+export function applyPromptAnswered(jobs: readonly Job[] | undefined, jobId: string, promptId: string): Job[] {
+  return (jobs ?? []).map((job) =>
+    job.id === jobId && job.prompt?.id === promptId ? { ...job, prompt: undefined } : job,
+  )
+}
+
 /** The credential prompt to show: the first job waiting for an answer. */
 export function pendingPrompt(jobs: readonly Job[] | undefined): { job: Job; prompt: CredentialPrompt } | undefined {
   const job = jobs?.find((listed) => listed.prompt)

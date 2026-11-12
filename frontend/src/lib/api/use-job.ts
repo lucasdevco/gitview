@@ -1,6 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "./context"
-import { answerPrompt, cancelJob, type Job, type JobName, type JobRequests, jobKeys, startJob } from "./jobs"
+import {
+  answerPrompt,
+  applyPromptAnswered,
+  cancelJob,
+  type Job,
+  type JobName,
+  type JobRequests,
+  jobKeys,
+  startJob,
+} from "./jobs"
 
 /**
  * A mutation starting a background job. It settles as soon as the job is
@@ -31,10 +40,9 @@ export function useAnswerPrompt(repoId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ jobId, promptId, answer }: PromptAnswer) => answerPrompt(api, repoId, jobId, promptId, answer),
-    onSuccess: (job) =>
-      queryClient.setQueryData<Job[]>(jobKeys.list(repoId), (jobs) =>
-        jobs?.map((listed) => (listed.id === job.id ? { ...listed, prompt: job.prompt } : listed)),
-      ),
+    // The response's job is older than a next prompt that arrived as an event.
+    onSuccess: (_job, { jobId, promptId }) =>
+      queryClient.setQueryData<Job[]>(jobKeys.list(repoId), (jobs) => applyPromptAnswered(jobs, jobId, promptId)),
   })
 }
 
