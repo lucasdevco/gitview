@@ -6,6 +6,7 @@
 // provides `actions` through BranchActionsContext; sidebar rows read them
 // with useBranchActions().
 import { createContext, type ReactNode, useContext, useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { MergeDialog, RebaseSheet } from "@/features/merge/merge-dialog"
 import { isConflict } from "@/features/operations/operation-error"
 import { OperationErrorDialog } from "@/features/operations/operation-error-view"
@@ -48,6 +49,11 @@ export type BranchActions = {
   pushTo?: (branch: string, remote: string) => void
   /** 与当前对比. */
   compare?: (branch: string) => void
+  /**
+   * Why the actions that write right away (checkout, merge, set upstream)
+   * would wait for a background job now; the menu shows them disabled.
+   */
+  writesBlocked?: string
 }
 
 export const BranchActionsContext = createContext<BranchActions | undefined>(undefined)
@@ -87,9 +93,13 @@ export function useBranchOperations(
   const canMerge = summary?.state === "clean"
   const hasRemotes = !!refs?.remotes.length
 
+  const writesBlocked = useWritesBlocked(repoId)
+
   const actions: BranchActions | undefined = summary && {
+    writesBlocked,
     checkout: (branch) => {
-      if (!checkout.isPending) checkout.mutate({ branch }, { onError: fail(`无法检出 ${branch}`) })
+      if (writesBlocked) fail(`暂时无法检出 ${branch}`)(new Error(writesBlocked))
+      else if (!checkout.isPending) checkout.mutate({ branch }, { onError: fail(`无法检出 ${branch}`) })
     },
     openBranchDialog: (options) =>
       setDialog({ kind: "branch", tab: options?.tab ?? "new", branches: options?.branches ?? [] }),

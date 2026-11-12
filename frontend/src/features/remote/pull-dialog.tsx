@@ -2,6 +2,7 @@
 // closes the dialog, and the job strip shows its progress and outcome.
 import { RefreshCw } from "lucide-react"
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Field, Group, OperationSheet, selectClass } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
@@ -14,6 +15,7 @@ import { defaultPullBranch, defaultRemote } from "./remotes"
 export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; refs?: Refs; onClose: () => void }) {
   const start = useStartJob(summary.id, "pull")
   const refresh = useStartJob(summary.id, "fetch")
+  const queuesBehind = useWritesBlocked(summary.id)
   const remotes = refs?.remotes ?? []
   const [remote, setRemote] = useState(() => defaultRemote(refs) ?? "")
   const [chosenBranch, setBranch] = useState<string>()
@@ -35,6 +37,7 @@ export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; r
       command={pullCommand(request)}
       onClose={onClose}
       disabled={!remote || !branch || !summary.branch || start.isPending}
+      queuesBehind={queuesBehind}
       onConfirm={() => start.mutate(request, { onSuccess: onClose })}
     >
       <Field label="从仓库拉取" hint={url}>

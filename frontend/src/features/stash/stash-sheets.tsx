@@ -1,6 +1,7 @@
 // The 贮藏 dialog and the confirmations for applying and deleting a stash.
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { Check, Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { ApiError } from "@/lib/api/client"
 import { type Stash, stashKeys } from "@/lib/api/stashes"
@@ -17,7 +18,8 @@ export function StashDialog({ repoId, dirty, onClose }: { repoId: string; dirty:
   const [message, setMessage] = useState("")
   const [keepIndex, setKeepIndex] = useState(false)
   const request = { message, keepIndex }
-  const enabled = dirty && !push.isPending
+  const blocked = useWritesBlocked(repoId)
+  const enabled = dirty && !push.isPending && !blocked
   const confirm = () => {
     if (enabled) push.mutate(request, { onSuccess: onClose })
   }
@@ -29,6 +31,7 @@ export function StashDialog({ repoId, dirty, onClose }: { repoId: string; dirty:
       onClose={onClose}
       confirmLabel={push.isPending ? "正在贮藏…" : "贮藏"}
       disabled={!enabled}
+      blockedBy={blocked}
       onConfirm={confirm}
     >
       <p>这样将贮藏所有的变更到你的工作区并且返回到一个干净的工作区状态。</p>
@@ -69,6 +72,7 @@ export function StashActionSheet({
 }) {
   const queryClient = useQueryClient()
   const operation = useOperation(repoId, kind === "apply" ? "stashApply" : "stashDrop")
+  const blocked = useWritesBlocked(repoId)
   const request = { index: stash.index, oid: stash.oid }
   const apply = kind === "apply"
   const confirm = () =>
@@ -87,6 +91,7 @@ export function StashActionSheet({
       onClose={onClose}
       confirmLabel={operation.isPending ? "正在执行…" : apply ? "应用" : "删除"}
       disabled={operation.isPending}
+      blockedBy={blocked}
       onConfirm={confirm}
     >
       <p>

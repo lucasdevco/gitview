@@ -4,6 +4,7 @@
 // Pushing runs as a background job; a rejected push is explained in the job
 // strip with the advice to pull first.
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Group, OperationSheet } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
@@ -31,6 +32,7 @@ export function PushDialog({
   onClose: () => void
 }) {
   const start = useStartJob(repoId, "push")
+  const queuesBehind = useWritesBlocked(repoId)
   const remotes = refs?.remotes ?? []
   const locals = refs?.branches ?? []
   const [remote, setRemote] = useState(() => initial?.remote ?? defaultRemote(refs) ?? "")
@@ -70,6 +72,7 @@ export function PushDialog({
       command={pushCommands(request).join(" && ") || "git push"}
       onClose={onClose}
       disabled={!remote || (chosen.length === 0 && !tags) || problems.length > 0 || start.isPending}
+      queuesBehind={queuesBehind}
       onConfirm={() => start.mutate(request, { onSuccess: onClose })}
     >
       <div className="flex items-center gap-2">

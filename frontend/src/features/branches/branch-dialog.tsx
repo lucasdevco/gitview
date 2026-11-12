@@ -1,6 +1,7 @@
 // The 分支 sheet from the title bar: 新建分支 and 删除分支 tabs.
 import { GitBranch, MinusCircle, TriangleAlert } from "lucide-react"
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { ApiError } from "@/lib/api/client"
@@ -44,6 +45,7 @@ export function BranchDialog({
       onClose={onClose}
       confirmLabel={form.confirmLabel}
       disabled={!form.canSubmit}
+      blockedBy={form.blocked}
       onConfirm={form.submit}
       header={
         <div className="flex gap-1" role="tablist">
@@ -91,7 +93,8 @@ function useCreateBranchForm(repoId: string, branches: Branch[], onDone: () => v
     startPoint: base === "commit" ? commit.trim() : undefined,
     checkout,
   }
-  const canSubmit = !problem && (base === "parent" || !!request.startPoint) && !operation.isPending
+  const blocked = useWritesBlocked(repoId)
+  const canSubmit = !problem && (base === "parent" || !!request.startPoint) && !operation.isPending && !blocked
   return {
     name,
     setName,
@@ -106,6 +109,7 @@ function useCreateBranchForm(repoId: string, branches: Branch[], onDone: () => v
     command: createBranchCommand({ ...request, name: name || "<新分支>" }),
     confirmLabel: "创建分支",
     canSubmit,
+    blocked,
     submit: () => canSubmit && operation.mutate(request, { onSuccess: onDone }),
   }
 }
@@ -182,7 +186,8 @@ function useDeleteBranchesForm(repoId: string, branches: Branch[], initialSelect
   const chosen = deletable.filter((name) => selected.has(name))
   const force = unmerged.length > 0
   const request: DeleteBranchesRequest = force ? { branches: unmerged, force } : { branches: chosen }
-  const canSubmit = request.branches.length > 0 && !operation.isPending
+  const blocked = useWritesBlocked(repoId)
+  const canSubmit = request.branches.length > 0 && !operation.isPending && !blocked
   const toggle = (name: string, on: boolean) => {
     const next = new Set(selected)
     if (on) next.add(name)
@@ -201,6 +206,7 @@ function useDeleteBranchesForm(repoId: string, branches: Branch[], initialSelect
     command: deleteBranchesCommand(request.branches.length ? request : { ...request, branches: ["<分支>"] }),
     confirmLabel: force ? "强制删除" : "删除分支",
     canSubmit,
+    blocked,
     submit: () => {
       if (!canSubmit) return
       operation.mutate(request, {

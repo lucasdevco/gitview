@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import type { Job } from "@/lib/api/jobs"
-import { describeJob, jobToShow } from "./job-status"
+import { describeJob, jobToShow, writesBlockedBy } from "./job-status"
 
 const job = (id: string, state: Job["state"], fields: Partial<Job> = {}): Job => ({
   id,
@@ -18,6 +18,19 @@ test("a job is described by its operation's Sourcetree name and its state", () =
   expect(describeJob(job("a", "failed"))).toEqual({ title: "抓取失败", active: false })
   expect(describeJob(job("a", "canceled"))).toEqual({ title: "已取消抓取", active: false })
   expect(describeJob(job("a", "running", { operation: "push" })).title).toBe("正在推送…")
+})
+
+test("writes wait while a background job runs, waits for credentials or is queued", () => {
+  expect(writesBlockedBy(undefined)).toBeUndefined()
+  expect(writesBlockedBy([job("a", "succeeded"), job("b", "failed")])).toBeUndefined()
+  expect(writesBlockedBy([job("a", "running", { operation: "push" })])).toBe(
+    "后台任务进行中：正在推送，完成或取消后才能执行写操作",
+  )
+  const prompt = { id: "p", text: "Password for 'https://example.com':", secret: true }
+  expect(writesBlockedBy([job("a", "queued"), job("b", "running", { operation: "pull", prompt })])).toBe(
+    "后台任务进行中：拉取正在等待输入凭据，完成或取消后才能执行写操作",
+  )
+  expect(writesBlockedBy([job("a", "queued")])).toBe("后台任务进行中：等待抓取，完成或取消后才能执行写操作")
 })
 
 test("a running job shows git's last progress line and its percentage", () => {

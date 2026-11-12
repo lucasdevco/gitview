@@ -6,6 +6,7 @@ import { DiffPanel, type HunkAction } from "@/features/diff/diff-panel"
 import { describeChange, shortenPath } from "@/features/diff/file-path"
 import { FileStatusIcon } from "@/features/diff/file-status-icon"
 import type { DiffHunk } from "@/features/diff/parse-diff"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationSheet } from "@/features/operations/operation-sheet"
 import { useApi } from "@/lib/api/context"
 import type { FilesRequest, HunkRequest } from "@/lib/api/operations"
@@ -96,7 +97,9 @@ export function FileStatusView({ repoId }: { repoId: string }) {
     { mutation: unstageHunk, failed: "取消暂存区块失败：" },
     { mutation: discardHunk, failed: "丢弃区块失败：" },
   ]
-  const busy = writes.some(({ mutation }) => mutation.isPending)
+  // While a background job holds the write lock, staging would wait for it.
+  const blocked = useWritesBlocked(repoId)
+  const busy = !!blocked || writes.some(({ mutation }) => mutation.isPending)
   const failure = writes.find(({ mutation }) => mutation.error)
   const resetErrors = () => {
     for (const { mutation } of writes) mutation.reset()
@@ -161,6 +164,11 @@ export function FileStatusView({ repoId }: { repoId: string }) {
                   <ChevronDown className="size-3" />
                 </span>
               </div>
+              {blocked && (
+                <div role="status" className="border-b bg-muted px-3 py-1 text-muted-foreground">
+                  {blocked}
+                </div>
+              )}
               {failure && (
                 <div
                   role="alert"

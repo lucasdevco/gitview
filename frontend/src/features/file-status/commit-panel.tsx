@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Check, ChevronDown, X } from "lucide-react"
 import { DropdownMenu } from "radix-ui"
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { pushTarget, pushTargetName } from "@/features/remote/remotes"
 import { ApiError } from "@/lib/api/client"
 import { useApi } from "@/lib/api/context"
@@ -45,8 +46,11 @@ export function CommitPanel({
   const message = draft ?? (merging ? (summary?.mergeMessage ?? "") : "")
   const request = { message, amend: amend && !merging, noVerify }
   const target = summary?.branch ? pushTarget(refs, summary.branch) : undefined
+  const blocked = useWritesBlocked(repoId)
   const enabled =
-    !commit.isPending && canCommit({ stagedCount, message, amend: request.amend, empty, merging, conflictedCount })
+    !commit.isPending &&
+    !blocked &&
+    canCommit({ stagedCount, message, amend: request.amend, empty, merging, conflictedCount })
   const submit = () => {
     if (!enabled) return
     commit.mutate(request, {
@@ -155,7 +159,10 @@ export function CommitPanel({
           type="button"
           disabled={!enabled}
           onClick={submit}
-          title={conflictedCount ? "解决所有冲突文件后才能提交" : message.trim() ? commitCommand(request) : undefined}
+          title={
+            blocked ??
+            (conflictedCount ? "解决所有冲突文件后才能提交" : message.trim() ? commitCommand(request) : undefined)
+          }
           className="h-6 min-w-14 rounded-md bg-primary px-3 text-primary-foreground shadow-xs disabled:opacity-40"
         >
           {commit.isPending ? "正在提交…" : "提交"}

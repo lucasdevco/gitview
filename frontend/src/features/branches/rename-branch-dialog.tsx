@@ -1,5 +1,6 @@
 // 重命名… from a branch's context menu.
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { useOperation } from "@/lib/api/use-operation"
@@ -22,7 +23,8 @@ export function RenameBranchDialog({
   const [newName, setNewName] = useState(branch)
   const problem = newName === branch ? "请输入新的分支名" : branchNameProblem(newName, branchNames)
   const request = { branch, newName }
-  const canSubmit = !problem && !operation.isPending
+  const blocked = useWritesBlocked(repoId)
+  const canSubmit = !problem && !operation.isPending && !blocked
   const submit = () => canSubmit && operation.mutate(request, { onSuccess: onClose })
   return (
     <OperationSheet
@@ -34,6 +36,7 @@ export function RenameBranchDialog({
       onConfirm={submit}
       confirmLabel="重命名"
       disabled={!canSubmit}
+      blockedBy={blocked}
     >
       <Field label="新名称" hint={problem ? undefined : `refs/heads/${newName}`}>
         <input

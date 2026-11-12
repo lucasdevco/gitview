@@ -1,6 +1,7 @@
 // The 抓取 dialog. Fetching runs as a background job: confirming starts it
 // and closes the dialog, and the job strip shows its progress.
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, OperationSheet } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
@@ -11,6 +12,7 @@ import { defaultRemote } from "./remotes"
 
 export function FetchDialog({ repoId, refs, onClose }: { repoId: string; refs?: Refs; onClose: () => void }) {
   const start = useStartJob(repoId, "fetch")
+  const queuesBehind = useWritesBlocked(repoId)
   const [all, setAll] = useState(true)
   const [prune, setPrune] = useState(false)
   const [tags, setTags] = useState(false)
@@ -22,6 +24,7 @@ export function FetchDialog({ repoId, refs, onClose }: { repoId: string; refs?: 
       command={fetchCommand(request)}
       onClose={onClose}
       disabled={start.isPending}
+      queuesBehind={queuesBehind}
       onConfirm={() => start.mutate(request, { onSuccess: onClose })}
     >
       <Check label="抓取所有远端更新" checked={all} onChange={setAll} />

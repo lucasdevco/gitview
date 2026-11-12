@@ -2,6 +2,7 @@
 // merge, rebase, cherry-pick or revert, with 中止合并 / 中止变基.
 import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { OperationSheet } from "@/features/operations/operation-sheet"
 import type { RepoSummary } from "@/lib/api/repos"
@@ -57,6 +58,7 @@ function AbortSheet({
   onClose: () => void
 }) {
   const operation = useOperation(repoId, op)
+  const blocked = useWritesBlocked(repoId)
   const { label, command, what } = ABORT[op]
   return (
     <OperationSheet
@@ -66,6 +68,7 @@ function AbortSheet({
       command={command()}
       confirmLabel={label}
       disabled={operation.isPending}
+      blockedBy={blocked}
       onClose={onClose}
       onConfirm={() => !operation.isPending && operation.mutate({}, { onSuccess: onClose })}
     >

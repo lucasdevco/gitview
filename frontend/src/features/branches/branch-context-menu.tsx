@@ -25,6 +25,9 @@ export function BranchContextMenu({
   const current = branch.current
   const remoteBranches = remotes.flatMap((remote) => remote.branches)
   const run = (action: ((branch: string) => void) | undefined) => (action ? () => action(name) : undefined)
+  // Writing right away would wait for a background job; the dialogs and
+  // jobs the other items start say so themselves.
+  const blocked = !!actions?.writesBlocked
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>
@@ -32,10 +35,18 @@ export function BranchContextMenu({
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content className="z-50 min-w-64 rounded-lg border bg-popover p-1 text-[12px] text-popover-foreground shadow-xl">
-          <MenuItem disabled={current} onSelect={run(actions?.checkout)}>
+          {actions?.writesBlocked && (
+            <>
+              <div role="status" className="max-w-72 px-2 py-1 text-muted-foreground">
+                {actions.writesBlocked}
+              </div>
+              <MenuSeparator />
+            </>
+          )}
+          <MenuItem disabled={current || blocked} onSelect={run(actions?.checkout)}>
             检出 {name}
           </MenuItem>
-          <MenuItem disabled={current || !currentBranch} onSelect={run(actions?.merge)}>
+          <MenuItem disabled={current || !currentBranch || blocked} onSelect={run(actions?.merge)}>
             合并 {name} 至 {currentBranch || "HEAD"}
           </MenuItem>
           <MenuItem disabled={current} onSelect={run(actions?.rebase)}>
@@ -57,7 +68,7 @@ export function BranchContextMenu({
               </MenuItem>
             ))}
           </SubMenu>
-          <SubMenu label="跟踪远程分支" disabled={!actions || remoteBranches.length === 0}>
+          <SubMenu label="跟踪远程分支" disabled={!actions || remoteBranches.length === 0 || blocked}>
             {remoteBranches.map((remoteBranch) => (
               <MenuItem key={remoteBranch.name} onSelect={() => actions?.setUpstream(name, remoteBranch.name)}>
                 <span className="flex size-3.5 items-center">

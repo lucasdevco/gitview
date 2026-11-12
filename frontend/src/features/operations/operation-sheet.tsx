@@ -14,6 +14,8 @@ export function OperationSheet({
   onConfirm,
   confirmLabel = "确定",
   disabled,
+  blockedBy,
+  queuesBehind,
   header,
   children,
 }: {
@@ -27,6 +29,13 @@ export function OperationSheet({
   onConfirm: () => void
   confirmLabel?: string
   disabled?: boolean
+  /**
+   * Why the operation cannot run now (a background job holds the write
+   * lock, see useWritesBlocked): shown in the sheet, confirm disabled.
+   */
+  blockedBy?: string
+  /** For an operation that runs as a job: the job it will queue behind, shown in the sheet. */
+  queuesBehind?: string
   /** Content to the right of a visible title, such as tabs. */
   header?: ReactNode
   children: ReactNode
@@ -48,7 +57,14 @@ export function OperationSheet({
           ) : (
             <Dialog.Title className="sr-only">{title}</Dialog.Title>
           )}
-          <div className="space-y-2.5 px-5 py-4">{children}</div>
+          <div className="space-y-2.5 px-5 py-4">
+            {children}
+            {(blockedBy || queuesBehind) && (
+              <p role="status" className="rounded-md bg-muted px-2.5 py-1.5 text-muted-foreground">
+                {blockedBy ?? `${queuesBehind}；确定后将排队，在其后开始。`}
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-2 px-5 pb-4">
             <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground" title={command}>
               {command}
@@ -63,7 +79,8 @@ export function OperationSheet({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={disabled}
+              disabled={disabled || !!blockedBy}
+              title={blockedBy}
               className="h-6 min-w-20 rounded-md bg-primary px-3 text-primary-foreground shadow-xs disabled:bg-muted disabled:text-muted-foreground"
             >
               {confirmLabel}

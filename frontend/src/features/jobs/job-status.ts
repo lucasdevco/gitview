@@ -1,6 +1,6 @@
 // What the job strip says about background jobs (fetch, pull, push).
 import { describeOperationError } from "@/features/operations/operation-error"
-import { type Job, jobError } from "@/lib/api/jobs"
+import { isFinished, type Job, jobError } from "@/lib/api/jobs"
 
 /** Sourcetree's names for the operations that run as jobs. */
 const OPERATION_NAMES: Record<string, string> = { fetch: "抓取", pull: "拉取", push: "推送", fetchInto: "拿来" }
@@ -42,6 +42,21 @@ export function describeJob(job: Job): JobDescription {
     case "canceled":
       return { title: `已取消${name}`, active: false }
   }
+}
+
+/**
+ * Why a write would wait now, or undefined when it would not: a background
+ * job holds the repository's write lock until it ends — for as long as git
+ * runs, including while it waits for credentials — and queued jobs go
+ * first. Write controls show this instead of appearing to hang.
+ */
+export function writesBlockedBy(jobs: readonly Job[] | undefined): string | undefined {
+  const active = jobs?.filter((job) => !isFinished(job.state)) ?? []
+  const first = active.find((job) => job.state === "running") ?? active.at(0)
+  if (!first) return undefined
+  const name = OPERATION_NAMES[first.operation] ?? first.operation
+  const what = first.state === "queued" ? `等待${name}` : first.prompt ? `${name}正在等待输入凭据` : `正在${name}`
+  return `后台任务进行中：${what}，完成或取消后才能执行写操作`
 }
 
 /**

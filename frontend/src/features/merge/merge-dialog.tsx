@@ -3,6 +3,7 @@
 // the sheet and calls onConflict: the workbench then shows the in-progress
 // banner and the conflicted files.
 import { useState } from "react"
+import { useWritesBlocked } from "@/features/jobs/write-block"
 import { isConflict } from "@/features/operations/operation-error"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Field, Group, OperationSheet, selectClass } from "@/features/operations/operation-sheet"
@@ -40,7 +41,8 @@ export function MergeDialog({
   const error = merge.error ?? rebase.error
   // A merge needs a branch to merge into; a rebase can also move a detached HEAD.
   const blocked = inProgressNotice(summary.state, 0)
-  const canSubmit = !!branch && !busy && !blocked && (useRebase || !summary.detached)
+  const jobBlocked = useWritesBlocked(summary.id)
+  const canSubmit = !!branch && !busy && !blocked && !jobBlocked && (useRebase || !summary.detached)
   const handlers = {
     onSuccess: onClose,
     onError: (failure: Error) => {
@@ -68,6 +70,7 @@ export function MergeDialog({
       onClose={onClose}
       onConfirm={submit}
       disabled={!canSubmit}
+      blockedBy={jobBlocked}
     >
       <Field label="合并来源">
         <select
@@ -139,8 +142,9 @@ export function RebaseSheet({
 }) {
   const rebase = useOperation(summary.id, "rebase")
   const current = summary.detached ? "HEAD" : summary.branch
+  const blocked = useWritesBlocked(summary.id)
   const submit = () => {
-    if (rebase.isPending) return
+    if (rebase.isPending || blocked) return
     rebase.mutate(
       { onto },
       {
@@ -163,6 +167,7 @@ export function RebaseSheet({
       onClose={onClose}
       onConfirm={submit}
       disabled={rebase.isPending}
+      blockedBy={blocked}
     >
       <p className="break-words">
         确定要将 <span className="font-medium">{current}</span> 上的变更变基到{" "}
