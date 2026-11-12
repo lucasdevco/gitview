@@ -26,9 +26,21 @@ export function formatGitCommand(args: readonly string[]): string {
   return ["git", ...args.map(shellQuote)].join(" ")
 }
 
+// Marks a placeholder argument; a private-use character no real name has.
+const PLACEHOLDER_MARK = "\u{F0000}"
+
+/**
+ * An argument the user has not entered yet, such as the new branch name,
+ * for a preview: rendered as `<label>`, without quotes.
+ */
+export function placeholder(label: string): string {
+  return PLACEHOLDER_MARK + label
+}
+
 const SAFE_ARGUMENT = /^[A-Za-z0-9_@%+=:,./^~-]+$/
 
 function shellQuote(arg: string): string {
+  if (arg.startsWith(PLACEHOLDER_MARK)) return `<${arg.slice(PLACEHOLDER_MARK.length)}>`
   if (arg === "") return "''"
   if (SAFE_ARGUMENT.test(arg)) return arg
   return `'${arg.replaceAll("'", `'\\''`)}'`

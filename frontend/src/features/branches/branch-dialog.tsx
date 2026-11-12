@@ -9,7 +9,7 @@ import type { Branch } from "@/lib/api/history"
 import type { CreateBranchRequest, DeleteBranchesRequest } from "@/lib/api/operations"
 import type { RepoSummary } from "@/lib/api/repos"
 import { useOperation } from "@/lib/api/use-operation"
-import { createBranchCommand, deleteBranchesCommand } from "@/lib/command-preview"
+import { createBranchCommand, deleteBranchesCommand, placeholder } from "@/lib/command-preview"
 import { cn } from "@/lib/utils"
 import { branchNameProblem } from "./branch-name"
 import { unmergedBranches } from "./unmerged"
@@ -106,7 +106,7 @@ function useCreateBranchForm(repoId: string, branches: Branch[], onDone: () => v
     setCheckout,
     problem,
     operation,
-    command: createBranchCommand({ ...request, name: name || "<新分支>" }),
+    command: createBranchCommand({ ...request, name: name || placeholder("新分支") }),
     confirmLabel: "创建分支",
     canSubmit,
     blocked,
@@ -203,7 +203,7 @@ function useDeleteBranchesForm(repoId: string, branches: Branch[], initialSelect
     unmerged,
     othersDeleted,
     operation,
-    command: deleteBranchesCommand(request.branches.length ? request : { ...request, branches: ["<分支>"] }),
+    command: deleteBranchesCommand(request.branches.length ? request : { ...request, branches: [placeholder("分支")] }),
     confirmLabel: force ? "强制删除" : "删除分支",
     canSubmit,
     blocked,

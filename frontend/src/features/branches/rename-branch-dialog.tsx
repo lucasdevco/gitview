@@ -4,7 +4,7 @@ import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Field, inputClass, OperationSheet } from "@/features/operations/operation-sheet"
 import { useOperation } from "@/lib/api/use-operation"
-import { renameBranchCommand } from "@/lib/command-preview"
+import { placeholder, renameBranchCommand } from "@/lib/command-preview"
 import { branchNameProblem } from "./branch-name"
 
 export function RenameBranchDialog({
@@ -31,7 +31,7 @@ export function RenameBranchDialog({
       title={`重命名分支 ${branch}`}
       showTitle
       width={480}
-      command={renameBranchCommand({ branch, newName: newName || "<新名称>" })}
+      command={renameBranchCommand({ branch, newName: newName || placeholder("新名称") })}
       onClose={onClose}
       onConfirm={submit}
       confirmLabel="重命名"

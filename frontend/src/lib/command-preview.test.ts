@@ -11,6 +11,7 @@ import {
   fetchIntoCommand,
   formatGitCommand,
   mergeCommand,
+  placeholder,
   pullCommand,
   pushCommands,
   rebaseCommand,
@@ -37,6 +38,12 @@ describe("formatGitCommand", () => {
       "git add -- 'new file.txt' 'a*b' '$HOME' '目录/文件'",
     )
     expect(formatGitCommand(["commit", "-m", "it's"])).toBe(`git commit -m 'it'\\''s'`)
+  })
+
+  it("shows a placeholder for a value not entered yet as <label>, unquoted", () => {
+    expect(createBranchCommand({ name: placeholder("新分支"), checkout: true })).toBe("git switch -c <新分支>")
+    // A real name that looks like one is still quoted.
+    expect(formatGitCommand(["branch", "<新分支>"])).toBe("git branch '<新分支>'")
   })
 })
 

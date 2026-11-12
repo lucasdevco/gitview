@@ -11,7 +11,7 @@ import type { Refs } from "@/lib/api/history"
 import type { MergeRequest } from "@/lib/api/operations"
 import type { RepoSummary } from "@/lib/api/repos"
 import { useOperation } from "@/lib/api/use-operation"
-import { mergeCommand, rebaseCommand } from "@/lib/command-preview"
+import { mergeCommand, placeholder, rebaseCommand } from "@/lib/command-preview"
 import { inProgressNotice } from "./in-progress"
 import { mergeSources } from "./merge-sources"
 
@@ -64,8 +64,8 @@ export function MergeDialog({
       title="合并"
       command={
         useRebase
-          ? rebaseCommand({ onto: branch || "<分支>" })
-          : mergeCommand({ ...request, branch: branch || "<分支>" })
+          ? rebaseCommand({ onto: branch || placeholder("分支") })
+          : mergeCommand({ ...request, branch: branch || placeholder("分支") })
       }
       onClose={onClose}
       onConfirm={submit}
