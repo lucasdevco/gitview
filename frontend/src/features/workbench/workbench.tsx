@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { BranchActionsContext, useBranchOperations } from "@/features/branches/branch-operations"
 import { FileStatusView } from "@/features/file-status/file-status-view"
 import { pendingFileCount } from "@/features/file-status/staging"
 import { HistoryView, type Selection } from "@/features/history/history-view"
@@ -45,6 +46,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
     if (view !== "history" && view !== "search") setView("history")
     select(oid)
   }
+  const branches = useBranchOperations(summary, refs.data)
   const [stashing, setStashing] = useState(false)
   const [stashAction, setStashAction] = useState<StashAction>()
   const [stashOid, setStashOid] = useState<string>()
@@ -58,25 +60,28 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         name={summary?.name ?? ""}
         pendingCount={pendingFileCount(status.data)}
         onCommit={summary ? () => setView("status") : undefined}
+        onBranch={branches.actions && (() => branches.actions?.openBranchDialog())}
         onStash={summary ? () => setStashing(true) : undefined}
       />
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">
             {summary ? (
-              <Sidebar
-                summary={summary}
-                refs={refs.data}
-                view={shown}
-                onView={setView}
-                onReveal={reveal}
-                selectedStash={stash?.oid}
-                onSelectStash={(selected) => {
-                  setStashOid(selected.oid)
-                  setView("stash")
-                }}
-                onStashAction={setStashAction}
-              />
+              <BranchActionsContext value={branches.actions}>
+                <Sidebar
+                  summary={summary}
+                  refs={refs.data}
+                  view={shown}
+                  onView={setView}
+                  onReveal={reveal}
+                  selectedStash={stash?.oid}
+                  onSelectStash={(selected) => {
+                    setStashOid(selected.oid)
+                    setView("stash")
+                  }}
+                  onStashAction={setStashAction}
+                />
+              </BranchActionsContext>
             ) : (
               <div className="h-full border-r bg-muted/50" />
             )}
@@ -108,6 +113,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         </ResizablePanelGroup>
       </div>
       <CommandLogBar repoId={summary?.id} />
+      {branches.dialogs}
       {summary && stashing && (
         <StashDialog repoId={summary.id} dirty={pendingFileCount(status.data) > 0} onClose={() => setStashing(false)} />
       )}

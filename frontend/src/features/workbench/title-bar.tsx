@@ -53,12 +53,16 @@ export function TitleBar({
   name,
   pendingCount,
   onCommit,
+  onBranch,
   onStash,
 }: {
   name: string
   /** Changed files waiting to be committed, shown as the 提交 badge. */
   pendingCount?: number
   onCommit?: () => void
+  /** Opens the 分支 sheet (new / delete branch). */
+  onBranch?: () => void
+  /** Opens the 贮藏 sheet. */
   onStash?: () => void
 }) {
   return (
@@ -70,7 +74,7 @@ export function TitleBar({
       <ToolbarButton icon={CircleArrowUp} label="推送" disabled />
       <ToolbarButton icon={CircleDashed} label="抓取" disabled />
       <Gap />
-      <ToolbarButton icon={GitBranch} label="分支" disabled />
+      <ToolbarButton icon={GitBranch} label="分支" onClick={onBranch} disabled={!onBranch} />
       <ToolbarButton icon={GitMerge} label="合并" disabled />
       <Gap />
       <ToolbarButton icon={Archive} label="贮藏" onClick={onStash} disabled={!onStash} />
