@@ -19,3 +19,18 @@ export function formatRelativeDate(date: Date, now: Date = new Date()): string {
   if (days === 1) return `昨天 ${time}`
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
+
+/** "GMT+8", "GMT-5" or "GMT+5:30" for an offset in minutes east of UTC. */
+export function formatUtcOffset(minutesEast: number): string {
+  const sign = minutesEast < 0 ? "-" : "+"
+  const absolute = Math.abs(minutesEast)
+  const minutes = absolute % 60
+  return `GMT${sign}${Math.floor(absolute / 60)}${minutes ? `:${pad(minutes)}` : ""}`
+}
+
+/** "YYYY年M月D日 GMT+8 HH:mm:ss", with the browser's time zone. */
+export function formatFullDate(date: Date): string {
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  const zone = formatUtcOffset(-date.getTimezoneOffset())
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${zone} ${time}`
+}

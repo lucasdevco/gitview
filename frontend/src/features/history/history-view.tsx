@@ -11,15 +11,18 @@ import {
   useState,
 } from "react"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { CommitDetails, UncommittedChanges } from "@/features/commit-details/commit-details"
 import { useApi } from "@/lib/api/context"
 import { type GraphCommit, type GraphOptions, graphQuery, type Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
+import { type WorktreeStatus, worktreeStatusQuery } from "@/lib/api/worktree"
 import { formatRelativeDate } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { type GraphRow, laneColor, layoutGraph } from "./graph"
 import { GraphCell, graphColumnWidth, ROW_HEIGHT } from "./graph-cell"
 import { RefLabel, refsByCommit } from "./ref-label"
 import { searchCommits } from "./search"
+import { UNCOMMITTED, withUncommittedChanges } from "./uncommitted"
 import { scrollTopToReveal, visibleRange } from "./virtual-window"
 
 /**
@@ -28,7 +31,11 @@ import { scrollTopToReveal, visibleRange } from "./virtual-window"
  */
 export type Selection = { oid: string; seq: number }
 
-type HistoryRow = { commit: GraphCommit; graph: GraphRow }
+/** A list row: a commit, or the virtual "未提交的更改" row (no `commit`, oid {@link UNCOMMITTED}). */
+type HistoryRow = { oid: string; commit?: GraphCommit; graph: GraphRow }
+
+const hasChanges = (status?: WorktreeStatus) =>
+  !!status && status.staged.length + status.unstaged.length + status.untracked.length + status.conflicted.length > 0
 
 const SEARCH_ROW: GraphRow = { lane: 0, color: 0, segments: [], width: 1 }
 const filterSelect = "h-5 rounded bg-transparent pr-1 hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent"
@@ -88,22 +95,37 @@ export function HistoryView({
   const options: GraphOptions = { scope: searchMode ? "all" : scope, remotes: showRemotes }
   const graph = useQuery(graphQuery(api, summary.id, options))
   const commits = graph.data
+  const status = useQuery(worktreeStatusQuery(api, summary.id))
 
-  const layout = useMemo(() => (commits ? layoutGraph(commits) : []), [commits])
   const searching = searchMode && query.trim() !== ""
+  // The working tree joins the graph as a virtual node above HEAD while it has changes.
+  const showUncommitted = hasChanges(status.data) && !searching && !!commits
+  const layout = useMemo(() => {
+    if (!commits) return []
+    return layoutGraph(showUncommitted ? withUncommittedChanges(commits, summary.head) : commits)
+  }, [commits, showUncommitted, summary.head])
   const rows: HistoryRow[] = useMemo(() => {
     if (!commits) return []
-    if (searching) return searchCommits(commits, query).map((commit) => ({ commit, graph: SEARCH_ROW }))
-    return commits.map((commit, index) => ({ commit, graph: layout[index] ?? SEARCH_ROW }))
-  }, [commits, layout, searching, query])
-  const indexByOid = useMemo(() => new Map(rows.map((row, index) => [row.commit.oid, index])), [rows])
+    if (searching)
+      return searchCommits(commits, query).map((commit) => ({ oid: commit.oid, commit, graph: SEARCH_ROW }))
+    const offset = showUncommitted ? 1 : 0
+    const commitRows = commits.map((commit, index) => ({
+      oid: commit.oid,
+      commit,
+      graph: layout[index + offset] ?? SEARCH_ROW,
+    }))
+    return showUncommitted ? [{ oid: UNCOMMITTED, graph: layout[0] ?? SEARCH_ROW }, ...commitRows] : commitRows
+  }, [commits, layout, searching, query, showUncommitted])
+  const indexByOid = useMemo(() => new Map(rows.map((row, index) => [row.oid, index])), [rows])
   const graphWidth = useMemo(() => {
     let lanes = 1
     for (const row of rows) lanes = Math.max(lanes, row.graph.width)
     return graphColumnWidth(lanes)
   }, [rows])
   const refsMap = useMemo(() => refsByCommit(refs, showRemotes), [refs, showRemotes])
-  const selectedOid = selection?.oid ?? summary.head
+  // Selecting "未提交的更改" falls back to HEAD once the working tree is clean again.
+  const selectedOid =
+    selection?.oid === UNCOMMITTED && !showUncommitted ? summary.head : (selection?.oid ?? summary.head)
   const columns = `${graphWidth}px minmax(0,1fr) 6.5rem minmax(0,15rem) 8.5rem`
 
   const list = useVirtualWindow(rows.length)
@@ -135,7 +157,7 @@ export function HistoryView({
     event.preventDefault()
     const current = selectedOid ? (indexByOid.get(selectedOid) ?? -1) : -1
     const next = rows[Math.max(0, Math.min(rows.length - 1, current + (event.key === "ArrowDown" ? 1 : -1)))]
-    if (next) onSelect(next.commit.oid)
+    if (next) onSelect(next.oid)
   }
 
   const jumpTargets = [
@@ -148,7 +170,7 @@ export function HistoryView({
   let message: string | undefined
   if (graph.error) message = `无法加载历史：${graph.error.message}`
   else if (!commits) message = "正在加载历史…"
-  else if (commits.length === 0) message = "仓库还没有提交。"
+  else if (commits.length === 0 && !showUncommitted) message = "仓库还没有提交。"
   else if (rows.length === 0) message = "没有匹配的提交。"
 
   return (
@@ -246,15 +268,15 @@ export function HistoryView({
                 {rows.slice(list.range.start, list.range.end).map((row, offset) => {
                   const index = list.range.start + offset
                   const { commit } = row
-                  const isSelected = commit.oid === selectedOid
-                  const isHead = commit.oid === summary.head
+                  const isSelected = row.oid === selectedOid
+                  const isHead = row.oid === summary.head
                   return (
                     <div
-                      key={commit.oid}
-                      id={`commit-${commit.oid}`}
+                      key={row.oid}
+                      id={`commit-${row.oid}`}
                       role="option"
                       tabIndex={-1}
-                      data-oid={commit.oid}
+                      data-oid={row.oid}
                       aria-selected={isSelected}
                       className={cn(
                         "absolute left-0 grid w-full cursor-default items-center text-left",
@@ -262,25 +284,42 @@ export function HistoryView({
                       )}
                       style={{ gridTemplateColumns: columns, height: ROW_HEIGHT, top: index * ROW_HEIGHT }}
                     >
-                      <GraphCell row={row.graph} width={graphWidth} hollow={isHead} />
-                      <span className="flex min-w-0 items-center gap-1 overflow-hidden px-2">
-                        {(refsMap.get(commit.oid) ?? []).map((ref) => (
-                          <RefLabel key={`${ref.kind}:${ref.name}`} refInfo={ref} color={laneColor(row.graph.color)} />
-                        ))}
-                        <span className={cn("truncate", isHead && "font-semibold")} title={commit.subject}>
-                          {commit.subject}
-                        </span>
-                      </span>
-                      <span className="truncate px-2 font-mono text-[11px] opacity-90">{commit.oid.slice(0, 10)}</span>
-                      <span
-                        className={cn("truncate px-2 opacity-90", isHead && "font-semibold")}
-                        title={`${commit.author} <${commit.email}>`}
-                      >
-                        {commit.author} &lt;{commit.email}&gt;
-                      </span>
-                      <span className={cn("truncate px-2 tabular-nums opacity-90", isHead && "font-semibold")}>
-                        {formatRelativeDate(new Date(commit.authorTime * 1000))}
-                      </span>
+                      <GraphCell row={row.graph} width={graphWidth} hollow={isHead} virtual={!commit} />
+                      {commit ? (
+                        <>
+                          <span className="flex min-w-0 items-center gap-1 overflow-hidden px-2">
+                            {(refsMap.get(commit.oid) ?? []).map((ref) => (
+                              <RefLabel
+                                key={`${ref.kind}:${ref.name}`}
+                                refInfo={ref}
+                                color={laneColor(row.graph.color)}
+                              />
+                            ))}
+                            <span className={cn("truncate", isHead && "font-semibold")} title={commit.subject}>
+                              {commit.subject}
+                            </span>
+                          </span>
+                          <span className="truncate px-2 font-mono text-[11px] opacity-90">
+                            {commit.oid.slice(0, 10)}
+                          </span>
+                          <span
+                            className={cn("truncate px-2 opacity-90", isHead && "font-semibold")}
+                            title={`${commit.author} <${commit.email}>`}
+                          >
+                            {commit.author} &lt;{commit.email}&gt;
+                          </span>
+                          <span className={cn("truncate px-2 tabular-nums opacity-90", isHead && "font-semibold")}>
+                            {formatRelativeDate(new Date(commit.authorTime * 1000))}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="truncate px-2 font-medium">未提交的更改</span>
+                          <span className="px-2 font-mono text-[11px] opacity-90">*</span>
+                          <span className="px-2 opacity-90">*</span>
+                          <span className="px-2 opacity-90">*</span>
+                        </>
+                      )}
                     </div>
                   )
                 })}
@@ -291,8 +330,21 @@ export function HistoryView({
       </ResizablePanel>
       <ResizableHandle orientation="vertical" />
       <ResizablePanel minSize="20%">
-        {/* Commit details: files, metadata and diff of the selected commit. */}
-        <section className="h-full" aria-label="提交详情" />
+        <section className="h-full" aria-label="提交详情">
+          {selectedOid === UNCOMMITTED && status.data ? (
+            <UncommittedChanges repoId={summary.id} status={status.data} />
+          ) : selectedOid && selectedOid !== UNCOMMITTED ? (
+            <CommitDetails
+              key={selectedOid}
+              repoId={summary.id}
+              oid={selectedOid}
+              refs={refsMap.get(selectedOid) ?? []}
+              onSelect={onSelect}
+            />
+          ) : (
+            <p className="p-4 text-muted-foreground">选择一个提交查看详情</p>
+          )}
+        </section>
       </ResizablePanel>
     </ResizablePanelGroup>
   )
