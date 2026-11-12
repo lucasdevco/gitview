@@ -34,6 +34,13 @@ test("matches the author name or email", () => {
   expect(oidsOf("李")).toEqual(["0011"])
 })
 
+test("also keeps the commits whose message body matched on the server", () => {
+  const bodyMatches = new Set(["ffee00112233445566778899aabbccddeeff0011"])
+  expect(searchCommits(commits, "pineapple", bodyMatches).map((c) => c.oid.slice(0, 4))).toEqual(["ffee"])
+  // Order stays the graph's, whichever way a commit matched.
+  expect(searchCommits(commits, "login", bodyMatches).map((c) => c.oid.slice(0, 4))).toEqual(["a1b2", "ffee"])
+})
+
 test("matches a hash prefix, not a hash substring", () => {
   expect(oidsOf("A1B2C3")).toEqual(["a1b2"])
   expect(oidsOf("b2c3d4")).toEqual([])

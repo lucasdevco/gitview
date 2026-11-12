@@ -174,6 +174,41 @@ func TestGraphOfEmptyRepository(t *testing.T) {
 	}
 }
 
+func TestSearchFindsCommitsByTheirFullMessage(t *testing.T) {
+	h := newHistoryRepo(t)
+	h.Write("b.txt", "b\n")
+	h.Git("add", "b.txt")
+	h.Git("commit", "--quiet", "-m", "Tidy up", "-m", "Also fixes the Pineapple [crash] in login.")
+	body := h.Git("rev-parse", "HEAD")
+	f := newFixture(t, h.Repo)
+
+	search := func(query string) []string {
+		t.Helper()
+		response := f.get(t, "/api/v1/repos/"+f.repoID+"/search"+query)
+		if response.Code != http.StatusOK {
+			t.Fatalf("search%s: status %d: %s", query, response.Code, response.Body)
+		}
+		return decode[struct{ Data []string }](t, response).Data
+	}
+	// Case-insensitive and literal: "[crash]" is not a character class.
+	if got := search("?q=pineapple+%5Bcrash%5D"); !slices.Equal(got, []string{body}) {
+		t.Fatalf("body match = %q, want %s", got, body)
+	}
+	if got := search("?q=LOGIN"); !slices.Contains(got, h.feature) || !slices.Contains(got, body) || slices.Contains(got, h.root) {
+		t.Fatalf("subject and body matches = %q", got)
+	}
+	// The same scope options as the graph.
+	if got := search("?q=only+on+the+remote&remotes=false"); len(got) != 0 {
+		t.Fatalf("remote-only commit found without remotes: %q", got)
+	}
+	if got := search("?q=only+on+the+remote"); !slices.Equal(got, []string{h.remoteOnly}) {
+		t.Fatalf("remote-only commit = %q", got)
+	}
+	if response := f.get(t, "/api/v1/repos/"+f.repoID+"/search"); response.Code != http.StatusBadRequest {
+		t.Fatalf("search without q: status %d", response.Code)
+	}
+}
+
 func TestGraphRejectsUnknownOptions(t *testing.T) {
 	f := newFixture(t, gittest.Init(t))
 

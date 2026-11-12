@@ -51,29 +51,61 @@ const graphFieldCount = 7
 // listed before its parents, which is the order the graph layout needs. It
 // never truncates: the whole topology is needed to draw continuous lanes.
 func Graph(ctx context.Context, r *repo.Repository, options GraphOptions) ([]GraphCommit, error) {
-	_, hasHead, err := readOptional(ctx, r.Runner, git.Read("rev-parse", "--quiet", "--verify", "HEAD^{commit}"))
-	if err != nil {
-		return nil, err
-	}
 	command := git.Read("log", "--date-order", "--no-show-signature",
 		"--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%ct%x00%s")
-	switch options.Scope {
-	case ScopeCurrent:
-		if !hasHead {
-			return []GraphCommit{}, nil
-		}
-	case ScopeAll, "":
-		command.Arg("--branches", "--tags").ArgIf(options.Remotes, "--remotes")
-	default:
-		return nil, fmt.Errorf("unknown graph scope %q", options.Scope)
+	found, err := logScope(ctx, r, command, options)
+	if err != nil || !found {
+		return []GraphCommit{}, err
 	}
-	command.ArgIf(hasHead, "HEAD").Arg("--")
-
 	result, err := r.Runner.Run(ctx, command)
 	if err != nil {
 		return nil, err
 	}
 	return parseGraph(result.Stdout)
+}
+
+// SearchMessages returns the oids of the commits in the graph's scope whose
+// full message (subject and body) contains text, ignoring case. text is
+// matched literally, not as a pattern. The graph carries only subjects, so
+// this is how a search reaches the bodies.
+//
+//	git log -i --fixed-strings --grep=<text> --format=%H <scope>
+func SearchMessages(ctx context.Context, r *repo.Repository, options GraphOptions, text string) ([]string, error) {
+	command := git.Read("log", "-i", "--fixed-strings", "--grep="+text, "--format=%H")
+	found, err := logScope(ctx, r, command, options)
+	if err != nil || !found {
+		return []string{}, err
+	}
+	result, err := r.Runner.Run(ctx, command)
+	if err != nil {
+		return nil, err
+	}
+	oids := strings.Fields(string(result.Stdout))
+	if oids == nil {
+		oids = []string{}
+	}
+	return oids, nil
+}
+
+// logScope appends the revisions that select options' scope to a git log
+// command. It reports false when the scope has no commits at all.
+func logScope(ctx context.Context, r *repo.Repository, command *git.Command, options GraphOptions) (bool, error) {
+	_, hasHead, err := readOptional(ctx, r.Runner, git.Read("rev-parse", "--quiet", "--verify", "HEAD^{commit}"))
+	if err != nil {
+		return false, err
+	}
+	switch options.Scope {
+	case ScopeCurrent:
+		if !hasHead {
+			return false, nil
+		}
+	case ScopeAll, "":
+		command.Arg("--branches", "--tags").ArgIf(options.Remotes, "--remotes")
+	default:
+		return false, fmt.Errorf("unknown graph scope %q", options.Scope)
+	}
+	command.ArgIf(hasHead, "HEAD").Arg("--")
+	return true, nil
 }
 
 func parseGraph(output []byte) ([]GraphCommit, error) {

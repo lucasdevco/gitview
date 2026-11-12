@@ -64,6 +64,21 @@ export function getGraph(
   return client.get(`${repoPath(repoId, "graph")}?${params}`, signal)
 }
 
+/**
+ * The oids of the commits in scope whose full message, body included,
+ * contains `text` (ignoring case).
+ */
+export function searchCommitMessages(
+  client: ApiClient,
+  repoId: string,
+  options: GraphOptions,
+  text: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const params = new URLSearchParams({ q: text, scope: options.scope, remotes: String(options.remotes) })
+  return client.get(`${repoPath(repoId, "search")}?${params}`, signal)
+}
+
 export function getRefs(client: ApiClient, repoId: string, signal?: AbortSignal): Promise<Refs> {
   return client.get(repoPath(repoId, "refs"), signal)
 }
@@ -76,6 +91,16 @@ export const historyKeys = {
   graphs: (repoId: string) => ["repos", repoId, "graph"] as const,
   graph: (repoId: string, options: GraphOptions) => ["repos", repoId, "graph", options] as const,
   refs: (repoId: string) => ["repos", repoId, "refs"] as const,
+  search: (repoId: string, options: GraphOptions, text: string) => ["repos", repoId, "search", options, text] as const,
+}
+
+/** Commits whose full message matches `text`, as a set of oids. */
+export function commitSearchQuery(client: ApiClient, repoId: string, options: GraphOptions, text: string) {
+  return queryOptions({
+    queryKey: historyKeys.search(repoId, options, text),
+    queryFn: async ({ signal }) => new Set(await searchCommitMessages(client, repoId, options, text, signal)),
+    enabled: text !== "",
+  })
 }
 
 export function graphQuery(client: ApiClient, repoId: string, options: GraphOptions) {

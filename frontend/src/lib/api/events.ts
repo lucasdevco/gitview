@@ -60,6 +60,7 @@ const DEPENDS_ON: Record<string, readonly ChangedArea[]> = {
   status: ["refs", "index", "worktree", "state"],
   refs: ["refs"],
   graph: ["refs"],
+  search: ["refs"],
   // A commit and its diffs never change.
   commit: [],
   // The command log only grows with gitview's own writes, which refresh it.

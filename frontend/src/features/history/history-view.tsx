@@ -13,7 +13,7 @@ import {
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { CommitDetails, UncommittedChanges } from "@/features/commit-details/commit-details"
 import { useApi } from "@/lib/api/context"
-import { type GraphCommit, type GraphOptions, graphQuery, type Refs } from "@/lib/api/history"
+import { commitSearchQuery, type GraphCommit, type GraphOptions, graphQuery, type Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
 import { type WorktreeStatus, worktreeStatusQuery } from "@/lib/api/worktree"
 import { formatRelativeDate } from "@/lib/dates"
@@ -39,6 +39,16 @@ const hasChanges = (status?: WorktreeStatus) =>
 
 const SEARCH_ROW: GraphRow = { lane: 0, color: 0, segments: [], width: 1 }
 const filterSelect = "h-5 rounded bg-transparent pr-1 hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent"
+
+/** `value`, once it has stayed the same for `delay` milliseconds. */
+function useDebounced<T>(value: T, delay: number): T {
+  const [settled, setSettled] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return settled
+}
 
 function useVirtualWindow(count: number) {
   const ref = useRef<HTMLDivElement>(null)
@@ -98,6 +108,11 @@ export function HistoryView({
   const status = useQuery(worktreeStatusQuery(api, summary.id))
 
   const searching = searchMode && query.trim() !== ""
+  // Message bodies are searched on the server, once typing pauses.
+  const searchText = useDebounced(searchMode ? query.trim() : "", 250)
+  const messageSearch = useQuery(commitSearchQuery(api, summary.id, options, searchText))
+  // Matches for text the user has since changed would be wrong, not just late.
+  const messageMatches = searchText === query.trim() ? messageSearch.data : undefined
   // The working tree joins the graph as a virtual node above HEAD while it has changes.
   const showUncommitted = hasChanges(status.data) && !searching && !!commits
   const layout = useMemo(() => {
@@ -107,7 +122,11 @@ export function HistoryView({
   const rows: HistoryRow[] = useMemo(() => {
     if (!commits) return []
     if (searching)
-      return searchCommits(commits, query).map((commit) => ({ oid: commit.oid, commit, graph: SEARCH_ROW }))
+      return searchCommits(commits, query, messageMatches).map((commit) => ({
+        oid: commit.oid,
+        commit,
+        graph: SEARCH_ROW,
+      }))
     const offset = showUncommitted ? 1 : 0
     const commitRows = commits.map((commit, index) => ({
       oid: commit.oid,
@@ -115,7 +134,7 @@ export function HistoryView({
       graph: layout[index + offset] ?? SEARCH_ROW,
     }))
     return showUncommitted ? [{ oid: UNCOMMITTED, graph: layout[0] ?? SEARCH_ROW }, ...commitRows] : commitRows
-  }, [commits, layout, searching, query, showUncommitted])
+  }, [commits, layout, searching, query, messageMatches, showUncommitted])
   const indexByOid = useMemo(() => new Map(rows.map((row, index) => [row.oid, index])), [rows])
   const graphWidth = useMemo(() => {
     let lanes = 1
