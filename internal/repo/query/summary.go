@@ -67,13 +67,28 @@ func Summarize(ctx context.Context, r *repo.Repository) (Summary, error) {
 	}
 	summary.Head, summary.Empty = head, !found
 
-	if summary.Identity.Name, _, err = readOptional(ctx, r.Runner, git.Read("config", "--get", "user.name")); err != nil {
-		return Summary{}, err
-	}
-	if summary.Identity.Email, _, err = readOptional(ctx, r.Runner, git.Read("config", "--get", "user.email")); err != nil {
-		return Summary{}, err
-	}
+	summary.Identity = authorIdentity(ctx, r.Runner)
 	return summary, nil
+}
+
+// authorIdentity is the author identity git commit will record, wherever git
+// finds it: GIT_AUTHOR_* variables, user.* config, or a name and address
+// guessed from the account. git var applies the same strict rules as git
+// commit, so when it fails a commit would fail too and the identity is
+// reported as unset.
+//
+//	git var GIT_AUTHOR_IDENT  →  Name <email> 1700000000 +0100
+func authorIdentity(ctx context.Context, runner git.Runner) Identity {
+	result, err := runner.Run(ctx, git.Read("var", "GIT_AUTHOR_IDENT"))
+	if err != nil {
+		return Identity{}
+	}
+	ident := strings.TrimSpace(string(result.Stdout))
+	start, end := strings.LastIndex(ident, " <"), strings.LastIndex(ident, ">")
+	if start < 0 || end < start {
+		return Identity{}
+	}
+	return Identity{Name: ident[:start], Email: ident[start+2 : end]}
 }
 
 // readOptional runs a command whose exit status 1 means "no value" rather

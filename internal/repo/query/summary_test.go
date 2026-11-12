@@ -65,16 +65,49 @@ func TestSummaryOfADetachedHead(t *testing.T) {
 	}
 }
 
-func TestSummaryWithoutConfiguredIdentity(t *testing.T) {
-	r := gittest.Init(t)
+// withoutConfiguredIdentity removes the identity from every git config r
+// sees.
+func withoutConfiguredIdentity(t *testing.T, r *gittest.Repo) {
+	t.Helper()
 	r.Git("config", "--unset", "user.name")
 	r.Git("config", "--unset", "user.email")
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "none"))
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for _, name := range []string{"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"} {
+		t.Setenv(name, "")
+		os.Unsetenv(name)
+	}
+}
+
+func TestSummaryWithoutAnIdentityGitCanUse(t *testing.T) {
+	r := gittest.Init(t)
+	withoutConfiguredIdentity(t, r)
+	// Without user.useConfigOnly git would guess an identity from the
+	// account and host name; with it, git commit refuses.
+	r.Git("config", "user.useConfigOnly", "true")
 
 	got := summarize(t, r)
 	if got.Identity != (query.Identity{}) {
 		t.Fatalf("expected no identity, got %+v", got.Identity)
+	}
+	if out := r.GitFails("commit", "--allow-empty", "-m", "x"); !strings.Contains(out, "no email was given") &&
+		!strings.Contains(out, "Please tell me who you are") {
+		t.Fatalf("git commit should refuse without an identity: %s", out)
+	}
+}
+
+// The identity is the one git commit will record, wherever git finds it:
+// here from the environment rather than from git config.
+func TestSummaryIdentityComesFromWhereverGitFindsIt(t *testing.T) {
+	r := gittest.Init(t)
+	withoutConfiguredIdentity(t, r)
+	r.Git("config", "user.useConfigOnly", "true")
+	t.Setenv("GIT_AUTHOR_NAME", "Grace Hopper")
+	t.Setenv("GIT_AUTHOR_EMAIL", "grace@example.com")
+
+	got := summarize(t, r)
+	if want := (query.Identity{Name: "Grace Hopper", Email: "grace@example.com"}); got.Identity != want {
+		t.Fatalf("identity = %+v, want %+v", got.Identity, want)
 	}
 }
 
