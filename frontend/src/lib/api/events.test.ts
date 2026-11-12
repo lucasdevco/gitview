@@ -4,7 +4,6 @@ import {
   type ChangedArea,
   connectEvents,
   type EventStream,
-  eventsUrl,
   handleServerEvent,
   parseServerEvent,
   refreshChanged,
@@ -132,10 +131,6 @@ test("repository changes do not refetch the job list; job events keep it current
   expect(await refreshedBy(["refs", "index", "worktree", "state"])).not.toContain("jobs")
 })
 
-test("the event stream URL carries the token, since EventSource cannot set headers", () => {
-  expect(eventsUrl("a b&c")).toBe("/api/v1/events?token=a%20b%26c")
-})
-
 class FakeEventSource {
   static readonly CLOSED = 2
   readyState = 0
@@ -153,7 +148,6 @@ class FakeEventSource {
 function connect(client: QueryClient) {
   const sources: FakeEventSource[] = []
   const disconnect = connectEvents({
-    token: "t",
     queryClient: client,
     createEventSource: (url) => {
       const source = new FakeEventSource(url)
@@ -183,6 +177,12 @@ test("after reconnecting, every query is refreshed because events may have been 
   sources[0]?.onerror?.()
   sources[0]?.onopen?.()
   expect(invalidated(client)).toEqual(Object.keys(keys).sort())
+})
+
+test("the event stream is opened on the page's own origin, without credentials", () => {
+  const { sources, disconnect } = connect(cachedQueries())
+  expect(sources[0]?.url).toBe("/api/v1/events")
+  disconnect()
 })
 
 test("a stream the browser gave up on is reopened after a delay", () => {

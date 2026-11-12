@@ -65,7 +65,7 @@ make build
 ./gitview --port 9090 /path/to/repository
 ```
 
-`gitview` is shorthand for `gitview serve` (alias `gitview s`). It prints a URL such as `http://127.0.0.1:8080/?token=…`; open that exact URL. The token is generated fresh on every run (see [Security](#security)). Pass `--port 0` to let the operating system choose an available port.
+`gitview` is shorthand for `gitview serve` (alias `gitview s`). It prints the URL to open, such as `http://127.0.0.1:8080/`. Pass `--port 0` to let the operating system choose an available port.
 
 ## How It Works
 
@@ -78,13 +78,13 @@ gitview runs your system `git` with structured output formats, parses the result
 
 ## Security
 
-gitview can change your repositories, so it treats every request as a potential attack from another web page or process.
+gitview can change your repositories. It is meant for the one user of this computer, so the page and API need no login or token; instead they refuse anything that does not come from this machine and from gitview's own page.
 
 - **Loopback only.** The server listens on `127.0.0.1` only and has no `--host` option.
-- **Per-run token.** Every API request must carry the token from the printed URL. The page removes it from the address bar after loading, so it is not bookmarked or shared by accident.
-- **Host and Origin checks.** Requests whose `Host` is not a loopback address (DNS rebinding) and cross-origin requests are rejected. Write operations accept only `POST` requests with a JSON body.
+- **Host and Origin checks.** Requests whose `Host` is not a loopback address (DNS rebinding) and cross-origin requests are rejected, so other web pages cannot drive the API. Write operations accept only `POST` requests with a JSON body.
+- **No protection from local programs.** Any program or user account on this computer can call the API, as it could run `git` itself. Do not run gitview on a shared machine.
 - **Hooks run.** Write operations behave like the `git` command line, including running repository hooks such as `pre-commit`, `commit-msg`, `post-checkout`, and `pre-push`. A failing hook's output is shown, and the commit options can skip hooks (`--no-verify`). Open only repositories you would trust running `git` in.
-- **Credential prompts.** When a remote asks for a user name, password, SSH passphrase, or host-key confirmation, git and ssh run gitview itself as `GIT_ASKPASS` / `SSH_ASKPASS`. This helper sends the prompt to `POST /api/v1/askpass` on the loopback address with a secret that belongs to the running job and stops working when the job ends; the session token is never handed to git, ssh, or hooks. The browser shows the prompt (passwords are typed hidden), and the answer is passed back to git. gitview never writes credentials to disk, the command log, job records, or events; a prompt nobody answers is declined after five minutes. If you configured a git credential helper (`credential.helper`), git may store credentials there, as it does on the command line.
+- **Credential prompts.** When a remote asks for a user name, password, SSH passphrase, or host-key confirmation, git and ssh run gitview itself as `GIT_ASKPASS` / `SSH_ASKPASS`. This helper sends the prompt to `POST /api/v1/askpass` on the loopback address with a secret that belongs to the running job and stops working when the job ends. The browser shows the prompt (passwords are typed hidden), and the answer is passed back to git. gitview never writes credentials to disk, the command log, job records, or events; a prompt nobody answers is declined after five minutes. If you configured a git credential helper (`credential.helper`), git may store credentials there, as it does on the command line.
 - Passwords written into remote URLs are redacted before they reach the browser.
 
 ## Development
@@ -100,7 +100,7 @@ cd frontend
 npm run dev
 ```
 
-Open the Vite page with the token from terminal 1, for example `http://127.0.0.1:4173/?token=…`.
+Open the Vite page, `http://localhost:4173/`.
 
 For automatic rebuilds after source changes:
 
@@ -123,7 +123,7 @@ internal/git/       Execution layer: Runner, command builder, environment, error
 internal/repo/      Repository discovery; repo/query reads repository state, repo/ops writes it
 internal/workspace/ Open repositories: write lock, command log, change detection, events, jobs, credential prompts
 internal/askpass/   Credential helper that forwards git and ssh prompts to the browser
-internal/server/    Local HTTP API and event stream, token and Host/Origin checks, SPA delivery
+internal/server/    Local HTTP API and event stream, Host/Origin checks, SPA delivery
 internal/gittest/   Real temporary repositories for tests
 internal/web/       Embedded frontend assets and backend-only fallback
 frontend/           React, TypeScript, Vite, Tailwind CSS, and shadcn/ui application

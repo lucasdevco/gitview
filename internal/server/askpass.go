@@ -15,11 +15,9 @@ import (
 // AskpassPath is the endpoint gitview's credential helper calls back. Pass
 // the server's address plus this path to workspace.UseCredentialHelper.
 //
-// It is the one API endpoint that does not take the session token: the
-// helper runs as a child of git, and handing it the token would let
-// anything git runs (hooks, ssh) use the whole API. It authenticates with
-// the secret of the job that started git instead, valid only while that job
-// runs, and only answers loopback clients.
+// The helper runs as a child of git, so the endpoint only answers loopback
+// clients presenting the secret of the job that started git, valid only
+// while that job runs.
 const AskpassPath = "/api/v1/askpass"
 
 // maxPromptBody bounds the helper's request.

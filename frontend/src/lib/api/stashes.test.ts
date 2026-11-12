@@ -6,7 +6,6 @@ import { getFileDiff, worktreeKeys } from "./worktree"
 function recordingClient() {
   const urls: URL[] = []
   const client = createApiClient({
-    token: "t",
     fetch: async (input) => {
       urls.push(new URL(String(input), "http://127.0.0.1"))
       return new Response(JSON.stringify({ data: {} }), { status: 200 })

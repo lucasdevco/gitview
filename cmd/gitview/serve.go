@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -32,11 +30,7 @@ func serve(parent context.Context, config serveConfig) error {
 	if err != nil {
 		return err
 	}
-	token, err := newToken()
-	if err != nil {
-		return err
-	}
-	api, err := server.New(ws, token)
+	api, err := server.New(ws)
 	if err != nil {
 		return fmt.Errorf("initialize web server: %w", err)
 	}
@@ -57,7 +51,7 @@ func serve(parent context.Context, config serveConfig) error {
 	httpServer := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	_, _ = fmt.Fprintf(config.Stdout, "Serving %s\n", repo.Root)
-	_, _ = fmt.Fprintf(config.Stdout, "Open http://%s/?token=%s\n", listener.Addr().String(), token)
+	_, _ = fmt.Fprintf(config.Stdout, "Open http://%s/\n", listener.Addr().String())
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
 
@@ -77,13 +71,4 @@ func serve(parent context.Context, config serveConfig) error {
 		}
 		return err
 	}
-}
-
-// newToken returns a random per-run access token for the API.
-func newToken() (string, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", fmt.Errorf("generate access token: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(raw), nil
 }

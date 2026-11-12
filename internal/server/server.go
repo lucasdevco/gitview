@@ -25,21 +25,17 @@ const readTimeout = 30 * time.Second
 // Server serves the API for the repositories in a workspace.
 type Server struct {
 	workspace *workspace.Workspace
-	token     string
 	assets    http.Handler
 	assetFS   fs.FS
 }
 
-// New returns a server for ws. Every API request must present token.
-func New(ws *workspace.Workspace, token string) (*Server, error) {
-	if token == "" {
-		return nil, errors.New("server: an access token is required")
-	}
+// New returns a server for ws.
+func New(ws *workspace.Workspace) (*Server, error) {
 	assets, err := webassets.Assets()
 	if err != nil {
 		return nil, err
 	}
-	return &Server{workspace: ws, token: token, assets: http.FileServer(http.FS(assets)), assetFS: assets}, nil
+	return &Server{workspace: ws, assets: http.FileServer(http.FS(assets)), assetFS: assets}, nil
 }
 
 // Handler returns the HTTP handler with security checks applied.
@@ -59,7 +55,7 @@ func (s *Server) Handler() http.Handler {
 		writeError(w, http.StatusNotFound, "not_found", "API endpoint not found")
 	})
 	mux.HandleFunc("/", s.spa)
-	return securityHeaders(guard(s.token, mux))
+	return securityHeaders(guard(mux))
 }
 
 // repoHandler handles a request for one open repository.

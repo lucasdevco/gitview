@@ -1,27 +1,25 @@
 package server
 
 import (
-	"crypto/subtle"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-// guard enforces gitview's local security model:
+// guard enforces gitview's local security model. gitview listens on
+// loopback only and is meant for the one user of this machine, so requests
+// carry no credentials; instead:
 //
 //   - every request must name a loopback Host, which defeats DNS rebinding;
 //   - API requests must not come from another origin (Origin header, or
-//     Sec-Fetch-Site for browsers that omit Origin on GET);
-//   - API requests must carry the session token, as "Authorization: Bearer
-//     <token>" or, for EventSource which cannot set headers, "?token=<token>";
-//     the credential helper's callback (AskpassPath) carries its job's
-//     secret instead.
+//     Sec-Fetch-Site for browsers that omit Origin on GET), so other web
+//     pages cannot drive the API.
 //
-// The page itself loads without a token: it is static and holds no
-// repository data. The frontend reads the token from the URL it was opened
-// with.
-func guard(token string, next http.Handler) http.Handler {
+// Write endpoints additionally accept only POST with a JSON body (see
+// registerOperations), which a cross-origin form cannot send. The credential
+// helper's callback (AskpassPath) also needs its job's secret.
+func guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !isLoopbackHost(r.Host) {
 			writeError(w, http.StatusForbidden, "forbidden_host",
@@ -35,17 +33,6 @@ func guard(token string, next http.Handler) http.Handler {
 		if !isSameOrigin(r) {
 			writeError(w, http.StatusForbidden, "forbidden_origin",
 				"cross-origin requests are not allowed; use the gitview page served from this address")
-			return
-		}
-		// The credential helper authenticates with its job's secret instead
-		// (see AskpassPath); the handler checks it.
-		if r.URL.Path == AskpassPath {
-			next.ServeHTTP(w, r)
-			return
-		}
-		if !hasToken(r, token) {
-			writeError(w, http.StatusUnauthorized, "invalid_token",
-				"missing or invalid access token; open the URL printed by gitview at startup, which includes ?token=")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -78,16 +65,4 @@ func isSameOrigin(r *http.Request) bool {
 		return false
 	}
 	return strings.EqualFold(parsed.Host, r.Host)
-}
-
-func hasToken(r *http.Request, token string) bool {
-	presented := r.URL.Query().Get("token")
-	if header := r.Header.Get("Authorization"); header != "" {
-		scheme, value, ok := strings.Cut(header, " ")
-		if !ok || !strings.EqualFold(scheme, "Bearer") {
-			return false
-		}
-		presented = value
-	}
-	return presented != "" && subtle.ConstantTimeCompare([]byte(presented), []byte(token)) == 1
 }

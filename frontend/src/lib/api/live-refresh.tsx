@@ -7,9 +7,9 @@ import { connectEvents, watchWorktree } from "./events"
  * events and polls the working tree while the page is visible. Render once,
  * inside the QueryClientProvider.
  */
-export function LiveRefresh({ token }: { token: string | null }) {
+export function LiveRefresh() {
   const queryClient = useQueryClient()
-  useEffect(() => (token ? connectEvents({ token, queryClient }) : undefined), [token, queryClient])
+  useEffect(() => connectEvents({ queryClient }), [queryClient])
   useEffect(() => watchWorktree({ queryClient }), [queryClient])
   return null
 }

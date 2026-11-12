@@ -65,7 +65,7 @@ make build
 ./gitview --port 9090 /path/to/repository
 ```
 
-`gitview` 是 `gitview serve`（别名 `gitview s`）的简写。启动后会打印形如 `http://127.0.0.1:8080/?token=…` 的链接，请打开这个完整链接；token 每次启动重新生成（见[安全](#安全)）。传入 `--port 0` 可由操作系统选择可用端口。
+`gitview` 是 `gitview serve`（别名 `gitview s`）的简写。启动后会打印要打开的链接，例如 `http://127.0.0.1:8080/`。传入 `--port 0` 可由操作系统选择可用端口。
 
 ## 工作方式
 
@@ -78,13 +78,13 @@ gitview 以结构化输出格式调用系统 `git`，在 Go 中解析结果，�
 
 ## 安全
 
-gitview 会修改你的仓库，因此把每个请求都当作可能来自其他网页或进程的攻击。
+gitview 会修改你的仓库。它面向本机的单个用户，因此页面和 API 无需登录或 token；取而代之的是拒绝一切不是来自本机、不是来自 gitview 自身页面的请求。
 
 - **只监听回环地址。** 服务只监听 `127.0.0.1`，不提供 `--host` 选项。
-- **每次启动的 token。** 所有 API 请求都必须携带打印链接中的 token。页面加载后会把它从地址栏移除，避免被误存为书签或分享出去。
-- **Host 与 Origin 校验。** 拒绝 `Host` 不是回环地址的请求（DNS rebinding）和跨站请求。写操作只接受带 JSON 请求体的 `POST`。
+- **Host 与 Origin 校验。** 拒绝 `Host` 不是回环地址的请求（DNS rebinding）和跨站请求，其他网页无法操纵 API。写操作只接受带 JSON 请求体的 `POST`。
+- **不防范本机程序。** 本机上的任何程序或用户账户都能调用 API，正如它们本就能直接运行 `git`。不要在多人共用的电脑上运行 gitview。
 - **会执行 hooks。** 写操作的行为与 `git` 命令行一致，包括执行仓库的 hooks，如 `pre-commit`、`commit-msg`、`post-checkout`、`pre-push`。hook 失败时显示其输出，提交选项可跳过 hooks（`--no-verify`）。只打开你信任、愿意在其中运行 `git` 的仓库。
-- **凭据弹窗。** 远端需要用户名、密码、SSH 密钥口令或主机密钥确认时，git 和 ssh 会把 gitview 自身作为 `GIT_ASKPASS` / `SSH_ASKPASS` 运行。这个 helper 带着属于当前任务的 secret，把提示发到回环地址上的 `POST /api/v1/askpass`；secret 在任务结束后即失效，会话 token 从不交给 git、ssh 或 hooks。浏览器显示提示（密码以隐藏方式输入），答案交还给 git。gitview 从不把凭据写入磁盘、命令日志、任务记录或事件；无人回答的提示在五分钟后自动拒绝。如果你配置了 git 凭据助手（`credential.helper`），git 可能像在命令行中一样把凭据保存在那里。
+- **凭据弹窗。** 远端需要用户名、密码、SSH 密钥口令或主机密钥确认时，git 和 ssh 会把 gitview 自身作为 `GIT_ASKPASS` / `SSH_ASKPASS` 运行。这个 helper 带着属于当前任务的 secret，把提示发到回环地址上的 `POST /api/v1/askpass`；secret 在任务结束后即失效。浏览器显示提示（密码以隐藏方式输入），答案交还给 git。gitview 从不把凭据写入磁盘、命令日志、任务记录或事件；无人回答的提示在五分钟后自动拒绝。如果你配置了 git 凭据助手（`credential.helper`），git 可能像在命令行中一样把凭据保存在那里。
 - 写在远程 URL 中的密码在发送到浏览器前会被隐去。
 
 ## 本地开发
@@ -100,7 +100,7 @@ cd frontend
 npm run dev
 ```
 
-用终端 1 打印的 token 打开 Vite 页面，例如 `http://127.0.0.1:4173/?token=…`。
+打开 Vite 页面 `http://localhost:4173/`。
 
 源码变化后自动重建：
 
@@ -123,7 +123,7 @@ internal/git/       执行层：Runner、命令构造、统一环境变量、错
 internal/repo/      仓库定位；repo/query 读取仓库状态，repo/ops 执行写操作
 internal/workspace/ 已打开的仓库：写锁、命令日志、变更检测、事件、后台任务、凭据提示
 internal/askpass/   把 git 与 ssh 的凭据提示转发到浏览器的 helper
-internal/server/    本地 HTTP API 与事件流、token 与 Host/Origin 校验、SPA 交付
+internal/server/    本地 HTTP API 与事件流、Host/Origin 校验、SPA 交付
 internal/gittest/   测试用的临时真实仓库
 internal/web/       内嵌前端资源和纯后端 fallback
 frontend/           React、TypeScript、Vite、Tailwind CSS 和 shadcn/ui 应用
