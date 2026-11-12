@@ -4,9 +4,12 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FileStatusView } from "@/features/file-status/file-status-view"
+import { pendingFileCount } from "@/features/file-status/staging"
 import { useApi } from "@/lib/api/context"
 import { repoSummaryQuery, reposQuery } from "@/lib/api/queries"
 import type { RepoSummary } from "@/lib/api/repos"
+import { worktreeStatusQuery } from "@/lib/api/worktree"
+import { CommandLogBar } from "./command-log-bar"
 import { Sidebar, type WorkbenchView } from "./sidebar"
 import { TitleBar } from "./title-bar"
 
@@ -27,10 +30,16 @@ export function Workbench() {
 }
 
 function Shell({ summary }: { summary?: RepoSummary }) {
+  const api = useApi()
   const [view, setView] = useState<WorkbenchView>("history")
+  const status = useQuery({ ...worktreeStatusQuery(api, summary?.id ?? ""), enabled: !!summary })
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      <TitleBar name={summary?.name ?? ""} onCommit={summary ? () => setView("status") : undefined} />
+      <TitleBar
+        name={summary?.name ?? ""}
+        pendingCount={pendingFileCount(status.data)}
+        onCommit={summary ? () => setView("status") : undefined}
+      />
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">
@@ -48,9 +57,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
-      <footer className="flex h-5 shrink-0 items-center gap-3 border-t bg-muted/40 px-3 text-[10px] text-muted-foreground">
-        <span className="min-w-0 flex-1 truncate font-mono">命令日志：暂无</span>
-      </footer>
+      <CommandLogBar repoId={summary?.id} />
     </div>
   )
 }

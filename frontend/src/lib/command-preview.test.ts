@@ -1,0 +1,44 @@
+import { describe, expect, it } from "vitest"
+import { commitCommand, formatGitCommand, stageCommand, unstageCommand } from "./command-preview"
+
+// Expected strings are the ones the backend reports for the same requests
+// (internal/server/operations_test.go), so previews match the command log.
+describe("formatGitCommand", () => {
+  it("leaves plain arguments bare and single-quotes the rest like a POSIX shell", () => {
+    expect(formatGitCommand(["log", "--oneline", "-n", "5", "origin/main", "HEAD~1", "a@b.c", "x=1,y:2", "^v1"])).toBe(
+      "git log --oneline -n 5 origin/main HEAD~1 a@b.c x=1,y:2 ^v1",
+    )
+    expect(formatGitCommand(["commit", "-m", ""])).toBe("git commit -m ''")
+    expect(formatGitCommand(["add", "--", "new file.txt", "a*b", "$HOME", "目录/文件"])).toBe(
+      "git add -- 'new file.txt' 'a*b' '$HOME' '目录/文件'",
+    )
+    expect(formatGitCommand(["commit", "-m", "it's"])).toBe(`git commit -m 'it'\\''s'`)
+  })
+})
+
+describe("stage and unstage", () => {
+  it("pass each path as a literal pathspec", () => {
+    expect(stageCommand(["tracked.txt", "new file.txt"])).toBe(
+      "git add -- ':(literal)tracked.txt' ':(literal)new file.txt'",
+    )
+    expect(unstageCommand(["new.txt", "old.txt", "kept.txt"])).toBe(
+      "git reset --quiet -- ':(literal)new.txt' ':(literal)old.txt' ':(literal)kept.txt'",
+    )
+  })
+})
+
+describe("commitCommand", () => {
+  it("passes the whole message, newlines included, as one argument", () => {
+    expect(commitCommand({ message: "Fix the widget\n\nIt's been broken since Tuesday." })).toBe(
+      "git commit -m 'Fix the widget\n\nIt'\\''s been broken since Tuesday.'",
+    )
+  })
+
+  it("adds --amend and --no-verify in the backend's order", () => {
+    expect(commitCommand({ message: "typo fixed", amend: true })).toBe("git commit --amend -m 'typo fixed'")
+    expect(commitCommand({ message: "wip", noVerify: true })).toBe("git commit --no-verify -m wip")
+    expect(commitCommand({ message: "both", amend: true, noVerify: true })).toBe(
+      "git commit --amend --no-verify -m both",
+    )
+  })
+})

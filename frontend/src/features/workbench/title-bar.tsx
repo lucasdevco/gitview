@@ -15,11 +15,13 @@ import {
 function ToolbarButton({
   icon: Icon,
   label,
+  badge,
   onClick,
   disabled,
 }: {
   icon: LucideIcon
   label: string
+  badge?: number
   onClick?: () => void
   disabled?: boolean
 }) {
@@ -32,6 +34,11 @@ function ToolbarButton({
     >
       <Icon className="size-[18px] text-primary" strokeWidth={1.6} />
       <span className="whitespace-nowrap">{label}</span>
+      {!!badge && (
+        <span className="absolute top-0 left-1/2 ml-1 min-w-3.5 rounded-full bg-primary px-1 text-[9px] leading-3.5 text-primary-foreground">
+          {badge}
+        </span>
+      )}
     </button>
   )
 }
@@ -42,11 +49,20 @@ const Gap = () => <span className="w-2" />
  * Repository title and the Sourcetree toolbar. Operations are enabled as their
  * features land; until then their buttons are shown disabled.
  */
-export function TitleBar({ name, onCommit }: { name: string; onCommit?: () => void }) {
+export function TitleBar({
+  name,
+  pendingCount,
+  onCommit,
+}: {
+  name: string
+  /** Changed files waiting to be committed, shown as the 提交 badge. */
+  pendingCount?: number
+  onCommit?: () => void
+}) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b bg-muted/40 pr-2 pl-4">
       <h1 className="min-w-0 flex-1 truncate text-[14px] font-semibold">{name ? `${name} (Git)` : "gitview"}</h1>
-      <ToolbarButton icon={CirclePlus} label="提交" onClick={onCommit} disabled={!onCommit} />
+      <ToolbarButton icon={CirclePlus} label="提交" badge={pendingCount} onClick={onCommit} disabled={!onCommit} />
       <Gap />
       <ToolbarButton icon={CircleArrowDown} label="拉取" disabled />
       <ToolbarButton icon={CircleArrowUp} label="推送" disabled />
