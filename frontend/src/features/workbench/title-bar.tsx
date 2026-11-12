@@ -54,6 +54,7 @@ export function TitleBar({
   pendingCount,
   onCommit,
   onBranch,
+  onMerge,
   onStash,
   onFetch,
 }: {
@@ -63,6 +64,8 @@ export function TitleBar({
   onCommit?: () => void
   /** Opens the 分支 sheet (new / delete branch). */
   onBranch?: () => void
+  /** Opens the 合并 sheet. */
+  onMerge?: () => void
   /** Opens the 贮藏 sheet. */
   onStash?: () => void
   /** Opens the 抓取 sheet; absent when the repository has no remotes. */
@@ -78,7 +81,7 @@ export function TitleBar({
       <ToolbarButton icon={CircleDashed} label="抓取" onClick={onFetch} disabled={!onFetch} />
       <Gap />
       <ToolbarButton icon={GitBranch} label="分支" onClick={onBranch} disabled={!onBranch} />
-      <ToolbarButton icon={GitMerge} label="合并" disabled />
+      <ToolbarButton icon={GitMerge} label="合并" onClick={onMerge} disabled={!onMerge} />
       <Gap />
       <ToolbarButton icon={Archive} label="贮藏" onClick={onStash} disabled={!onStash} />
       <Gap />

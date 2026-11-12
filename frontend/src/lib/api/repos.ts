@@ -18,6 +18,8 @@ export type RepoSummary = RepoEntry & {
   empty: boolean
   state: RepoState
   identity: { name: string; email: string }
+  /** While merging, the message git prepared for the merge commit; empty otherwise. */
+  mergeMessage: string
 }
 
 /** Path of a per-repository API resource: /api/v1/repos/{repoId}/... */

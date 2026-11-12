@@ -23,13 +23,16 @@ const (
 	// ...) exited non-zero and git stopped. Error.Hook names the hook and
 	// Error.Output holds what it printed.
 	HookFailed ErrorKind = "hook_failed"
-	// LocalChanges means git refused to switch, merge or pull because it
+	// LocalChanges means git refused to switch, merge, rebase or pull because it
 	// would overwrite uncommitted changes or untracked files; Error.Output
 	// names them. Commit or stash them first.
 	LocalChanges ErrorKind = "local_changes"
 	// BranchNotMerged means git branch -d refused to delete a branch whose
 	// commits are not merged into its upstream or HEAD; -D deletes it anyway.
 	BranchNotMerged ErrorKind = "branch_not_merged"
+	// NothingInProgress means there is no merge or rebase to abort, for
+	// example because it was already concluded or aborted elsewhere.
+	NothingInProgress ErrorKind = "nothing_in_progress"
 	// Failed is any git failure that does not match a more specific kind.
 	Failed ErrorKind = "git_failed"
 )
@@ -106,8 +109,13 @@ var classifications = []struct {
 		"invalid reference:",
 		"not a valid object name", // git branch <name> <missing-start-point>
 	}},
-	{LocalChanges, []string{"would be overwritten by"}},
+	{LocalChanges, []string{
+		"would be overwritten by",
+		"cannot rebase: You have unstaged changes",
+		"cannot rebase: Your index contains uncommitted changes",
+	}},
 	{BranchNotMerged, []string{"is not fully merged"}},
+	{NothingInProgress, []string{"There is no merge to abort", "no rebase in progress"}},
 }
 
 // classify names a failure from git's stderr. Merge machinery (merge,

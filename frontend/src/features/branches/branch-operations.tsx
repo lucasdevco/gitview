@@ -6,6 +6,8 @@
 // provides `actions` through BranchActionsContext; sidebar rows read them
 // with useBranchActions().
 import { createContext, type ReactNode, useContext, useState } from "react"
+import { MergeDialog, RebaseSheet } from "@/features/merge/merge-dialog"
+import { isConflict } from "@/features/operations/operation-error"
 import { OperationErrorDialog } from "@/features/operations/operation-error-view"
 import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
@@ -15,8 +17,9 @@ import { RenameBranchDialog } from "./rename-branch-dialog"
 
 /**
  * What can be done to a local branch. The optional actions belong to later
- * features (merge and rebase: ticket 11; 拿来 and push: ticket 10; compare);
- * until they are set, the context menu shows their items disabled.
+ * features (拿来 and push: ticket 10; compare) or are unavailable for now
+ * (merge and rebase while another merge or rebase is in progress); until they
+ * are set, the context menu shows their items disabled.
  */
 export type BranchActions = {
   checkout: (branch: string) => void
@@ -26,6 +29,8 @@ export type BranchActions = {
   /** Asks before deleting, offering to force when the branch is not merged. */
   delete: (branch: string) => void
   setUpstream: (branch: string, upstream: string) => void
+  /** Opens the 合并 sheet. */
+  openMergeDialog: () => void
   /** 合并 X 至当前分支. */
   merge?: (branch: string) => void
   /** 将当前变更变基到 X. */
@@ -50,18 +55,28 @@ export function useBranchActions(): BranchActions | undefined {
 type OpenDialog =
   | { kind: "branch"; tab: BranchDialogTab; branches: string[] }
   | { kind: "rename"; branch: string }
+  | { kind: "merge" }
+  | { kind: "rebase"; onto: string }
   | { kind: "failure"; title: string; error: Error }
 
+/**
+ * `onConflict` runs when a merge or rebase stops on conflicts, which is not
+ * reported as a failure: the repository is then merging or rebasing.
+ */
 export function useBranchOperations(
   summary: RepoSummary | undefined,
   refs: Refs | undefined,
+  { onConflict }: { onConflict: () => void },
 ): { actions?: BranchActions; dialogs: ReactNode } {
   const repoId = summary?.id ?? ""
   const checkout = useOperation(repoId, "checkout")
   const setUpstream = useOperation(repoId, "setUpstream")
+  const merge = useOperation(repoId, "merge")
   const [dialog, setDialog] = useState<OpenDialog>()
   const close = () => setDialog(undefined)
   const fail = (title: string) => (error: Error) => setDialog({ kind: "failure", title, error })
+  // Merging or rebasing again waits until the operation in progress is done.
+  const canMerge = summary?.state === "clean"
 
   const actions: BranchActions | undefined = summary && {
     checkout: (branch) => {
@@ -73,6 +88,20 @@ export function useBranchOperations(
     delete: (branch) => setDialog({ kind: "branch", tab: "delete", branches: [branch] }),
     setUpstream: (branch, upstream) =>
       setUpstream.mutate({ branch, upstream }, { onError: fail(`无法让 ${branch} 跟踪 ${upstream}`) }),
+    openMergeDialog: () => setDialog({ kind: "merge" }),
+    merge: canMerge
+      ? (branch) => {
+          if (merge.isPending) return
+          merge.mutate(
+            { branch },
+            {
+              onError: (error) =>
+                isConflict(error) ? onConflict() : fail(`无法将 ${branch} 合并至 ${summary.branch}`)(error),
+            },
+          )
+        }
+      : undefined,
+    rebase: canMerge ? (onto) => setDialog({ kind: "rebase", onto }) : undefined,
   }
 
   const branches = refs?.branches ?? []
@@ -96,6 +125,10 @@ export function useBranchOperations(
         onClose={close}
       />
     )
+  } else if (summary && dialog?.kind === "merge") {
+    dialogs = <MergeDialog summary={summary} refs={refs} onClose={close} onConflict={onConflict} />
+  } else if (summary && dialog?.kind === "rebase") {
+    dialogs = <RebaseSheet summary={summary} onto={dialog.onto} onClose={close} onConflict={onConflict} />
   } else if (dialog?.kind === "failure") {
     dialogs = <OperationErrorDialog title={dialog.title} error={dialog.error} onClose={close} />
   }

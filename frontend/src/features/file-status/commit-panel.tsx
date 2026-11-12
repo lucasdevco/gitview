@@ -12,24 +12,37 @@ import { canCommit } from "./staging"
 /**
  * The commit area under the file lists: identity, message, 提交选项 (skip
  * hooks), 更正上一次提交 (amend) and the commit button. A failed hook's
- * output is shown above the message.
+ * output is shown above the message. While merging, the message starts as
+ * the one git prepared, and committing concludes the merge.
  */
-export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCount: number }) {
+export function CommitPanel({
+  repoId,
+  stagedCount,
+  conflictedCount,
+}: {
+  repoId: string
+  stagedCount: number
+  conflictedCount: number
+}) {
   const api = useApi()
   const summary = useQuery(repoSummaryQuery(api, repoId)).data
   const commit = useOperation(repoId, "commit")
-  const [message, setMessage] = useState("")
+  // undefined until the user edits the message: it then shows the default.
+  const [draft, setDraft] = useState<string>()
   const [amend, setAmend] = useState(false)
   const [noVerify, setNoVerify] = useState(false)
 
   const empty = summary?.empty ?? false
-  const request = { message, amend, noVerify }
-  const enabled = !commit.isPending && canCommit({ stagedCount, message, amend, empty })
+  const merging = summary?.state === "merging"
+  const message = draft ?? (merging ? (summary?.mergeMessage ?? "") : "")
+  const request = { message, amend: amend && !merging, noVerify }
+  const enabled =
+    !commit.isPending && canCommit({ stagedCount, message, amend: request.amend, empty, merging, conflictedCount })
   const submit = () => {
     if (!enabled) return
     commit.mutate(request, {
       onSuccess: () => {
-        setMessage("")
+        setDraft(undefined)
         setAmend(false)
       },
     })
@@ -83,7 +96,7 @@ export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCou
       {commit.error && <CommitError error={commit.error} onDismiss={() => commit.reset()} />}
       <textarea
         value={message}
-        onChange={(event) => setMessage(event.target.value)}
+        onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault()
@@ -91,7 +104,7 @@ export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCou
           }
         }}
         aria-label="提交信息"
-        placeholder={empty ? "首次提交的信息" : "提交信息"}
+        placeholder={empty ? "首次提交的信息" : merging ? "合并提交的信息" : "提交信息"}
         className="min-h-0 flex-1 resize-none rounded border bg-background p-2 outline-none focus:ring-2 focus:ring-ring/40"
       />
       <div className="flex items-center gap-4">
@@ -102,8 +115,8 @@ export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCou
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
-            checked={amend}
-            disabled={empty}
+            checked={request.amend}
+            disabled={empty || merging}
             onChange={(event) => setAmend(event.target.checked)}
           />
           更正上一次提交
@@ -112,7 +125,7 @@ export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCou
         <button
           type="button"
           onClick={() => {
-            setMessage("")
+            setDraft(undefined)
             commit.reset()
           }}
           className="ml-auto h-6 min-w-14 rounded-md border bg-background px-3 shadow-xs"
@@ -123,7 +136,7 @@ export function CommitPanel({ repoId, stagedCount }: { repoId: string; stagedCou
           type="button"
           disabled={!enabled}
           onClick={submit}
-          title={message.trim() ? commitCommand(request) : undefined}
+          title={conflictedCount ? "解决所有冲突文件后才能提交" : message.trim() ? commitCommand(request) : undefined}
           className="h-6 min-w-14 rounded-md bg-primary px-3 text-primary-foreground shadow-xs disabled:opacity-40"
         >
           {commit.isPending ? "正在提交…" : "提交"}

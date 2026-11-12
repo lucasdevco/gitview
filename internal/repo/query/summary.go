@@ -42,12 +42,18 @@ type Summary struct {
 	Empty    bool     `json:"empty"`
 	State    State    `json:"state"`
 	Identity Identity `json:"identity"`
+	// MergeMessage is the message git prepared for the merge commit while
+	// merging (MERGE_MSG without its comment lines); empty otherwise.
+	MergeMessage string `json:"mergeMessage"`
 }
 
 // Summarize reads the repository's name, current branch, HEAD, in-progress
 // operation and commit identity.
 func Summarize(ctx context.Context, r *repo.Repository) (Summary, error) {
 	summary := Summary{Name: r.Name(), Root: r.Root, State: InProgressState(r.GitDir)}
+	if summary.State == StateMerging {
+		summary.MergeMessage = mergeMessage(r.GitDir)
+	}
 
 	branch, found, err := readOptional(ctx, r.Runner, git.Read("symbolic-ref", "--quiet", "--short", "HEAD"))
 	if err != nil {
@@ -87,8 +93,12 @@ func readOptional(ctx context.Context, runner git.Runner, command *git.Command) 
 
 // InProgressState reads the operation in progress from the state files git
 // leaves in the git directory, without running git.
-// Rebase is checked first because a conflicted rebase step also leaves
-// CHERRY_PICK_HEAD behind.
+//
+// A rebase is reported over a merge, which a rebase replaying merge commits
+// can leave behind. CHERRY_PICK_HEAD during a rebase is ambiguous: older git
+// versions leave it naming the commit the rebase stopped at, but it is also
+// written by a cherry-pick started while the rebase was stopped. That
+// cherry-pick has to be concluded first, so it is reported.
 func InProgressState(gitDir string) State {
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(gitDir, name))
@@ -96,6 +106,9 @@ func InProgressState(gitDir string) State {
 	}
 	switch {
 	case exists("rebase-merge"), exists("rebase-apply"):
+		if cherryPickDuringRebase(gitDir) {
+			return StateCherryPicking
+		}
 		return StateRebasing
 	case exists("MERGE_HEAD"):
 		return StateMerging
@@ -106,4 +119,37 @@ func InProgressState(gitDir string) State {
 	default:
 		return StateClean
 	}
+}
+
+// mergeMessage reads the merge commit message git prepared in MERGE_MSG,
+// dropping the "#" comment lines (such as the list of conflicts) that git
+// would strip when editing it.
+func mergeMessage(gitDir string) string {
+	content, err := os.ReadFile(filepath.Join(gitDir, "MERGE_MSG"))
+	if err != nil {
+		return ""
+	}
+	var lines []string
+	for line := range strings.SplitSeq(string(content), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			lines = append(lines, strings.TrimRight(line, " \t\r"))
+		}
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+// cherryPickDuringRebase reports whether CHERRY_PICK_HEAD belongs to a
+// cherry-pick of its own rather than to the stopped rebase step, whose
+// (possibly abbreviated) commit id rebase-merge/stopped-sha holds.
+func cherryPickDuringRebase(gitDir string) bool {
+	cherryPick, err := os.ReadFile(filepath.Join(gitDir, "CHERRY_PICK_HEAD"))
+	if err != nil {
+		return false
+	}
+	stopped, err := os.ReadFile(filepath.Join(gitDir, "rebase-merge", "stopped-sha"))
+	if err != nil {
+		return true
+	}
+	stoppedAt := strings.TrimSpace(string(stopped))
+	return stoppedAt == "" || !strings.HasPrefix(strings.TrimSpace(string(cherryPick)), stoppedAt)
 }

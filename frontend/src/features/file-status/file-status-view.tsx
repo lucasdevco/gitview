@@ -8,7 +8,7 @@ import { FileStatusIcon } from "@/features/diff/file-status-icon"
 import type { DiffHunk } from "@/features/diff/parse-diff"
 import { OperationSheet } from "@/features/operations/operation-sheet"
 import { useApi } from "@/lib/api/context"
-import type { HunkRequest } from "@/lib/api/operations"
+import type { FilesRequest, HunkRequest } from "@/lib/api/operations"
 import { useOperation } from "@/lib/api/use-operation"
 import {
   diffRequestFor,
@@ -17,7 +17,7 @@ import {
   type WorktreeStatus,
   worktreeStatusQuery,
 } from "@/lib/api/worktree"
-import { discardHunkCommand } from "@/lib/command-preview"
+import { discardHunkCommand, stageCommand } from "@/lib/command-preview"
 import { cn } from "@/lib/utils"
 import { CommitPanel } from "./commit-panel"
 import { type Area, type HunkOperation, hunkOperations, hunkRequest, toggleRequest } from "./staging"
@@ -76,6 +76,7 @@ export function FileStatusView({ repoId }: { repoId: string }) {
   const discardHunk = useOperation(repoId, "discardHunk")
   const [selected, setSelected] = useState<Selection>()
   const [discarding, setDiscarding] = useState<{ file: FileChange; hunk: DiffHunk }>()
+  const [resolving, setResolving] = useState<{ request: FilesRequest; paths: string[]; files: FileChange[] }>()
 
   const groups = fileGroups(status.data)
   const resolved = resolveSelection(groups, selected)
@@ -103,9 +104,16 @@ export function FileStatusView({ repoId }: { repoId: string }) {
   const toggle = (area: Area, files: FileChange[]) => {
     const toggled = toggleRequest(area, files)
     if (!toggled || busy) return
+    if (toggled.resolves.length) {
+      setResolving({ request: toggled.request, paths: toggled.resolves, files })
+      return
+    }
+    run(area, files, toggled.op, toggled.request)
+  }
+  const run = (area: Area, files: FileChange[], op: "stage" | "unstage", request: FilesRequest) => {
     resetErrors()
-    const mutation = toggled.op === "stage" ? stage : unstage
-    mutation.mutate(toggled.request, {
+    const mutation = op === "stage" ? stage : unstage
+    mutation.mutate(request, {
       onSuccess: () => {
         // Keep a single moved file selected on its new side.
         if (files.length === 1 && resolved?.file.path === files[0]?.path) {
@@ -222,8 +230,23 @@ export function FileStatusView({ repoId }: { repoId: string }) {
       </ResizablePanel>
       <ResizableHandle orientation="vertical" />
       <ResizablePanel minSize="18%">
-        <CommitPanel repoId={repoId} stagedCount={groups.staged.length} />
+        <CommitPanel
+          repoId={repoId}
+          stagedCount={groups.staged.length}
+          conflictedCount={status.data?.conflicted.length ?? 0}
+        />
       </ResizablePanel>
+      {resolving && (
+        <MarkResolvedSheet
+          paths={resolving.paths}
+          command={stageCommand(resolving.request.paths)}
+          onClose={() => setResolving(undefined)}
+          onConfirm={() => {
+            if (!busy) run("unstaged", resolving.files, "stage", resolving.request)
+            setResolving(undefined)
+          }}
+        />
+      )}
       {discarding && (
         <DiscardHunkSheet
           {...discarding}
@@ -235,6 +258,47 @@ export function FileStatusView({ repoId }: { repoId: string }) {
         />
       )}
     </ResizablePanelGroup>
+  )
+}
+
+/**
+ * Confirms marking conflicted files resolved. Staging records each file as
+ * it is now, conflict markers included, and git forgets the conflict's
+ * versions, so this is asked first.
+ */
+function MarkResolvedSheet({
+  paths,
+  command,
+  onClose,
+  onConfirm,
+}: {
+  paths: string[]
+  command: string
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <OperationSheet
+      title="标记为已解决"
+      showTitle
+      width={480}
+      command={command}
+      confirmLabel="标记为已解决"
+      onClose={onClose}
+      onConfirm={onConfirm}
+    >
+      <p>将以下冲突文件的当前内容暂存，并标记为已解决：</p>
+      <ul className="max-h-32 overflow-y-auto rounded-md bg-muted/60 px-2.5 py-1.5 font-mono text-[11px]">
+        {paths.map((path) => (
+          <li key={path} className="truncate" title={path}>
+            {path}
+          </li>
+        ))}
+      </ul>
+      <p className="text-muted-foreground">
+        请确认文件中已没有冲突标记（{"<<<<<<<、=======、>>>>>>>"}）。标记后，冲突双方的版本将不再保留。
+      </p>
+    </OperationSheet>
   )
 }
 
@@ -318,10 +382,10 @@ function FileList({
             >
               <input
                 type="checkbox"
-                aria-label={`${staged ? "取消暂存" : "暂存"} ${file.path}`}
-                title={conflicted ? "冲突文件需先解决冲突" : undefined}
+                aria-label={`${staged ? "取消暂存" : conflicted ? "标记为已解决" : "暂存"} ${file.path}`}
+                title={conflicted ? "解决冲突后勾选以标记为已解决（暂存文件）" : undefined}
                 checked={staged}
-                disabled={busy || conflicted}
+                disabled={busy}
                 onChange={() => onToggle(area, [file])}
               />
               <FileStatusIcon status={file.status} />

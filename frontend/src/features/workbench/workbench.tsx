@@ -8,6 +8,7 @@ import { FileStatusView } from "@/features/file-status/file-status-view"
 import { pendingFileCount } from "@/features/file-status/staging"
 import { HistoryView, type Selection } from "@/features/history/history-view"
 import { JobStrip } from "@/features/jobs/job-strip"
+import { InProgressBanner } from "@/features/merge/in-progress-banner"
 import { FetchDialog } from "@/features/remote/fetch-dialog"
 import { type StashAction, StashActionSheet, StashDialog } from "@/features/stash/stash-sheets"
 import { StashView } from "@/features/stash/stash-view"
@@ -48,7 +49,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
     if (view !== "history" && view !== "search") setView("history")
     select(oid)
   }
-  const branches = useBranchOperations(summary, refs.data)
+  const branches = useBranchOperations(summary, refs.data, { onConflict: () => setView("status") })
   const [stashing, setStashing] = useState(false)
   const [stashAction, setStashAction] = useState<StashAction>()
   const [stashOid, setStashOid] = useState<string>()
@@ -64,9 +65,11 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         pendingCount={pendingFileCount(status.data)}
         onCommit={summary ? () => setView("status") : undefined}
         onBranch={branches.actions && (() => branches.actions?.openBranchDialog())}
+        onMerge={branches.actions && (() => branches.actions?.openMergeDialog())}
         onStash={summary ? () => setStashing(true) : undefined}
         onFetch={summary && refs.data?.remotes.length ? () => setFetching(true) : undefined}
       />
+      {summary && <InProgressBanner summary={summary} conflictedCount={status.data?.conflicted.length ?? 0} />}
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">

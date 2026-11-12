@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  abortMergeCommand,
+  abortRebaseCommand,
   checkoutCommand,
   commitCommand,
   createBranchCommand,
@@ -7,6 +9,8 @@ import {
   discardHunkCommand,
   fetchCommand,
   formatGitCommand,
+  mergeCommand,
+  rebaseCommand,
   renameBranchCommand,
   setUpstreamCommand,
   stageCommand,
@@ -118,5 +122,22 @@ describe("fetch", () => {
       "git fetch --progress origin --prune --tags",
     )
     expect(fetchCommand({})).toBe("git fetch --progress")
+  })
+})
+
+describe("merge and rebase", () => {
+  it("adds the chosen merge options in the backend's order", () => {
+    expect(mergeCommand({ branch: "topic" })).toBe("git merge topic")
+    expect(mergeCommand({ branch: "topic", noFastForward: true, log: true })).toBe("git merge --no-ff --log topic")
+    expect(mergeCommand({ branch: "origin/main", noCommit: true })).toBe("git merge --no-commit origin/main")
+  })
+
+  it("rebases the current branch onto the chosen one", () => {
+    expect(rebaseCommand({ onto: "topic" })).toBe("git rebase topic")
+  })
+
+  it("aborts the merge or rebase in progress", () => {
+    expect(abortMergeCommand()).toBe("git merge --abort")
+    expect(abortRebaseCommand()).toBe("git rebase --abort")
   })
 })
