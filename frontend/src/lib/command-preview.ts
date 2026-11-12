@@ -44,3 +44,21 @@ export function commitCommand({ message, amend, noVerify }: CommitRequest): stri
     message,
   ])
 }
+
+// The hunk operations pipe a patch of the one hunk into git apply, so the
+// command is the same whichever hunk is chosen.
+
+/** `stageHunk`: add one hunk to the index. */
+export function stageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached"])
+}
+
+/** `unstageHunk`: remove one hunk from the index. */
+export function unstageHunkCommand(): string {
+  return formatGitCommand(["apply", "--cached", "-R"])
+}
+
+/** `discardHunk`: revert one hunk in the working tree. */
+export function discardHunkCommand(): string {
+  return formatGitCommand(["apply", "-R"])
+}
