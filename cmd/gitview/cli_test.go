@@ -100,3 +100,39 @@ func TestCommandHelp(t *testing.T) {
 		t.Fatalf("unexpected help output:\n%s", text)
 	}
 }
+
+func TestBareCommandServesCurrentRepository(t *testing.T) {
+	var received serveConfig
+	called := false
+	command := newCommand(func(_ context.Context, config serveConfig) error {
+		called = true
+		received = config
+		return nil
+	})
+	command.Writer = &bytes.Buffer{}
+	command.ErrWriter = &bytes.Buffer{}
+
+	if err := command.Run(context.Background(), []string{"gitview"}); err != nil {
+		t.Fatal(err)
+	}
+	if !called || received.Repository != "." || received.Port != 8080 {
+		t.Fatalf("unexpected config: called=%v %+v", called, received)
+	}
+}
+
+func TestBareCommandParsesConfiguration(t *testing.T) {
+	var received serveConfig
+	command := newCommand(func(_ context.Context, config serveConfig) error {
+		received = config
+		return nil
+	})
+	command.Writer = &bytes.Buffer{}
+	command.ErrWriter = &bytes.Buffer{}
+
+	if err := command.Run(context.Background(), []string{"gitview", "--port", "9090", "/repo"}); err != nil {
+		t.Fatal(err)
+	}
+	if received.Repository != "/repo" || received.Port != 9090 {
+		t.Fatalf("unexpected config: %+v", received)
+	}
+}

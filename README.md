@@ -55,16 +55,16 @@ make build
 
 ```bash
 # Analyze the current repository
-./gitview serve
+./gitview
 
 # Analyze another local repository
-./gitview serve /path/to/repository
+./gitview /path/to/repository
 
 # Use a different port
-./gitview serve --port 9090 /path/to/repository
+./gitview --port 9090 /path/to/repository
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Pass `--port 0` to let the operating system choose an available port.
+`gitview` is shorthand for `gitview serve` (alias `gitview s`). Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Pass `--port 0` to let the operating system choose an available port.
 
 gitview intentionally listens on loopback only. It does not expose a `--host` option.
 

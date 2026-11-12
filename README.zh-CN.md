@@ -55,16 +55,16 @@ make build
 
 ```bash
 # 分析当前仓库
-./gitview serve
+./gitview
 
 # 分析另一个本地仓库
-./gitview serve /path/to/repository
+./gitview /path/to/repository
 
 # 使用其他端口
-./gitview serve --port 9090 /path/to/repository
+./gitview --port 9090 /path/to/repository
 ```
 
-打开 [http://127.0.0.1:8080](http://127.0.0.1:8080)。传入 `--port 0` 可以让操作系统自动选择可用端口。
+`gitview` 等同于 `gitview serve`（别名 `gitview s`）。打开 [http://127.0.0.1:8080](http://127.0.0.1:8080)。传入 `--port 0` 可以让操作系统自动选择可用端口。
 
 gitview 只监听本机 loopback 地址，并且有意不提供 `--host` 参数。
 
