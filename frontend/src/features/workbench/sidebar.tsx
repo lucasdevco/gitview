@@ -1,18 +1,10 @@
-import {
-  Archive,
-  ChevronDown,
-  Cloud,
-  FolderGit2,
-  GitBranch,
-  type LucideIcon,
-  Monitor,
-  Network,
-  Search,
-  Tag,
-} from "lucide-react"
-import { type ReactNode, useState } from "react"
+import { Archive, ChevronDown, FolderGit2, Monitor, Network, Search } from "lucide-react"
+import { useState } from "react"
+import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
 import { cn } from "@/lib/utils"
+import { Row, Section } from "./sidebar-parts"
+import { BranchesSection, RemotesSection, TagsSection } from "./sidebar-refs"
 
 export type WorkbenchView = "status" | "history" | "search"
 
@@ -22,77 +14,29 @@ const VIEWS: [WorkbenchView, string][] = [
   ["search", "搜索"],
 ]
 
-function Row({
-  depth,
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  depth: number
-  active?: boolean
-  onClick?: () => void
-  title?: string
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      style={{ paddingLeft: 16 + depth * 14 }}
-      className={cn(
-        "mx-2 flex w-[calc(100%-1rem)] items-center gap-1.5 rounded-md py-[3px] pr-2 text-left",
-        active ? "bg-primary text-primary-foreground" : "hover:bg-accent/70",
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Section({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children?: ReactNode }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <section>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="group mt-3 flex w-full items-center gap-2 px-3 py-1 text-muted-foreground"
-      >
-        <Icon className="size-4" strokeWidth={1.5} />
-        <span>{title}</span>
-        <ChevronDown className={cn("ml-auto size-3 opacity-0 group-hover:opacity-100", !open && "-rotate-90")} />
-      </button>
-      {open && <div>{children}</div>}
-    </section>
-  )
-}
-
-function currentBranchLabel(summary: RepoSummary): string {
-  if (!summary.detached) return summary.branch
-  return `HEAD（分离于 ${summary.head.slice(0, 7)}）`
-}
-
 /**
  * Repository navigation: WORKSPACE views, then branches, tags, remotes,
  * stashes, submodules and subtrees, with a name filter at the bottom.
  */
 export function Sidebar({
   summary,
+  refs,
   view,
   onView,
+  onReveal,
 }: {
   summary: RepoSummary
+  /** Branches, remotes and tags; undefined while loading. */
+  refs?: Refs
   view: WorkbenchView
   onView: (view: WorkbenchView) => void
+  /** Show a commit in the history view. */
+  onReveal: (oid: string) => void
 }) {
   const [filter, setFilter] = useState("")
   const [workspaceOpen, setWorkspaceOpen] = useState(true)
-  const branch = currentBranchLabel(summary)
-  const showBranch = branch.toLowerCase().includes(filter.trim().toLowerCase())
+  const needle = filter.trim().toLowerCase()
+  const match = (name: string) => name.toLowerCase().includes(needle)
 
   return (
     <div className="flex h-full flex-col border-r bg-muted/50">
@@ -114,16 +58,9 @@ export function Sidebar({
             </Row>
           ))}
 
-        <Section icon={GitBranch} title="分支">
-          {showBranch && (
-            <Row depth={1} title={summary.empty ? `${branch}（尚无提交）` : branch}>
-              <span className="-ml-3.5 size-2 shrink-0 rounded-full bg-chart-5" />
-              <span className="truncate font-semibold">{branch}</span>
-            </Row>
-          )}
-        </Section>
-        <Section icon={Tag} title="标签" />
-        <Section icon={Cloud} title="远端" />
+        <BranchesSection summary={summary} refs={refs} filter={match} onReveal={onReveal} />
+        <TagsSection refs={refs} filter={match} onReveal={onReveal} />
+        <RemotesSection refs={refs} filter={match} onReveal={onReveal} />
         <Section icon={Archive} title="已贮藏" />
         <Section icon={FolderGit2} title="子模块" />
         <Section icon={Network} title="子树" />
