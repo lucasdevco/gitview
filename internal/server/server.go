@@ -137,6 +137,8 @@ func describeError(err error) (status int, code, message string) {
 			status = http.StatusConflict
 		case git.HookFailed:
 			status = http.StatusUnprocessableEntity
+		case git.LocalChanges, git.BranchNotMerged:
+			status = http.StatusConflict
 		}
 		return status, string(gitErr.Kind), gitErr.Error()
 	case errors.Is(err, context.DeadlineExceeded):
