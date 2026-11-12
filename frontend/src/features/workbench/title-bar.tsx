@@ -56,7 +56,11 @@ export function TitleBar({
   onBranch,
   onMerge,
   onStash,
+  onPull,
+  onPush,
   onFetch,
+  behind,
+  ahead,
 }: {
   name: string
   /** Changed files waiting to be committed, shown as the 提交 badge. */
@@ -68,16 +72,24 @@ export function TitleBar({
   onMerge?: () => void
   /** Opens the 贮藏 sheet. */
   onStash?: () => void
+  /** Opens the 拉取 sheet; absent without remotes or a checked-out branch. */
+  onPull?: () => void
+  /** Opens the 推送 sheet; absent without remotes. */
+  onPush?: () => void
   /** Opens the 抓取 sheet; absent when the repository has no remotes. */
   onFetch?: () => void
+  /** Commits the current branch lacks from its upstream, shown as the 拉取 badge. */
+  behind?: number
+  /** Commits the current branch has that its upstream lacks, shown as the 推送 badge. */
+  ahead?: number
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b bg-muted/40 pr-2 pl-4">
       <h1 className="min-w-0 flex-1 truncate text-[14px] font-semibold">{name ? `${name} (Git)` : "gitview"}</h1>
       <ToolbarButton icon={CirclePlus} label="提交" badge={pendingCount} onClick={onCommit} disabled={!onCommit} />
       <Gap />
-      <ToolbarButton icon={CircleArrowDown} label="拉取" disabled />
-      <ToolbarButton icon={CircleArrowUp} label="推送" disabled />
+      <ToolbarButton icon={CircleArrowDown} label="拉取" badge={behind} onClick={onPull} disabled={!onPull} />
+      <ToolbarButton icon={CircleArrowUp} label="推送" badge={ahead} onClick={onPush} disabled={!onPush} />
       <ToolbarButton icon={CircleDashed} label="抓取" onClick={onFetch} disabled={!onFetch} />
       <Gap />
       <ToolbarButton icon={GitBranch} label="分支" onClick={onBranch} disabled={!onBranch} />

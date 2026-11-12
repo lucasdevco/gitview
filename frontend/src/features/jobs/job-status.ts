@@ -1,8 +1,9 @@
 // What the job strip says about background jobs (fetch, pull, push).
-import type { Job } from "@/lib/api/jobs"
+import { describeOperationError } from "@/features/operations/operation-error"
+import { type Job, jobError } from "@/lib/api/jobs"
 
 /** Sourcetree's names for the operations that run as jobs. */
-const OPERATION_NAMES: Record<string, string> = { fetch: "抓取", pull: "拉取", push: "推送" }
+const OPERATION_NAMES: Record<string, string> = { fetch: "抓取", pull: "拉取", push: "推送", fetchInto: "拿来" }
 
 export type JobDescription = {
   /** One line naming the operation and where it is. */
@@ -22,6 +23,7 @@ export function describeJob(job: Job): JobDescription {
       return { title: `等待其他操作完成后${name}`, active: true }
     case "running": {
       const progress = job.progress
+      if (job.prompt) return { title: `正在${name}…`, detail: `等待输入凭据：${job.prompt.text}`, active: true }
       return {
         title: `正在${name}…`,
         ...(progress && { detail: progress.text }),
@@ -31,8 +33,12 @@ export function describeJob(job: Job): JobDescription {
     }
     case "succeeded":
       return { title: `${name}完成`, active: false }
-    case "failed":
-      return { title: `${name}失败`, active: false }
+    case "failed": {
+      // The error arrives with the job list refetched after the final event.
+      const error = jobError(job)
+      const known = error && describeOperationError(error).summary
+      return { title: known && known !== "操作失败" ? `${name}失败：${known}` : `${name}失败`, active: false }
+    }
     case "canceled":
       return { title: `已取消${name}`, active: false }
   }

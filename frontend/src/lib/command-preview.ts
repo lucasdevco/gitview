@@ -7,7 +7,7 @@
 // Adding an operation: add a builder here next to its request type and a
 // vitest case using the string the backend's API test expects.
 
-import type { FetchRequest } from "@/lib/api/jobs"
+import type { FetchIntoRequest, FetchRequest, PullRequest, PushBranch, PushRequest } from "@/lib/api/jobs"
 import type {
   CheckoutRequest,
   CommitRequest,
@@ -135,6 +135,58 @@ export function fetchCommand({ all, remote, prune, tags }: FetchRequest): string
     ...(prune ? ["--prune"] : []),
     ...(tags ? ["--tags"] : []),
   ])
+}
+
+/** `pull` (a job): fetch a remote branch and merge it into, or rebase, the current branch. */
+export function pullCommand({ remote, branch, rebase, noCommit, log, noFastForward }: PullRequest): string {
+  return formatGitCommand([
+    "pull",
+    "--progress",
+    ...(rebase
+      ? ["--rebase"]
+      : [
+          "--no-rebase",
+          ...(noFastForward ? ["--no-ff"] : []),
+          ...(log ? ["--log"] : []),
+          ...(noCommit ? ["--no-commit"] : []),
+        ]),
+    ...(remote ? [remote] : []),
+    ...(branch ? [branch] : []),
+  ])
+}
+
+/**
+ * `push` (a job): the commands it runs, in order. Branches that will track
+ * go in one command with `-u`, the others in a second; tags go with the first.
+ */
+export function pushCommands({ remote, branches, tags }: PushRequest): string[] {
+  const refspec = (branch: PushBranch) => `${branch.local}:${branch.remote || branch.local}`
+  const groups = [
+    { track: true, refspecs: branches.filter((branch) => branch.track).map(refspec) },
+    { track: false, refspecs: branches.filter((branch) => !branch.track).map(refspec) },
+  ]
+  let withTags = !!tags
+  const commands: string[] = []
+  for (const { track, refspecs } of groups) {
+    if (refspecs.length === 0 && !withTags) continue
+    commands.push(
+      formatGitCommand([
+        "push",
+        "--progress",
+        ...(track && refspecs.length > 0 ? ["-u"] : []),
+        ...(withTags ? ["--tags"] : []),
+        remote,
+        ...refspecs,
+      ]),
+    )
+    withTags = false
+  }
+  return commands
+}
+
+/** `fetchInto` (a job, 拿来): fast-forward a branch that is not checked out. */
+export function fetchIntoCommand({ remote, branch, local }: FetchIntoRequest): string {
+  return formatGitCommand(["fetch", "--progress", remote, `${branch}:${local}`])
 }
 
 /** `merge`: merge a branch into the current branch with the chosen options. */

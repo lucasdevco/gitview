@@ -42,7 +42,12 @@ export type RemoteBranch = {
   oid: string
 }
 
-export type Remote = { name: string; branches: RemoteBranch[] }
+export type Remote = {
+  name: string
+  /** Where the remote fetches from, any password in it replaced by "xxxxx". */
+  url: string
+  branches: RemoteBranch[]
+}
 
 /** A tag; `oid` is the commit it points to (annotated tags resolved). */
 export type Tag = { name: string; oid: string }

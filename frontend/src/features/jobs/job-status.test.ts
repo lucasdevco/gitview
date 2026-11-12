@@ -36,6 +36,24 @@ test("a running job shows git's last progress line and its percentage", () => {
   })
 })
 
+test("a failed job names what went wrong once its error has arrived", () => {
+  const error = { code: "push_rejected", message: "m", output: " ! [rejected] main -> main (fetch first)" }
+  expect(describeJob(job("a", "failed", { operation: "push", error })).title).toBe("推送失败：远程仓库拒绝了推送")
+  expect(describeJob(job("a", "failed", { operation: "pull", error: { code: "conflict", message: "m" } })).title).toBe(
+    "拉取失败：出现冲突",
+  )
+  expect(describeJob(job("a", "failed", { error: { code: "git_failed", message: "m" } })).title).toBe("抓取失败")
+})
+
+test("a job waiting for credentials says so", () => {
+  const prompt = { id: "p", text: "Password for 'https://example.com':", secret: true }
+  expect(describeJob(job("a", "running", { operation: "fetchInto", prompt }))).toEqual({
+    title: "正在拿来…",
+    detail: "等待输入凭据：Password for 'https://example.com':",
+    active: true,
+  })
+})
+
 test("the running job is shown first, with how many more wait behind it", () => {
   const jobs = [job("old", "failed"), job("run", "running"), job("next", "queued"), job("last", "queued")]
   expect(jobToShow(jobs, new Set(["old"]))).toEqual({ job: jobs[1], waiting: 2 })

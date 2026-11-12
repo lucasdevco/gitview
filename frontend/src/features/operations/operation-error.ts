@@ -22,6 +22,14 @@ const KNOWN: Record<string, Omit<OperationErrorDescription, "output">> = {
   hook_failed: { summary: "仓库的 hook 拒绝了此操作", advice: "修复 hook 报告的问题后重试。" },
   conflict: { summary: "出现冲突", advice: "在“文件状态”中解决冲突文件，或中止操作。" },
   nothing_in_progress: { summary: "没有进行中的合并或变基", advice: "它可能已在别处完成或中止。" },
+  push_rejected: {
+    summary: "远程仓库拒绝了推送",
+    advice: "远程分支上有您本地没有的提交（或远程 hook 拒绝了推送）。请先拉取并整合这些提交，然后再推送。",
+  },
+  authentication_failed: {
+    summary: "远程仓库认证失败",
+    advice: "请检查用户名和密码（或访问令牌）、SSH 密钥，然后重试；在凭据对话框中点“取消”也会导致认证失败。",
+  },
 }
 
 /**

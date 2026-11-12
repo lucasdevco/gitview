@@ -9,17 +9,20 @@ import { createContext, type ReactNode, useContext, useState } from "react"
 import { MergeDialog, RebaseSheet } from "@/features/merge/merge-dialog"
 import { isConflict } from "@/features/operations/operation-error"
 import { OperationErrorDialog } from "@/features/operations/operation-error-view"
+import { PushDialog, type PushDialogOptions } from "@/features/remote/push-dialog"
+import { pushTarget, splitUpstream } from "@/features/remote/remotes"
 import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
+import { useStartJob } from "@/lib/api/use-job"
 import { useOperation } from "@/lib/api/use-operation"
 import { BranchDialog, type BranchDialogTab } from "./branch-dialog"
 import { RenameBranchDialog } from "./rename-branch-dialog"
 
 /**
  * What can be done to a local branch. The optional actions belong to later
- * features (拿来 and push: ticket 10; compare) or are unavailable for now
- * (merge and rebase while another merge or rebase is in progress); until they
- * are set, the context menu shows their items disabled.
+ * features (compare) or are unavailable for now (merge and rebase while
+ * another merge or rebase is in progress; push and 拿来 without remotes);
+ * until they are set, the context menu shows their items disabled.
  */
 export type BranchActions = {
   checkout: (branch: string) => void
@@ -31,6 +34,8 @@ export type BranchActions = {
   setUpstream: (branch: string, upstream: string) => void
   /** Opens the 合并 sheet. */
   openMergeDialog: () => void
+  /** Opens the 推送 sheet, by default for the current branch. */
+  openPushDialog: (options?: PushDialogOptions) => void
   /** 合并 X 至当前分支. */
   merge?: (branch: string) => void
   /** 将当前变更变基到 X. */
@@ -56,6 +61,7 @@ type OpenDialog =
   | { kind: "branch"; tab: BranchDialogTab; branches: string[] }
   | { kind: "rename"; branch: string }
   | { kind: "merge" }
+  | { kind: "push"; options?: PushDialogOptions }
   | { kind: "rebase"; onto: string }
   | { kind: "failure"; title: string; error: Error }
 
@@ -72,11 +78,14 @@ export function useBranchOperations(
   const checkout = useOperation(repoId, "checkout")
   const setUpstream = useOperation(repoId, "setUpstream")
   const merge = useOperation(repoId, "merge")
+  const push = useStartJob(repoId, "push")
+  const fetchInto = useStartJob(repoId, "fetchInto")
   const [dialog, setDialog] = useState<OpenDialog>()
   const close = () => setDialog(undefined)
   const fail = (title: string) => (error: Error) => setDialog({ kind: "failure", title, error })
   // Merging or rebasing again waits until the operation in progress is done.
   const canMerge = summary?.state === "clean"
+  const hasRemotes = !!refs?.remotes.length
 
   const actions: BranchActions | undefined = summary && {
     checkout: (branch) => {
@@ -102,6 +111,28 @@ export function useBranchOperations(
         }
       : undefined,
     rebase: canMerge ? (onto) => setDialog({ kind: "rebase", onto }) : undefined,
+    openPushDialog: (options) => setDialog({ kind: "push", options }),
+    // 拿来 and 推送到 run as jobs; the job strip shows how they went.
+    fetchInto: hasRemotes
+      ? (branch) => {
+          const upstream = refs?.branches.find((candidate) => candidate.name === branch)?.upstream ?? ""
+          const source = splitUpstream(upstream, refs?.remotes ?? [])
+          if (source && !fetchInto.isPending) {
+            fetchInto.mutate({ ...source, local: branch }, { onError: fail(`无法拿来 ${branch}`) })
+          }
+        }
+      : undefined,
+    pushToUpstream: hasRemotes
+      ? (branch) => {
+          const target = pushTarget(refs, branch)
+          if (target && !push.isPending) {
+            push.mutate({ remote: target.remote, branches: [target.branch] }, { onError: fail(`无法推送 ${branch}`) })
+          }
+        }
+      : undefined,
+    pushTo: hasRemotes
+      ? (branch, remote) => setDialog({ kind: "push", options: { remote, branches: [branch] } })
+      : undefined,
   }
 
   const branches = refs?.branches ?? []
@@ -129,6 +160,8 @@ export function useBranchOperations(
     dialogs = <MergeDialog summary={summary} refs={refs} onClose={close} onConflict={onConflict} />
   } else if (summary && dialog?.kind === "rebase") {
     dialogs = <RebaseSheet summary={summary} onto={dialog.onto} onClose={close} onConflict={onConflict} />
+  } else if (summary && dialog?.kind === "push") {
+    dialogs = <PushDialog repoId={summary.id} refs={refs} initial={dialog.options} onClose={close} />
   } else if (dialog?.kind === "failure") {
     dialogs = <OperationErrorDialog title={dialog.title} error={dialog.error} onClose={close} />
   }

@@ -17,8 +17,8 @@ describe("mergeSources", () => {
     const refs: Refs = {
       branches: [branch("main", true), branch("feature/login"), branch("hotfix")],
       remotes: [
-        { name: "origin", branches: [{ name: "origin/main", branch: "main", oid: "2" }] },
-        { name: "fork", branches: [{ name: "fork/topic", branch: "topic", oid: "3" }] },
+        { name: "origin", url: "", branches: [{ name: "origin/main", branch: "main", oid: "2" }] },
+        { name: "fork", url: "", branches: [{ name: "fork/topic", branch: "topic", oid: "3" }] },
       ],
       tags: [{ name: "v1", oid: "4" }],
     }

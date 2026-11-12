@@ -33,6 +33,25 @@ describe("describeOperationError", () => {
     expect(summary("conflict")).toBe("出现冲突")
     expect(summary("nothing_in_progress")).toBe("没有进行中的合并或变基")
   })
+
+  it("suggests pulling first when the remote rejected a push", () => {
+    const output = ` ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to '../origin'`
+    expect(describeOperationError(new ApiError(409, "push_rejected", "m", { output }))).toEqual({
+      summary: "远程仓库拒绝了推送",
+      advice: "远程分支上有您本地没有的提交（或远程 hook 拒绝了推送）。请先拉取并整合这些提交，然后再推送。",
+      output,
+    })
+  })
+
+  it("explains failed authentication", () => {
+    const output = "fatal: Authentication failed for 'https://example.com/repo.git/'"
+    expect(describeOperationError(new ApiError(500, "authentication_failed", "m", { output }))).toEqual({
+      summary: "远程仓库认证失败",
+      advice: "请检查用户名和密码（或访问令牌）、SSH 密钥，然后重试；在凭据对话框中点“取消”也会导致认证失败。",
+      output,
+    })
+  })
 })
 
 describe("isConflict", () => {

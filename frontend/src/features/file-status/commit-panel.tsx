@@ -2,9 +2,12 @@ import { useQuery } from "@tanstack/react-query"
 import { Check, ChevronDown, X } from "lucide-react"
 import { DropdownMenu } from "radix-ui"
 import { useState } from "react"
+import { pushTarget, pushTargetName } from "@/features/remote/remotes"
 import { ApiError } from "@/lib/api/client"
 import { useApi } from "@/lib/api/context"
+import { refsQuery } from "@/lib/api/history"
 import { repoSummaryQuery } from "@/lib/api/queries"
+import { useStartJob } from "@/lib/api/use-job"
 import { useOperation } from "@/lib/api/use-operation"
 import { commitCommand } from "@/lib/command-preview"
 import { canCommit } from "./staging"
@@ -13,7 +16,9 @@ import { canCommit } from "./staging"
  * The commit area under the file lists: identity, message, 提交选项 (skip
  * hooks), 更正上一次提交 (amend) and the commit button. A failed hook's
  * output is shown above the message. While merging, the message starts as
- * the one git prepared, and committing concludes the merge.
+ * the one git prepared, and committing concludes the merge. With 立即推送,
+ * a successful commit starts a push of the current branch to its upstream
+ * (or, tracking it from then on, to the same name on the default remote).
  */
 export function CommitPanel({
   repoId,
@@ -26,7 +31,10 @@ export function CommitPanel({
 }) {
   const api = useApi()
   const summary = useQuery(repoSummaryQuery(api, repoId)).data
+  const refs = useQuery(refsQuery(api, repoId)).data
   const commit = useOperation(repoId, "commit")
+  const push = useStartJob(repoId, "push")
+  const [pushAfterCommit, setPushAfterCommit] = useState(false)
   // undefined until the user edits the message: it then shows the default.
   const [draft, setDraft] = useState<string>()
   const [amend, setAmend] = useState(false)
@@ -36,6 +44,7 @@ export function CommitPanel({
   const merging = summary?.state === "merging"
   const message = draft ?? (merging ? (summary?.mergeMessage ?? "") : "")
   const request = { message, amend: amend && !merging, noVerify }
+  const target = summary?.branch ? pushTarget(refs, summary.branch) : undefined
   const enabled =
     !commit.isPending && canCommit({ stagedCount, message, amend: request.amend, empty, merging, conflictedCount })
   const submit = () => {
@@ -44,13 +53,15 @@ export function CommitPanel({
       onSuccess: () => {
         setDraft(undefined)
         setAmend(false)
+        // The job strip shows how the push went.
+        if (pushAfterCommit && target) push.mutate({ remote: target.remote, branches: [target.branch] })
       },
     })
   }
 
   const identity = summary?.identity
   const hasIdentity = !!identity?.name && !!identity.email
-  const upstream = summary?.branch ? `origin/${summary.branch}` : "origin"
+  const targetName = target ? pushTargetName(target) : summary?.branch ? `origin/${summary.branch}` : "origin"
 
   return (
     <div className="flex h-full flex-col gap-2 bg-muted/30 px-3 pt-2 pb-3">
@@ -108,9 +119,17 @@ export function CommitPanel({
         className="min-h-0 flex-1 resize-none rounded border bg-background p-2 outline-none focus:ring-2 focus:ring-ring/40"
       />
       <div className="flex items-center gap-4">
-        <label className="flex items-center gap-1.5 opacity-50" title="推送功能尚未提供">
-          <input type="checkbox" checked={false} disabled readOnly />
-          立即推送变更到 {upstream}
+        <label
+          className={target ? "flex items-center gap-1.5" : "flex items-center gap-1.5 opacity-50"}
+          title={target ? undefined : summary?.branch ? "仓库没有远程仓库" : "HEAD 处于分离状态"}
+        >
+          <input
+            type="checkbox"
+            checked={pushAfterCommit && !!target}
+            disabled={!target}
+            onChange={(event) => setPushAfterCommit(event.target.checked)}
+          />
+          立即推送变更到 {targetName}
         </label>
         <label className="flex items-center gap-1.5">
           <input

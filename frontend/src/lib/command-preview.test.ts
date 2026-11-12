@@ -8,8 +8,11 @@ import {
   deleteBranchesCommand,
   discardHunkCommand,
   fetchCommand,
+  fetchIntoCommand,
   formatGitCommand,
   mergeCommand,
+  pullCommand,
+  pushCommands,
   rebaseCommand,
   renameBranchCommand,
   setUpstreamCommand,
@@ -122,6 +125,52 @@ describe("fetch", () => {
       "git fetch --progress origin --prune --tags",
     )
     expect(fetchCommand({})).toBe("git fetch --progress")
+  })
+})
+
+describe("pull", () => {
+  it("always names the integration mode and adds the merge options in the backend's order", () => {
+    expect(pullCommand({ remote: "origin", branch: "main" })).toBe("git pull --progress --no-rebase origin main")
+    expect(pullCommand({ remote: "origin", branch: "main", log: true, noFastForward: true })).toBe(
+      "git pull --progress --no-rebase --no-ff --log origin main",
+    )
+    expect(pullCommand({ remote: "origin", branch: "main", noCommit: true })).toBe(
+      "git pull --progress --no-rebase --no-commit origin main",
+    )
+    expect(pullCommand({ remote: "origin", branch: "main", rebase: true })).toBe(
+      "git pull --progress --rebase origin main",
+    )
+  })
+})
+
+describe("push", () => {
+  it("pushes tracked branches with -u first, then the others", () => {
+    expect(
+      pushCommands({
+        remote: "origin",
+        branches: [
+          { local: "feature", remote: "feature", track: true },
+          { local: "docs", remote: "published-docs" },
+        ],
+        tags: true,
+      }),
+    ).toEqual([
+      "git push --progress -u --tags origin feature:feature",
+      "git push --progress origin docs:published-docs",
+    ])
+    expect(pushCommands({ remote: "origin", branches: [{ local: "main", remote: "main", track: true }] })).toEqual([
+      "git push --progress -u origin main:main",
+    ])
+  })
+
+  it("pushes only tags when no branch is chosen", () => {
+    expect(pushCommands({ remote: "origin", branches: [], tags: true })).toEqual(["git push --progress --tags origin"])
+  })
+
+  it("fetches into a branch that is not checked out", () => {
+    expect(fetchIntoCommand({ remote: "origin", branch: "feature", local: "feature" })).toBe(
+      "git fetch --progress origin feature:feature",
+    )
   })
 })
 

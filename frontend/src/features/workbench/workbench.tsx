@@ -7,9 +7,11 @@ import { BranchActionsContext, useBranchOperations } from "@/features/branches/b
 import { FileStatusView } from "@/features/file-status/file-status-view"
 import { pendingFileCount } from "@/features/file-status/staging"
 import { HistoryView, type Selection } from "@/features/history/history-view"
+import { CredentialDialog } from "@/features/jobs/credential-dialog"
 import { JobStrip } from "@/features/jobs/job-strip"
 import { InProgressBanner } from "@/features/merge/in-progress-banner"
 import { FetchDialog } from "@/features/remote/fetch-dialog"
+import { PullDialog } from "@/features/remote/pull-dialog"
 import { type StashAction, StashActionSheet, StashDialog } from "@/features/stash/stash-sheets"
 import { StashView } from "@/features/stash/stash-view"
 import { useApi } from "@/lib/api/context"
@@ -54,6 +56,9 @@ function Shell({ summary }: { summary?: RepoSummary }) {
   const [stashAction, setStashAction] = useState<StashAction>()
   const [stashOid, setStashOid] = useState<string>()
   const [fetching, setFetching] = useState(false)
+  const [pulling, setPulling] = useState(false)
+  const hasRemotes = !!refs.data?.remotes.length
+  const current = refs.data?.branches.find((branch) => branch.current)
   const stashes = useQuery({ ...stashesQuery(api, summary?.id ?? ""), enabled: !!summary })
   const stash = stashes.data?.find((entry) => entry.oid === stashOid)
   // A stash that was dropped (here or elsewhere) leaves the history in its place.
@@ -67,7 +72,11 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         onBranch={branches.actions && (() => branches.actions?.openBranchDialog())}
         onMerge={branches.actions && (() => branches.actions?.openMergeDialog())}
         onStash={summary ? () => setStashing(true) : undefined}
-        onFetch={summary && refs.data?.remotes.length ? () => setFetching(true) : undefined}
+        onPull={summary?.branch && hasRemotes ? () => setPulling(true) : undefined}
+        onPush={hasRemotes ? branches.actions && (() => branches.actions?.openPushDialog()) : undefined}
+        onFetch={summary && hasRemotes ? () => setFetching(true) : undefined}
+        behind={current?.behind}
+        ahead={current?.ahead}
       />
       {summary && <InProgressBanner summary={summary} conflictedCount={status.data?.conflicted.length ?? 0} />}
       <div className="min-h-0 flex-1">
@@ -129,6 +138,8 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         <StashActionSheet repoId={summary.id} action={stashAction} onClose={() => setStashAction(undefined)} />
       )}
       {summary && fetching && <FetchDialog repoId={summary.id} refs={refs.data} onClose={() => setFetching(false)} />}
+      {summary && pulling && <PullDialog summary={summary} refs={refs.data} onClose={() => setPulling(false)} />}
+      {summary && <CredentialDialog repoId={summary.id} />}
     </div>
   )
 }

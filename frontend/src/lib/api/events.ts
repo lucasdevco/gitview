@@ -13,9 +13,10 @@ import { repoKeys } from "./queries"
 export type ChangedArea = "refs" | "index" | "worktree" | "state"
 
 /**
- * A message on the event stream, discriminated by `type`. Add new kinds
- * (job progress, credential requests, ...) to this union, to KNOWN_TYPES and
- * to handleServerEvent.
+ * A message on the event stream, discriminated by `type`. Add new kinds to
+ * this union, to KNOWN_TYPES and to handleServerEvent. Credential requests
+ * are not a kind of their own: they arrive as a job.updated event's
+ * `prompt`, so the job list (and a reloaded page) always knows them.
  */
 export type ServerEvent =
   | {

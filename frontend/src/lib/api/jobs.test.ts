@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import { ApiError } from "./client"
-import { applyJobUpdate, type Job, type JobUpdate, jobError } from "./jobs"
+import { applyJobUpdate, type Job, type JobUpdate, jobError, pendingPrompt } from "./jobs"
 
 const queued: Job = { id: "j1", repoId: "r1", operation: "fetch", state: "queued", commands: [] }
 const update = (fields: Partial<JobUpdate>): JobUpdate => ({
@@ -31,6 +31,21 @@ test("a job started elsewhere is added when its first update arrives", () => {
   expect(applyJobUpdate(undefined, update({ jobId: "j9", state: "queued" }))).toEqual([
     { id: "j9", repoId: "r1", operation: "fetch", state: "queued", progress: undefined, commands: [] },
   ])
+})
+
+test("an update carries the job's credential prompt and clears it once answered", () => {
+  const prompt = { id: "p1", text: "Password for 'https://example.com':", secret: true }
+  const asking = applyJobUpdate([queued], update({ prompt }))
+  expect(asking).toEqual([{ ...queued, state: "running", prompt }])
+  expect(applyJobUpdate(asking, update({}))).toEqual([{ ...queued, state: "running", prompt: undefined }])
+})
+
+test("the prompt waiting for an answer is the first asking job's", () => {
+  const prompt = { id: "p1", text: "Username for 'https://example.com':", secret: false }
+  const asking: Job = { ...queued, id: "j2", state: "running", prompt }
+  expect(pendingPrompt([queued, asking])).toEqual({ job: asking, prompt })
+  expect(pendingPrompt([queued])).toBeUndefined()
+  expect(pendingPrompt(undefined)).toBeUndefined()
 })
 
 test("a failed job's error reads like a failed operation's", () => {
