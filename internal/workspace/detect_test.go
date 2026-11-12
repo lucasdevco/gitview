@@ -66,6 +66,41 @@ func TestChangingABranchUpstreamIsARefsChange(t *testing.T) {
 	}
 }
 
+// stashTwice leaves two stashes, so dropping stash@{1} changes the stash
+// list while refs/stash stays as it is.
+func stashTwice(r *gittest.Repo) {
+	r.Commit("a.txt", "a\n", "first")
+	r.Write("a.txt", "one\n")
+	r.Git("stash", "push", "-m", "one")
+	r.Write("a.txt", "two\n")
+	r.Git("stash", "push", "-m", "two")
+}
+
+func TestDroppingAnOlderStashIsARefsChange(t *testing.T) {
+	r := gittest.Init(t)
+	stashTwice(r)
+	_, _, sub := openWith(t, detection{settle: time.Millisecond, poll: 20 * time.Millisecond}, r)
+
+	r.Git("stash", "drop", "stash@{1}")
+
+	if event := nextChange(t, sub, 2*time.Second); !slices.Equal(event.Changed, []Area{AreaRefs}) {
+		t.Fatalf("unexpected event %+v", event)
+	}
+}
+
+func TestFileNotificationsNoticeDroppingAnOlderStash(t *testing.T) {
+	r := gittest.Init(t)
+	stashTwice(r)
+	// Polling is too slow to be what reports the change.
+	_, _, sub := openWith(t, detection{watchFiles: true, settle: 20 * time.Millisecond, poll: time.Hour}, r)
+
+	r.Git("stash", "drop", "stash@{1}")
+
+	if event := nextChange(t, sub, 2*time.Second); !slices.Equal(event.Changed, []Area{AreaRefs}) {
+		t.Fatalf("unexpected event %+v", event)
+	}
+}
+
 func TestFileNotificationsNoticeBranchesInNewDirectories(t *testing.T) {
 	r := gittest.Init(t)
 	r.Commit("a.txt", "a\n", "first")
