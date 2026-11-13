@@ -61,6 +61,16 @@ var operations = map[string]operation{
 	"rebase":      newOperation(ops.Rebase),
 	"abortRebase": newOperation(ops.AbortRebase),
 
+	// One commit of the history. Cherry-pick and revert conflicts, like
+	// merge conflicts, leave the repository cherry-picking or reverting
+	// until the resolution is committed or they are aborted.
+	"createTag":       newOperation(ops.CreateTag),
+	"reset":           newOperation(ops.Reset),
+	"cherryPick":      newOperation(ops.CherryPick),
+	"abortCherryPick": newOperation(ops.AbortCherryPick),
+	"revert":          newOperation(ops.Revert),
+	"abortRevert":     newOperation(ops.AbortRevert),
+
 	// Background jobs.
 	"fetch": newJob(ops.Fetch),
 	"pull":  newJob(ops.Pull),

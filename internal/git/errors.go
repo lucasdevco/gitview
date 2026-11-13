@@ -30,8 +30,9 @@ const (
 	// BranchNotMerged means git branch -d refused to delete a branch whose
 	// commits are not merged into its upstream or HEAD; -D deletes it anyway.
 	BranchNotMerged ErrorKind = "branch_not_merged"
-	// NothingInProgress means there is no merge or rebase to abort, for
-	// example because it was already concluded or aborted elsewhere.
+	// NothingInProgress means there is no merge, rebase, cherry-pick or
+	// revert to abort, for example because it was already concluded or
+	// aborted elsewhere.
 	NothingInProgress ErrorKind = "nothing_in_progress"
 	// Failed is any git failure that does not match a more specific kind.
 	Failed ErrorKind = "git_failed"
@@ -118,7 +119,7 @@ var classifications = []struct {
 		"cannot pull with rebase: Your index contains uncommitted changes",
 	}},
 	{BranchNotMerged, []string{"is not fully merged"}},
-	{NothingInProgress, []string{"There is no merge to abort", "no rebase in progress"}},
+	{NothingInProgress, []string{"There is no merge to abort", "no rebase in progress", "no cherry-pick or revert in progress"}},
 }
 
 // classify names a failure from git's stderr. Merge machinery (merge,

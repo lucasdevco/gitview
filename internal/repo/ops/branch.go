@@ -9,23 +9,40 @@ import (
 	"gitview/internal/repo"
 )
 
-// CheckoutRequest names the local branch to check out.
+// CheckoutRequest names what to check out: a local branch, or a commit to
+// check out without a branch (a detached HEAD). Set exactly one.
 type CheckoutRequest struct {
 	Branch string `json:"branch"`
+	// Commit is a commit id (or any revision); HEAD then points at it
+	// directly instead of at a branch.
+	Commit string `json:"commit"`
 }
 
-// Validate rejects a missing branch or one git would read as an option.
+// Validate rejects a request naming both or neither of branch and commit,
+// and one git would read as an option.
 func (request CheckoutRequest) Validate() error {
-	return validateBranchName("branch", request.Branch)
+	switch {
+	case request.Branch != "" && request.Commit != "":
+		return invalid("pass either branch or commit, not both")
+	case request.Commit != "":
+		return validateCommit(request.Commit)
+	default:
+		return validateBranchName("branch", request.Branch)
+	}
 }
 
-// Checkout switches the working tree and HEAD to a local branch. When local
-// changes would be overwritten git refuses, reported as git.LocalChanges with
-// the files git names.
+// Checkout switches the working tree and HEAD to a local branch, or to a
+// commit with HEAD detached. When local changes would be overwritten git
+// refuses, reported as git.LocalChanges with the files git names.
 //
 //	git switch <branch>
+//	git switch --detach <commit>
 func Checkout(ctx context.Context, r *repo.Repository, request CheckoutRequest) error {
-	_, err := r.Runner.Run(ctx, git.Write("switch", request.Branch))
+	command := git.Write("switch", request.Branch)
+	if request.Commit != "" {
+		command = git.Write("switch", "--detach", request.Commit)
+	}
+	_, err := r.Runner.Run(ctx, command)
 	return err
 }
 
@@ -163,15 +180,22 @@ func SetUpstream(ctx context.Context, r *repo.Repository, request SetUpstreamReq
 // checkNewBranchName checks that name is a valid branch name (git
 // check-ref-format rules) that no local branch uses yet.
 func checkNewBranchName(ctx context.Context, r *repo.Repository, name string) error {
-	ref := "refs/heads/" + name
+	return checkNewRefName(ctx, r, "refs/heads/", "branch", name)
+}
+
+// checkNewRefName checks that name is valid under prefix (git
+// check-ref-format rules) and not taken yet. kind names the ref in
+// messages, such as "branch" or "tag".
+func checkNewRefName(ctx context.Context, r *repo.Repository, prefix, kind, name string) error {
+	ref := prefix + name
 	if _, err := r.Runner.Run(ctx, git.Read("check-ref-format", ref)); err != nil {
 		if isExitCode(err, 1) {
-			return invalid("%q is not a valid branch name; avoid spaces, \"..\", \"~^:?*[\\\", a trailing \"/\", \".\" or \".lock\"", name)
+			return invalid("%q is not a valid %s name; avoid spaces, \"..\", \"~^:?*[\\\", a trailing \"/\", \".\" or \".lock\"", name, kind)
 		}
 		return err
 	}
 	if _, err := r.Runner.Run(ctx, git.Read("show-ref", "--verify", "--quiet", ref)); err == nil {
-		return invalid("a branch named %q already exists; choose another name", name)
+		return invalid("a %s named %q already exists; choose another name", kind, name)
 	} else if !isExitCode(err, 1) {
 		return err
 	}

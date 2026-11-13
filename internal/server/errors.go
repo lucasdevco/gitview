@@ -44,7 +44,7 @@ var gitFailures = map[git.ErrorKind]gitFailure{
 	git.BranchNotMerged: {http.StatusConflict,
 		"the branch has commits that are not merged anywhere else; merge them first, or delete it with force if they are no longer needed"},
 	git.NothingInProgress: {http.StatusConflict,
-		"there is no merge or rebase to abort; it was probably concluded or aborted elsewhere, refresh to see the current state"},
+		"there is no merge, rebase, cherry-pick or revert to abort; it was probably concluded or aborted elsewhere, refresh to see the current state"},
 	git.Failed: {http.StatusInternalServerError,
 		"git failed; read its output for the reason, fix it and try again"},
 }

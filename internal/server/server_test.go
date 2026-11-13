@@ -63,7 +63,10 @@ type repoSummary struct {
 	Empty    bool   `json:"empty"`
 	Detached bool   `json:"detached"`
 	State    string `json:"state"`
-	Identity struct {
+	// MergeMessage is the message git prepared while merging,
+	// cherry-picking or reverting.
+	MergeMessage string `json:"mergeMessage"`
+	Identity     struct {
 		Name  string `json:"name"`
 		Email string `json:"email"`
 	} `json:"identity"`

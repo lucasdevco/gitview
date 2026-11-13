@@ -9,18 +9,22 @@ import (
 	"gitview/internal/gittest"
 )
 
-// repoState reads the in-progress state the repository summary reports.
-func (f fixture) repoState(t *testing.T) string {
+// summary reads the repository summary.
+func (f fixture) summary(t *testing.T) repoSummary {
 	t.Helper()
 	response := f.get(t, "/api/v1/repos/"+f.repoID)
 	if response.Code != http.StatusOK {
 		t.Fatalf("summary: status %d: %s", response.Code, response.Body)
 	}
 	return decode[struct {
-		Data struct {
-			State string `json:"state"`
-		} `json:"data"`
-	}](t, response).Data.State
+		Data repoSummary `json:"data"`
+	}](t, response).Data
+}
+
+// repoState reads the in-progress state the repository summary reports.
+func (f fixture) repoState(t *testing.T) string {
+	t.Helper()
+	return f.summary(t).State
 }
 
 // conflictedPaths lists the paths the status endpoint reports as conflicted.

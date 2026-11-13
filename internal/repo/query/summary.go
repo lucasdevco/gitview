@@ -42,8 +42,9 @@ type Summary struct {
 	Empty    bool     `json:"empty"`
 	State    State    `json:"state"`
 	Identity Identity `json:"identity"`
-	// MergeMessage is the message git prepared for the merge commit while
-	// merging (MERGE_MSG without its comment lines); empty otherwise.
+	// MergeMessage is the message git prepared for the commit that
+	// concludes a merge, cherry-pick or revert in progress (MERGE_MSG without
+	// its comment lines); empty otherwise.
 	MergeMessage string `json:"mergeMessage"`
 }
 
@@ -51,7 +52,7 @@ type Summary struct {
 // operation and commit identity.
 func Summarize(ctx context.Context, r *repo.Repository) (Summary, error) {
 	summary := Summary{Name: r.Name(), Root: r.Root, State: InProgressState(r.GitDir)}
-	if summary.State == StateMerging {
+	if summary.State == StateMerging || summary.State == StateCherryPicking || summary.State == StateReverting {
 		summary.MergeMessage = mergeMessage(r.GitDir)
 	}
 

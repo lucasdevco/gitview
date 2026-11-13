@@ -14,6 +14,19 @@ func validateRemoteName(name string) error {
 	return nil
 }
 
+// validateCommit accepts a commit id (or another revision such as a branch
+// name) passed to git as one argument: present, and not something git would
+// read as an option. Whether the commit exists is left to git.
+func validateCommit(commit string) error {
+	if commit == "" {
+		return invalid("missing commit; pass a commit id")
+	}
+	if strings.HasPrefix(commit, "-") || strings.ContainsAny(commit, " \t\r\n") {
+		return invalid("commit %q is not a commit id; commit ids cannot start with \"-\" or contain whitespace", commit)
+	}
+	return nil
+}
+
 // validateBranchName accepts a branch name (or another revision such as a
 // commit id) passed to git as one argument: present, and not something git
 // would read as an option ("-f"), a forced refspec ("+main") or a src:dst
