@@ -30,11 +30,21 @@ describe("inProgressNotice", () => {
     expect(inProgressNotice("rebasing", 0)?.detail).toBe("变基已暂停。在终端运行 git rebase --continue 继续。")
   })
 
-  it("names cherry-picks and reverts without an abort button", () => {
+  it("concludes a cherry-pick by committing and offers to abort it", () => {
     expect(inProgressNotice("cherry-picking", 1)).toEqual({
       title: "遴选中",
-      detail: "有 1 个冲突文件。",
+      detail: "有 1 个冲突文件。解决冲突后勾选文件标记为已解决，然后提交以完成遴选。",
+      abort: "abortCherryPick",
     })
-    expect(inProgressNotice("reverting", 0)).toEqual({ title: "还原中", detail: "没有冲突文件。" })
+    expect(inProgressNotice("cherry-picking", 0)?.detail).toBe("没有冲突文件。提交以完成遴选。")
+  })
+
+  it("concludes a revert by committing and offers to abort it", () => {
+    expect(inProgressNotice("reverting", 3)).toEqual({
+      title: "反转中",
+      detail: "有 3 个冲突文件。解决冲突后勾选文件标记为已解决，然后提交以完成反转。",
+      abort: "abortRevert",
+    })
+    expect(inProgressNotice("reverting", 0)?.detail).toBe("没有冲突文件。提交以完成反转。")
   })
 })

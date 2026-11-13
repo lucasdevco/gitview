@@ -16,8 +16,9 @@ import { canCommit } from "./staging"
 /**
  * The commit area under the file lists: identity, message, 提交选项 (skip
  * hooks), 更正上一次提交 (amend) and the commit button. A failed hook's
- * output is shown above the message. While merging, the message starts as
- * the one git prepared, and committing concludes the merge. With 立即推送,
+ * output is shown above the message. While merging, cherry-picking or
+ * reverting, the message starts as the one git prepared, and committing
+ * concludes it. With 立即推送,
  * a successful commit starts a push of the current branch to its upstream
  * (or, tracking it from then on, to the same name on the default remote).
  */
@@ -43,8 +44,11 @@ export function CommitPanel({
 
   const empty = summary?.empty ?? false
   const merging = summary?.state === "merging"
-  const message = draft ?? (merging ? (summary?.mergeMessage ?? "") : "")
-  const request = { message, amend: amend && !merging, noVerify }
+  // Committing concludes a merge, cherry-pick or revert in progress; git
+  // prepared its message, and it cannot be amended into the last commit.
+  const concluding = merging || summary?.state === "cherry-picking" || summary?.state === "reverting"
+  const message = draft ?? (concluding ? (summary?.mergeMessage ?? "") : "")
+  const request = { message, amend: amend && !concluding, noVerify }
   const target = summary?.branch ? pushTarget(refs, summary.branch) : undefined
   const blocked = useWritesBlocked(repoId)
   const enabled =
@@ -141,7 +145,7 @@ export function CommitPanel({
             type="checkbox"
             aria-label="更正上一次提交"
             checked={request.amend}
-            disabled={empty || merging}
+            disabled={empty || concluding}
             onChange={(event) => setAmend(event.target.checked)}
           />
           更正上一次提交

@@ -10,12 +10,16 @@
 import type { FetchIntoRequest, FetchRequest, PullRequest, PushBranch, PushRequest } from "@/lib/api/jobs"
 import type {
   CheckoutRequest,
+  CherryPickRequest,
   CommitRequest,
   CreateBranchRequest,
+  CreateTagRequest,
   DeleteBranchesRequest,
   MergeRequest,
   RebaseRequest,
   RenameBranchRequest,
+  ResetRequest,
+  RevertRequest,
   SetUpstreamRequest,
   StashPushRequest,
   StashRequest,
@@ -88,9 +92,10 @@ export function discardHunkCommand(): string {
   return formatGitCommand(["apply", "-R"])
 }
 
-/** `checkout`: switch to a local branch. */
-export function checkoutCommand({ branch }: CheckoutRequest): string {
-  return formatGitCommand(["switch", branch])
+/** `checkout`: switch to a local branch, or detach HEAD at a commit. */
+export function checkoutCommand(request: CheckoutRequest): string {
+  if (request.commit !== undefined) return formatGitCommand(["switch", "--detach", request.commit])
+  return formatGitCommand(["switch", request.branch])
 }
 
 /** `createBranch`: a new branch at the start point (default HEAD), switched to when `checkout`. */
@@ -225,4 +230,41 @@ export function rebaseCommand({ onto }: RebaseRequest): string {
 /** `abortRebase`: abandon the rebase in progress. */
 export function abortRebaseCommand(): string {
   return formatGitCommand(["rebase", "--abort"])
+}
+
+/** `createTag`: annotated when there is a message (trimmed), lightweight otherwise. */
+export function createTagCommand({ name, commit, message }: CreateTagRequest): string {
+  const trimmed = message?.trim() ?? ""
+  return formatGitCommand(["tag", ...(trimmed ? ["-a", "-m", trimmed] : []), name, commit])
+}
+
+/** `reset`: move the current branch to a commit; mixed unless another mode is chosen. */
+export function resetCommand({ commit, mode = "mixed" }: ResetRequest): string {
+  return formatGitCommand(["reset", `--${mode}`, commit])
+}
+
+/**
+ * Whether the commit an operation acts on is a merge commit: the server
+ * then takes it relative to its first parent (`-m 1`).
+ */
+export type CommitShape = { merge: boolean }
+
+/** `cherryPick`: copy a commit onto the current branch. */
+export function cherryPickCommand({ commit }: CherryPickRequest, { merge }: CommitShape): string {
+  return formatGitCommand(["cherry-pick", ...(merge ? ["-m", "1"] : []), commit])
+}
+
+/** `revert`: add a commit undoing another. */
+export function revertCommand({ commit }: RevertRequest, { merge }: CommitShape): string {
+  return formatGitCommand(["revert", "--no-edit", ...(merge ? ["-m", "1"] : []), commit])
+}
+
+/** `abortCherryPick`: abandon the cherry-pick in progress. */
+export function abortCherryPickCommand(): string {
+  return formatGitCommand(["cherry-pick", "--abort"])
+}
+
+/** `abortRevert`: abandon the revert in progress. */
+export function abortRevertCommand(): string {
+  return formatGitCommand(["revert", "--abort"])
 }

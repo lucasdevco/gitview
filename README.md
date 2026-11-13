@@ -18,9 +18,10 @@ A Sourcetree-style Git client that runs in your browser. gitview pairs a familia
 - **File status** — staged and unstaged files with status icons (added, modified, deleted, renamed, untracked, conflicted); stage or unstage files, whole groups, or single hunks, and discard hunks after a confirmation. Diffs show hunk headers and old/new line numbers, support text search, and flag binary or oversized files instead of rendering them.
 - **Commit** — your commit identity, multi-line messages, amend (更正上一次提交), skip hooks (`--no-verify`), and push right after committing. A failing hook's output is shown.
 - **History** — the full commit graph with colored lanes in a virtualized list that stays smooth on large repositories; branch, remote-branch, and tag labels; an 未提交的更改 row for working-tree changes; all branches or the current branch, with or without remote branches; jump to a branch; search commits by message, author, or hash prefix.
+- **Commit right-click menu** — on any commit in the history: check it out (detached HEAD, after a confirmation), merge it into the current branch, rebase the current branch onto it, create a branch or a tag (annotated when you add a message) there, reset the current branch to it (soft, mixed, or hard — hard asks in red), revert it, cherry-pick it (遴选), and copy its SHA. Merge commits are reverted and cherry-picked against their first parent.
 - **Commit details** — subject, body, hash, parents (click to follow), author, dates, refs, the changed files (renames shown as renames), and each file's diff.
 - **Branches** — check out (double-click), create from the working copy or a given commit with live name validation, rename, delete one or several (force delete for unmerged branches), and set the tracked remote branch. The right-click menu offers checkout, merge, rebase, 拿来 (fast-forward a branch without checking it out), push, track remote branch, rename, delete, and copy the branch name.
-- **Merge and rebase** — merge a branch into the current one (commit immediately or not, include merged commit messages, always create a merge commit) or rebase onto it. On conflicts the workbench shows 合并中 / 变基中 with the conflicted files and lets you mark them resolved, finish the merge commit, or abort.
+- **Merge, rebase, cherry-pick, and revert** — merge a branch into the current one (commit immediately or not, include merged commit messages, always create a merge commit) or rebase onto it. On conflicts the workbench shows 合并中 / 变基中 / 遴选中 / 反转中 with the conflicted files and lets you mark them resolved, finish with a commit, or abort.
 - **Stash** — stash with an optional message and keep staged changes if you like; browse stashes with their files and diffs; apply or delete them.
 - **Fetch, pull, and push** — fetch one or all remotes (prune, tags); pull a remote branch with merge options or rebase; push several branches at once, set up tracking, and push all tags. These run as background jobs with progress and cancel, and ask for credentials in the browser when a remote needs them. A rejected push is explained with advice to pull first.
 - **Live refresh** — changes made outside gitview (terminal, editor, other tools) appear within seconds, without flicker while gitview's own writes run.
@@ -29,9 +30,9 @@ A Sourcetree-style Git client that runs in your browser. gitview pairs a familia
 ### Not yet
 
 - Multiple repositories in tabs, with bookmarks.
-- Interactive rebase, cherry-pick, revert, line-by-line staging, reflog-based undo, and a conflict resolution editor (continue a stopped rebase on the command line for now).
-- Creating or deleting tags; submodules and subtrees.
-- Comparing branches, and the 显示远程服务器, 在 Finder 中显示, and 设置 buttons.
+- Interactive rebase, line-by-line staging, reflog-based undo, and a conflict resolution editor (continue a stopped rebase on the command line for now).
+- Deleting or pushing single tags; submodules and subtrees.
+- Comparing branches or commits, and the 显示远程服务器, 在 Finder 中显示, and 设置 buttons.
 
 ## Quick Start
 

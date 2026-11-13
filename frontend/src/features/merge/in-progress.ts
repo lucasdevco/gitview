@@ -7,11 +7,17 @@ export type InProgressNotice = {
   title: string
   /** The conflicts left and what to do next. */
   detail: string
-  /** The operation that abandons it; absent when gitview cannot abort it yet. */
-  abort?: "abortMerge" | "abortRebase"
+  /** The operation that abandons it. */
+  abort: "abortMerge" | "abortRebase" | "abortCherryPick" | "abortRevert"
 }
 
 const conflicts = (count: number) => `有 ${count} 个冲突文件。`
+
+/** A merge, cherry-pick or revert is concluded by committing its result. */
+const concludedByCommit = (what: string, conflictedCount: number) =>
+  conflictedCount
+    ? `${conflicts(conflictedCount)}解决冲突后勾选文件标记为已解决，然后提交以完成${what}。`
+    : `没有冲突文件。提交以完成${what}。`
 
 /** The banner for `state`, or undefined when the repository is clean. */
 export function inProgressNotice(state: RepoState, conflictedCount: number): InProgressNotice | undefined {
@@ -19,13 +25,7 @@ export function inProgressNotice(state: RepoState, conflictedCount: number): InP
     case "clean":
       return undefined
     case "merging":
-      return {
-        title: "合并中",
-        detail: conflictedCount
-          ? `${conflicts(conflictedCount)}解决冲突后勾选文件标记为已解决，然后提交以完成合并。`
-          : "没有冲突文件。提交以完成合并。",
-        abort: "abortMerge",
-      }
+      return { title: "合并中", detail: concludedByCommit("合并", conflictedCount), abort: "abortMerge" }
     case "rebasing":
       return {
         title: "变基中",
@@ -35,8 +35,8 @@ export function inProgressNotice(state: RepoState, conflictedCount: number): InP
         abort: "abortRebase",
       }
     case "cherry-picking":
-      return { title: "遴选中", detail: conflictedCount ? conflicts(conflictedCount) : "没有冲突文件。" }
+      return { title: "遴选中", detail: concludedByCommit("遴选", conflictedCount), abort: "abortCherryPick" }
     case "reverting":
-      return { title: "还原中", detail: conflictedCount ? conflicts(conflictedCount) : "没有冲突文件。" }
+      return { title: "反转中", detail: concludedByCommit("反转", conflictedCount), abort: "abortRevert" }
   }
 }

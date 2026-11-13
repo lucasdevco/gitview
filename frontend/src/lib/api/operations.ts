@@ -53,8 +53,8 @@ export type HunkRequest = {
   hunk: HunkRange
 }
 
-/** A local branch to check out. */
-export type CheckoutRequest = { branch: string }
+/** A local branch to check out, or a commit to check out with HEAD detached (`git switch --detach`). */
+export type CheckoutRequest = { branch: string; commit?: never } | { commit: string; branch?: never }
 
 export type CreateBranchRequest = {
   name: string
@@ -111,6 +111,40 @@ export type RebaseRequest = { onto: string }
 /** The abort operations take no options. */
 export type AbortRequest = Record<string, never>
 
+/** `createTag`: tag a commit. The server rejects an invalid or taken name with `invalid_request`. */
+export type CreateTagRequest = {
+  name: string
+  /** Commit id (or any revision) the tag points to. */
+  commit: string
+  /** Makes an annotated tag (`git tag -a -m`); empty or absent makes a lightweight tag. */
+  message?: string
+}
+
+/**
+ * How far `reset` goes beyond moving the branch: `soft` keeps every change
+ * staged, `mixed` keeps them unstaged, `hard` discards uncommitted changes.
+ */
+export type ResetMode = "soft" | "mixed" | "hard"
+
+/** `reset`: move the current branch (or a detached HEAD) to a commit. */
+export type ResetRequest = {
+  commit: string
+  /** Default `mixed`. */
+  mode?: ResetMode
+}
+
+/**
+ * `cherryPick`: copy a commit onto the current branch. A merge commit is
+ * taken relative to its first parent (`-m 1`).
+ */
+export type CherryPickRequest = { commit: string }
+
+/**
+ * `revert`: add a commit undoing another. A merge commit is undone relative
+ * to its first parent (`-m 1`).
+ */
+export type RevertRequest = { commit: string }
+
 /** Request body of each operation, by operation name. */
 export type OperationRequests = {
   stage: FilesRequest
@@ -146,6 +180,18 @@ export type OperationRequests = {
   rebase: RebaseRequest
   /** Abandon the rebase in progress (`nothing_in_progress` when there is none). */
   abortRebase: AbortRequest
+
+  // One commit of the history. Cherry-pick and revert conflicts fail with
+  // code `conflict` and leave the repository cherry-picking or reverting.
+  createTag: CreateTagRequest
+  /** A hard reset discards uncommitted changes; cannot be undone. */
+  reset: ResetRequest
+  cherryPick: CherryPickRequest
+  /** Abandon the cherry-pick in progress (`nothing_in_progress` when there is none). */
+  abortCherryPick: AbortRequest
+  revert: RevertRequest
+  /** Abandon the revert in progress (`nothing_in_progress` when there is none). */
+  abortRevert: AbortRequest
 }
 
 export type OperationName = keyof OperationRequests

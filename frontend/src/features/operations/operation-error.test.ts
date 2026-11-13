@@ -31,7 +31,7 @@ describe("describeOperationError", () => {
     expect(summary("branch_not_merged")).toBe("分支尚未完全合并")
     expect(summary("git_failed")).toBe("操作失败")
     expect(summary("conflict")).toBe("出现冲突")
-    expect(summary("nothing_in_progress")).toBe("没有进行中的合并或变基")
+    expect(summary("nothing_in_progress")).toBe("没有进行中的合并、变基、遴选或反转")
   })
 
   it("names and advises on every kind of git failure the API reports", () => {

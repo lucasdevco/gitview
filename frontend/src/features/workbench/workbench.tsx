@@ -6,6 +6,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { BranchActionsContext, useBranchOperations } from "@/features/branches/branch-operations"
 import { FileStatusView } from "@/features/file-status/file-status-view"
 import { pendingFileCount } from "@/features/file-status/staging"
+import { useCommitOperations } from "@/features/history/commit-operations"
 import { HistoryView, type Selection } from "@/features/history/history-view"
 import { CredentialDialog } from "@/features/jobs/credential-dialog"
 import { JobStrip } from "@/features/jobs/job-strip"
@@ -52,6 +53,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
     select(oid)
   }
   const branches = useBranchOperations(summary, refs.data, { onConflict: () => setView("status") })
+  const commits = useCommitOperations(summary, refs.data, { onConflict: () => setView("status") })
   const [stashing, setStashing] = useState(false)
   const [stashAction, setStashAction] = useState<StashAction>()
   const [stashOid, setStashOid] = useState<string>()
@@ -128,6 +130,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
                     selection={selection}
                     onSelect={select}
                     searchMode={shown === "search"}
+                    commitActions={commits.actions}
                   />
                 )}
               </main>
@@ -138,6 +141,7 @@ function Shell({ summary }: { summary?: RepoSummary }) {
       {summary && <JobStrip repoId={summary.id} />}
       <CommandLogBar repoId={summary?.id} />
       {branches.dialogs}
+      {commits.dialogs}
       {summary && stashing && (
         <StashDialog repoId={summary.id} dirty={pendingFileCount(status.data) > 0} onClose={() => setStashing(false)} />
       )}

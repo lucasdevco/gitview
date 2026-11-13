@@ -1,8 +1,9 @@
 // Right-click menu of a local branch in the sidebar, in Sourcetree's order.
 // Items whose action is not provided by BranchActions are shown disabled.
-import { Check, ChevronRight } from "lucide-react"
+import { Check } from "lucide-react"
 import { ContextMenu } from "radix-ui"
 import type { ReactNode } from "react"
+import { MenuItem, MenuNotice, MenuSeparator, menuContentClass, SubMenu } from "@/features/operations/context-menu"
 import type { Branch, Remote } from "@/lib/api/history"
 import type { BranchActions } from "./branch-operations"
 
@@ -34,15 +35,8 @@ export function BranchContextMenu({
         <div>{children}</div>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
-        <ContextMenu.Content className="z-50 min-w-64 rounded-lg border bg-popover p-1 text-[12px] text-popover-foreground shadow-xl">
-          {actions?.writesBlocked && (
-            <>
-              <div role="status" className="max-w-72 px-2 py-1 text-muted-foreground">
-                {actions.writesBlocked}
-              </div>
-              <MenuSeparator />
-            </>
-          )}
+        <ContextMenu.Content className={menuContentClass}>
+          {actions?.writesBlocked && <MenuNotice>{actions.writesBlocked}</MenuNotice>}
           <MenuItem disabled={current || blocked} onSelect={run(actions?.checkout)}>
             检出 {name}
           </MenuItem>
@@ -94,45 +88,5 @@ export function BranchContextMenu({
         </ContextMenu.Content>
       </ContextMenu.Portal>
     </ContextMenu.Root>
-  )
-}
-
-const menuItemClass =
-  "flex cursor-default items-center rounded px-2 py-1 outline-none select-none data-[disabled]:text-muted-foreground/60 data-[highlighted]:bg-primary data-[highlighted]:text-primary-foreground"
-
-/** A menu item; without `onSelect` it is disabled. */
-function MenuItem({
-  children,
-  onSelect,
-  disabled,
-}: {
-  children: ReactNode
-  onSelect?: () => void
-  disabled?: boolean
-}) {
-  return (
-    <ContextMenu.Item className={menuItemClass} disabled={disabled || !onSelect} onSelect={onSelect}>
-      {children}
-    </ContextMenu.Item>
-  )
-}
-
-function MenuSeparator() {
-  return <ContextMenu.Separator className="mx-2 my-1 h-px bg-border" />
-}
-
-function SubMenu({ label, disabled, children }: { label: string; disabled?: boolean; children: ReactNode }) {
-  return (
-    <ContextMenu.Sub>
-      <ContextMenu.SubTrigger className={menuItemClass} disabled={disabled}>
-        {label}
-        <ChevronRight className="ml-auto size-3.5" />
-      </ContextMenu.SubTrigger>
-      <ContextMenu.Portal>
-        <ContextMenu.SubContent className="z-50 max-h-80 min-w-48 overflow-y-auto rounded-lg border bg-popover p-1 text-[12px] text-popover-foreground shadow-xl">
-          {children}
-        </ContextMenu.SubContent>
-      </ContextMenu.Portal>
-    </ContextMenu.Sub>
   )
 }

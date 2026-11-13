@@ -6,6 +6,7 @@
 // provides `actions` through BranchActionsContext; sidebar rows read them
 // with useBranchActions().
 import { createContext, type ReactNode, useContext, useState } from "react"
+import { useCopyText } from "@/features/clipboard/copy-text"
 import { useWritesBlocked } from "@/features/jobs/write-block"
 import { MergeDialog, RebaseSheet } from "@/features/merge/merge-dialog"
 import { isConflict } from "@/features/operations/operation-error"
@@ -17,7 +18,6 @@ import type { RepoSummary } from "@/lib/api/repos"
 import { useStartJob } from "@/lib/api/use-job"
 import { useOperation } from "@/lib/api/use-operation"
 import { BranchDialog, type BranchDialogTab } from "./branch-dialog"
-import { useCopyBranchName } from "./copy-branch-name"
 import { RenameBranchDialog } from "./rename-branch-dialog"
 
 /**
@@ -97,7 +97,7 @@ export function useBranchOperations(
   const hasRemotes = !!refs?.remotes.length
 
   const writesBlocked = useWritesBlocked(repoId)
-  const copyName = useCopyBranchName()
+  const copyText = useCopyText()
 
   const actions: BranchActions | undefined = summary && {
     writesBlocked,
@@ -108,7 +108,7 @@ export function useBranchOperations(
     openBranchDialog: (options) =>
       setDialog({ kind: "branch", tab: options?.tab ?? "new", branches: options?.branches ?? [] }),
     rename: (branch) => setDialog({ kind: "rename", branch }),
-    copyName: copyName.copy,
+    copyName: (branch) => copyText.copy(branch, "分支名字"),
     delete: (branch) => setDialog({ kind: "branch", tab: "delete", branches: [branch] }),
     setUpstream: (branch, upstream) =>
       setUpstream.mutate({ branch, upstream }, { onError: fail(`无法让 ${branch} 跟踪 ${upstream}`) }),
@@ -185,7 +185,7 @@ export function useBranchOperations(
     dialogs: (
       <>
         {dialogs}
-        {copyName.feedback}
+        {copyText.feedback}
       </>
     ),
   }

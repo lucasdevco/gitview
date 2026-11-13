@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest"
 import {
+  abortCherryPickCommand,
   abortMergeCommand,
   abortRebaseCommand,
+  abortRevertCommand,
   checkoutCommand,
+  cherryPickCommand,
   commitCommand,
   createBranchCommand,
+  createTagCommand,
   deleteBranchesCommand,
   discardHunkCommand,
   fetchCommand,
@@ -16,6 +20,8 @@ import {
   pushCommands,
   rebaseCommand,
   renameBranchCommand,
+  resetCommand,
+  revertCommand,
   setUpstreamCommand,
   stageCommand,
   stageHunkCommand,
@@ -195,5 +201,40 @@ describe("merge and rebase", () => {
   it("aborts the merge or rebase in progress", () => {
     expect(abortMergeCommand()).toBe("git merge --abort")
     expect(abortRebaseCommand()).toBe("git rebase --abort")
+  })
+})
+
+// The same requests as internal/server/commit_ops_test.go.
+describe("commit operations", () => {
+  const oid = "0123456789abcdef0123456789abcdef01234567"
+
+  it("checks out a commit with HEAD detached", () => {
+    expect(checkoutCommand({ commit: oid })).toBe(`git switch --detach ${oid}`)
+  })
+
+  it("makes an annotated tag when there is a message, else a lightweight one", () => {
+    expect(createTagCommand({ name: "v1.0", commit: oid, message: "First release" })).toBe(
+      `git tag -a -m 'First release' v1.0 ${oid}`,
+    )
+    expect(createTagCommand({ name: "release/v1", commit: oid, message: "  " })).toBe(`git tag release/v1 ${oid}`)
+    expect(createTagCommand({ name: "v2", commit: oid })).toBe(`git tag v2 ${oid}`)
+  })
+
+  it("resets with the chosen mode, mixed by default", () => {
+    expect(resetCommand({ commit: oid, mode: "soft" })).toBe(`git reset --soft ${oid}`)
+    expect(resetCommand({ commit: oid })).toBe(`git reset --mixed ${oid}`)
+    expect(resetCommand({ commit: oid, mode: "hard" })).toBe(`git reset --hard ${oid}`)
+  })
+
+  it("reverts and cherry-picks a merge commit relative to its first parent", () => {
+    expect(revertCommand({ commit: oid }, { merge: false })).toBe(`git revert --no-edit ${oid}`)
+    expect(revertCommand({ commit: oid }, { merge: true })).toBe(`git revert --no-edit -m 1 ${oid}`)
+    expect(cherryPickCommand({ commit: oid }, { merge: false })).toBe(`git cherry-pick ${oid}`)
+    expect(cherryPickCommand({ commit: oid }, { merge: true })).toBe(`git cherry-pick -m 1 ${oid}`)
+  })
+
+  it("aborts the cherry-pick or revert in progress", () => {
+    expect(abortCherryPickCommand()).toBe("git cherry-pick --abort")
+    expect(abortRevertCommand()).toBe("git revert --abort")
   })
 })

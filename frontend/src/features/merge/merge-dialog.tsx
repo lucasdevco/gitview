@@ -18,25 +18,28 @@ import { mergeSources } from "./merge-sources"
 export function MergeDialog({
   summary,
   refs,
+  commit,
   onClose,
   onConflict,
 }: {
   summary: RepoSummary
   refs?: Refs
+  /** A commit of the history to merge (合并至当前分支), offered first and preselected. */
+  commit?: CommitChoice
   onClose: () => void
   onConflict: () => void
 }) {
   const merge = useOperation(summary.id, "merge")
   const rebase = useOperation(summary.id, "rebase")
-  const sources = mergeSources(refs)
+  const sources = [...(commit ? [commit.oid] : []), ...mergeSources(refs)]
   const [source, setSource] = useState<string>()
-  const [commit, setCommit] = useState(true)
+  const [commitNow, setCommitNow] = useState(true)
   const [log, setLog] = useState(false)
   const [noFastForward, setNoFastForward] = useState(false)
   const [useRebase, setUseRebase] = useState(false)
 
   const branch = source ?? sources[0] ?? ""
-  const request: MergeRequest = { branch, noFastForward, log, noCommit: !commit }
+  const request: MergeRequest = { branch, noFastForward, log, noCommit: !commitNow }
   const busy = merge.isPending || rebase.isPending
   const error = merge.error ?? rebase.error
   // A merge needs a branch to merge into; a rebase can also move a detached HEAD.
@@ -84,7 +87,7 @@ export function MergeDialog({
           {sources.length ? (
             sources.map((name) => (
               <option key={name} value={name}>
-                {name}
+                {commit && name === commit.oid ? commitLabel(commit) : name}
               </option>
             ))
           ) : (
@@ -96,7 +99,7 @@ export function MergeDialog({
         <div className="pt-1">{summary.detached ? `HEAD（分离于 ${summary.head.slice(0, 7)}）` : summary.branch}</div>
       </Field>
       <Group title="选项">
-        <Check label="立即提交合并的改动" checked={commit} onChange={setCommit} disabled={useRebase} />
+        <Check label="立即提交合并的改动" checked={commitNow} onChange={setCommitNow} disabled={useRebase} />
         <Check label="包括被合并提交的信息内容" checked={log} onChange={setLog} disabled={useRebase} />
         <Check
           label="无论是否可以快进更新都创建新的提交"
@@ -129,15 +132,30 @@ export function MergeDialog({
   )
 }
 
-/** Confirms 将当前变更变基到 X: the current branch's commits are rewritten. */
+/** A commit offered by its oid and shown by its short oid and subject. */
+export type CommitChoice = { oid: string; subject: string }
+
+/** How a commit is named in the merge and rebase sheets, e.g. "1a2b3c4 Fix login". */
+export function commitLabel({ oid, subject }: CommitChoice): string {
+  return `${oid.slice(0, 7)} ${subject}`
+}
+
+/**
+ * Confirms 将当前变更变基到 X (a branch) or 变基当前分支到此提交 (a commit):
+ * the current branch's commits are rewritten.
+ */
 export function RebaseSheet({
   summary,
   onto,
+  ontoLabel = onto,
   onClose,
   onConflict,
 }: {
   summary: RepoSummary
+  /** Branch or commit id to rebase onto. */
   onto: string
+  /** How to name `onto` in the question, e.g. a commit's short oid and subject. */
+  ontoLabel?: string
   onClose: () => void
   onConflict: () => void
 }) {
@@ -172,7 +190,7 @@ export function RebaseSheet({
     >
       <p className="break-words">
         确定要将 <span className="font-medium">{current}</span> 上的变更变基到{" "}
-        <span className="font-medium">{onto}</span> 吗？
+        <span className="font-medium">{ontoLabel}</span> 吗？
       </p>
       <p className="text-muted-foreground">变基会重写这些提交。请确保您还没有推送它们。</p>
       {rebase.error && !isConflict(rebase.error) && (

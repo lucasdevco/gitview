@@ -1,5 +1,6 @@
 // The banner above the main pane while the repository is in the middle of a
-// merge, rebase, cherry-pick or revert, with 中止合并 / 中止变基.
+// merge, rebase, cherry-pick or revert, with 中止合并 / 中止变基 / 中止遴选 /
+// 中止反转.
 import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
 import { useWritesBlocked } from "@/features/jobs/write-block"
@@ -7,19 +8,26 @@ import { OperationErrorNotice } from "@/features/operations/operation-error-view
 import { OperationSheet } from "@/features/operations/operation-sheet"
 import type { RepoSummary } from "@/lib/api/repos"
 import { useOperation } from "@/lib/api/use-operation"
-import { abortMergeCommand, abortRebaseCommand } from "@/lib/command-preview"
+import {
+  abortCherryPickCommand,
+  abortMergeCommand,
+  abortRebaseCommand,
+  abortRevertCommand,
+} from "@/lib/command-preview"
 import { type InProgressNotice, inProgressNotice } from "./in-progress"
 
 const ABORT = {
   abortMerge: { label: "中止合并", command: abortMergeCommand, what: "合并" },
   abortRebase: { label: "中止变基", command: abortRebaseCommand, what: "变基" },
-} as const
+  abortCherryPick: { label: "中止遴选", command: abortCherryPickCommand, what: "遴选" },
+  abortRevert: { label: "中止反转", command: abortRevertCommand, what: "反转" },
+} satisfies Record<InProgressNotice["abort"], { label: string; command: () => string; what: string }>
 
 export function InProgressBanner({ summary, conflictedCount }: { summary: RepoSummary; conflictedCount: number }) {
   const [confirming, setConfirming] = useState(false)
   const notice = inProgressNotice(summary.state, conflictedCount)
   if (!notice) return null
-  const abort = notice.abort && ABORT[notice.abort]
+  const abort = ABORT[notice.abort]
   return (
     <div
       role="status"
@@ -31,32 +39,20 @@ export function InProgressBanner({ summary, conflictedCount }: { summary: RepoSu
       <span className="min-w-0 flex-1 truncate" title={notice.detail}>
         {notice.detail}
       </span>
-      {abort && (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className="h-6 shrink-0 rounded-md border bg-background px-3 shadow-xs hover:bg-accent"
-        >
-          {abort.label}
-        </button>
-      )}
-      {confirming && notice.abort && (
-        <AbortSheet repoId={summary.id} op={notice.abort} onClose={() => setConfirming(false)} />
-      )}
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="h-6 shrink-0 rounded-md border bg-background px-3 shadow-xs hover:bg-accent"
+      >
+        {abort.label}
+      </button>
+      {confirming && <AbortSheet repoId={summary.id} op={notice.abort} onClose={() => setConfirming(false)} />}
     </div>
   )
 }
 
-/** Confirms abandoning the merge or rebase: conflict resolutions made so far are lost. */
-function AbortSheet({
-  repoId,
-  op,
-  onClose,
-}: {
-  repoId: string
-  op: NonNullable<InProgressNotice["abort"]>
-  onClose: () => void
-}) {
+/** Confirms abandoning the operation in progress: conflict resolutions made so far are lost. */
+function AbortSheet({ repoId, op, onClose }: { repoId: string; op: InProgressNotice["abort"]; onClose: () => void }) {
   const operation = useOperation(repoId, op)
   const blocked = useWritesBlocked(repoId)
   const { label, command, what } = ABORT[op]

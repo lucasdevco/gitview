@@ -21,6 +21,7 @@ export function BranchDialog({
   branches,
   initialTab = "new",
   initialSelection = [],
+  initialStartPoint,
   onClose,
 }: {
   summary: RepoSummary
@@ -29,10 +30,12 @@ export function BranchDialog({
   initialTab?: BranchDialogTab
   /** Branches ticked on the 删除分支 tab when it opens. */
   initialSelection?: string[]
+  /** On the 新建分支 tab, start from 指定的提交 with this commit filled in. */
+  initialStartPoint?: string
   onClose: () => void
 }) {
   const [tab, setTab] = useState(initialTab)
-  const create = useCreateBranchForm(summary.id, branches, onClose)
+  const create = useCreateBranchForm(summary.id, branches, initialStartPoint, onClose)
   const remove = useDeleteBranchesForm(summary.id, branches, initialSelection, onClose)
   const form = tab === "new" ? create : remove
 
@@ -80,11 +83,16 @@ export function BranchDialog({
   )
 }
 
-function useCreateBranchForm(repoId: string, branches: Branch[], onDone: () => void) {
+function useCreateBranchForm(
+  repoId: string,
+  branches: Branch[],
+  initialStartPoint: string | undefined,
+  onDone: () => void,
+) {
   const operation = useOperation(repoId, "createBranch")
   const [name, setName] = useState("")
-  const [base, setBase] = useState<"parent" | "commit">("parent")
-  const [commit, setCommit] = useState("")
+  const [base, setBase] = useState<"parent" | "commit">(initialStartPoint ? "commit" : "parent")
+  const [commit, setCommit] = useState(initialStartPoint ?? "")
   const [checkout, setCheckout] = useState(true)
   const problem = branchNameProblem(
     name,

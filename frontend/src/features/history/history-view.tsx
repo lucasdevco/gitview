@@ -18,8 +18,11 @@ import type { RepoSummary } from "@/lib/api/repos"
 import { type WorktreeStatus, worktreeStatusQuery } from "@/lib/api/worktree"
 import { formatRelativeDate } from "@/lib/dates"
 import { cn } from "@/lib/utils"
+import { CommitContextMenu } from "./commit-context-menu"
+import type { CommitActions } from "./commit-operations"
 import { type GraphRow, laneColor, layoutGraph } from "./graph"
 import { GraphCell, graphColumnWidth, ROW_HEIGHT } from "./graph-cell"
+import { reachableFrom } from "./reachable"
 import { RefLabel, refsByCommit } from "./ref-label"
 import { searchCommits } from "./search"
 import { UNCOMMITTED, withUncommittedChanges } from "./uncommitted"
@@ -91,12 +94,15 @@ export function HistoryView({
   selection,
   onSelect,
   searchMode,
+  commitActions,
 }: {
   summary: RepoSummary
   refs?: Refs
   selection?: Selection
   onSelect: (oid: string) => void
   searchMode: boolean
+  /** What a commit's context menu does; undefined while the repository loads. */
+  commitActions?: CommitActions
 }) {
   const api = useApi()
   const [scope, setScope] = useState<GraphOptions["scope"]>("all")
@@ -142,6 +148,7 @@ export function HistoryView({
     return graphColumnWidth(lanes)
   }, [rows])
   const refsMap = useMemo(() => refsByCommit(refs, showRemotes), [refs, showRemotes])
+  const headHistory = useMemo(() => reachableFrom(commits ?? [], summary.head), [commits, summary.head])
   // Selecting "未提交的更改" falls back to HEAD once the working tree is clean again.
   const selectedOid =
     selection?.oid === UNCOMMITTED && !showUncommitted ? summary.head : (selection?.oid ?? summary.head)
@@ -291,7 +298,7 @@ export function HistoryView({
                   const { commit } = row
                   const isSelected = row.oid === selectedOid
                   const isHead = row.oid === summary.head
-                  return (
+                  const element = (
                     <div
                       key={row.oid}
                       id={`commit-${row.oid}`}
@@ -342,6 +349,19 @@ export function HistoryView({
                         </>
                       )}
                     </div>
+                  )
+                  if (!commit) return element
+                  return (
+                    <CommitContextMenu
+                      key={row.oid}
+                      commit={commit}
+                      summary={summary}
+                      inHead={headHistory.has(commit.oid)}
+                      actions={commitActions}
+                      onOpen={() => onSelect(commit.oid)}
+                    >
+                      {element}
+                    </CommitContextMenu>
                   )
                 })}
               </div>
