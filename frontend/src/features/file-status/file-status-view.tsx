@@ -333,6 +333,7 @@ function DiscardHunkSheet({
       width={460}
       command={discardHunkCommand()}
       confirmLabel="丢弃"
+      destructive
       onClose={onClose}
       onConfirm={onConfirm}
     >

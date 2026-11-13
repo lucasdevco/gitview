@@ -4,6 +4,7 @@
 // request the dialog sends, so the preview matches the command log.
 import { Dialog } from "radix-ui"
 import type { ReactNode } from "react"
+import { cn } from "@/lib/utils"
 
 export function OperationSheet({
   title,
@@ -13,6 +14,7 @@ export function OperationSheet({
   onClose,
   onConfirm,
   confirmLabel = "确定",
+  destructive = false,
   disabled,
   blockedBy,
   queuesBehind,
@@ -28,6 +30,8 @@ export function OperationSheet({
   onClose: () => void
   onConfirm: () => void
   confirmLabel?: string
+  /** The confirm button loses work (discard, delete, abort): shown in red. */
+  destructive?: boolean
   disabled?: boolean
   /**
    * Why the operation cannot run now (a background job holds the write
@@ -81,7 +85,13 @@ export function OperationSheet({
               onClick={onConfirm}
               disabled={disabled || !!blockedBy}
               title={blockedBy}
-              className="h-6 min-w-20 rounded-md bg-primary px-3 text-primary-foreground shadow-xs disabled:bg-muted disabled:text-muted-foreground"
+              data-variant={destructive ? "destructive" : "default"}
+              className={cn(
+                "h-6 min-w-20 rounded-md px-3 shadow-xs disabled:bg-muted disabled:text-muted-foreground",
+                destructive
+                  ? "bg-destructive text-white hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground",
+              )}
             >
               {confirmLabel}
             </button>

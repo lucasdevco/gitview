@@ -44,6 +44,7 @@ export function BranchDialog({
       command={form.command}
       onClose={onClose}
       confirmLabel={form.confirmLabel}
+      destructive={tab === "delete"}
       disabled={!form.canSubmit}
       blockedBy={form.blocked}
       onConfirm={form.submit}

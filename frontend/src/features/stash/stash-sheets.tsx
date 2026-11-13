@@ -84,6 +84,7 @@ export function StashActionSheet({
       command={apply ? stashApplyCommand(request) : stashDropCommand(request)}
       onClose={onClose}
       confirmLabel={operation.isPending ? "正在执行…" : apply ? "应用" : "删除"}
+      destructive={!apply}
       disabled={operation.isPending}
       blockedBy={blocked}
       onConfirm={confirm}

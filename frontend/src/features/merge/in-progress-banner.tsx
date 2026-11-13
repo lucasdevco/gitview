@@ -67,6 +67,7 @@ function AbortSheet({
       width={480}
       command={command()}
       confirmLabel={label}
+      destructive
       disabled={operation.isPending}
       blockedBy={blocked}
       onClose={onClose}
