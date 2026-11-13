@@ -145,6 +145,8 @@ export function HistoryView({
   // Selecting "未提交的更改" falls back to HEAD once the working tree is clean again.
   const selectedOid =
     selection?.oid === UNCOMMITTED && !showUncommitted ? summary.head : (selection?.oid ?? summary.head)
+  // A search that filters out the selected commit hides its details; they come back with it.
+  const selectionHidden = searching && !!commits && !!selectedOid && !indexByOid.has(selectedOid)
   const columns = `${graphWidth}px minmax(0,1fr) 6.5rem minmax(0,15rem) 8.5rem`
 
   const list = useVirtualWindow(rows.length)
@@ -350,7 +352,11 @@ export function HistoryView({
       <ResizableHandle orientation="vertical" />
       <ResizablePanel minSize="20%">
         <section className="h-full" aria-label="提交详情">
-          {selectedOid === UNCOMMITTED && status.data ? (
+          {selectionHidden ? (
+            <p role="status" className="p-4 text-muted-foreground">
+              所选提交不在搜索结果中
+            </p>
+          ) : selectedOid === UNCOMMITTED && status.data ? (
             <UncommittedChanges repoId={summary.id} status={status.data} />
           ) : selectedOid && selectedOid !== UNCOMMITTED ? (
             <CommitDetails
