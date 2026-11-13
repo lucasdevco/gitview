@@ -6,11 +6,10 @@ import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Field, Group, OperationSheet, selectClass } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
-import type { PullRequest } from "@/lib/api/jobs"
 import type { RepoSummary } from "@/lib/api/repos"
 import { useStartJob } from "@/lib/api/use-job"
 import { pullCommand } from "@/lib/command-preview"
-import { defaultPullBranch, defaultRemote } from "./remotes"
+import { DEFAULT_PULL_OPTIONS, defaultPullBranch, defaultRemote, type PullOptions, pullRequest } from "./remotes"
 
 export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; refs?: Refs; onClose: () => void }) {
   const start = useStartJob(summary.id, "pull")
@@ -19,17 +18,14 @@ export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; r
   const remotes = refs?.remotes ?? []
   const [remote, setRemote] = useState(() => defaultRemote(refs) ?? "")
   const [chosenBranch, setBranch] = useState<string>()
-  // 立即提交合并的改动 starts off, as in Sourcetree: a merge stops for review.
-  const [commitMerged, setCommitMerged] = useState(false)
-  const [log, setLog] = useState(false)
-  const [noFastForward, setNoFastForward] = useState(false)
-  const [rebase, setRebase] = useState(false)
+  const [options, setOptions] = useState(DEFAULT_PULL_OPTIONS)
+  const { commitMerged, log, noFastForward, rebase } = options
+  const option = (name: keyof PullOptions) => (value: boolean) =>
+    setOptions((previous) => ({ ...previous, [name]: value }))
 
   const branches = remotes.find((candidate) => candidate.name === remote)?.branches ?? []
   const branch = chosenBranch ?? defaultPullBranch(refs, remote) ?? ""
-  const request: PullRequest = rebase
-    ? { remote, branch, rebase }
-    : { remote, branch, noCommit: !commitMerged, log, noFastForward }
+  const request = pullRequest(remote, branch, options)
   const url = remotes.find((candidate) => candidate.name === remote)?.url
   return (
     <OperationSheet
@@ -82,15 +78,19 @@ export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; r
         <div className="pt-1">{summary.branch || "（HEAD 处于分离状态，无法拉取）"}</div>
       </Field>
       <Group title="选项">
-        <Check label="立即提交合并的改动" checked={commitMerged} onChange={setCommitMerged} disabled={rebase} />
-        <Check label="包括被合并提交的信息内容" checked={log} onChange={setLog} disabled={rebase} />
+        <Check label="立即提交合并的改动" checked={commitMerged} onChange={option("commitMerged")} disabled={rebase} />
+        <Check label="包括被合并提交的信息内容" checked={log} onChange={option("log")} disabled={rebase} />
         <Check
           label="无论是否可以快进更新都创建新的提交"
           checked={noFastForward}
-          onChange={setNoFastForward}
+          onChange={option("noFastForward")}
           disabled={rebase}
         />
-        <Check label="用变基代替合并（警告：请确保您还没有推送您的变更）" checked={rebase} onChange={setRebase} />
+        <Check
+          label="用变基代替合并（警告：请确保您还没有推送您的变更）"
+          checked={rebase}
+          onChange={option("rebase")}
+        />
       </Group>
       {start.error && <OperationErrorNotice error={start.error} onDismiss={() => start.reset()} />}
       {refresh.error && <OperationErrorNotice error={refresh.error} onDismiss={() => refresh.reset()} />}

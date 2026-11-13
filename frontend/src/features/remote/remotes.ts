@@ -1,7 +1,7 @@
 // Choosing remotes and remote branches for the fetch, pull and push dialogs,
 // the commit area's 立即推送 and the branch menu's 推送到 and 拿来.
 import type { Branch, Refs, Remote } from "@/lib/api/history"
-import type { PushBranch } from "@/lib/api/jobs"
+import type { PullRequest, PushBranch } from "@/lib/api/jobs"
 
 /**
  * The remote an operation on one remote should use by default: the one the
@@ -68,6 +68,27 @@ export function defaultPullBranch(refs: Refs | undefined, remote: string): strin
   if (upstream?.remote === remote && names.includes(upstream.branch)) return upstream.branch
   if (current && names.includes(current.name)) return current.name
   return names.at(0)
+}
+
+/** The 拉取 dialog's 选项 checkboxes. */
+export type PullOptions = {
+  /** 立即提交合并的改动; off adds `--no-commit`. */
+  commitMerged: boolean
+  log: boolean
+  noFastForward: boolean
+  rebase: boolean
+}
+
+/**
+ * What the 拉取 dialog starts with: a plain `git pull` that commits the merge
+ * right away, as the 合并 dialog does.
+ */
+export const DEFAULT_PULL_OPTIONS: PullOptions = { commitMerged: true, log: false, noFastForward: false, rebase: false }
+
+/** The pull the 拉取 dialog starts; rebasing ignores the merge options. */
+export function pullRequest(remote: string, branch: string, options: PullOptions): PullRequest {
+  const { commitMerged, log, noFastForward, rebase } = options
+  return rebase ? { remote, branch, rebase } : { remote, branch, noCommit: !commitMerged, log, noFastForward }
 }
 
 /** One row of the 推送 dialog's branch table. */

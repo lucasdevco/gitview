@@ -1,8 +1,11 @@
 import { expect, test } from "vitest"
 import type { Branch, Refs } from "@/lib/api/history"
+import { pullCommand } from "@/lib/command-preview"
 import {
+  DEFAULT_PULL_OPTIONS,
   defaultPullBranch,
   defaultRemote,
+  pullRequest,
   pushBranch,
   pushRows,
   pushTarget,
@@ -109,4 +112,17 @@ test("remote branch names are checked like the API checks them", () => {
   expect(remoteBranchProblem("feature/x")).toBeUndefined()
   expect(remoteBranchProblem("")).toBe("请输入远程分支名")
   for (const name of ["-f", "+main", "a:b", "a b"]) expect(remoteBranchProblem(name)).toBeTruthy()
+})
+
+test("the 拉取 dialog's default options pull like plain git pull, committing the merge right away", () => {
+  expect(pullCommand(pullRequest("origin", "main", DEFAULT_PULL_OPTIONS))).toBe(
+    "git pull --progress --no-rebase origin main",
+  )
+  expect(pullCommand(pullRequest("origin", "main", { ...DEFAULT_PULL_OPTIONS, commitMerged: false }))).toBe(
+    "git pull --progress --no-rebase --no-commit origin main",
+  )
+  // Rebasing ignores the merge options.
+  expect(pullCommand(pullRequest("origin", "main", { ...DEFAULT_PULL_OPTIONS, rebase: true, log: true }))).toBe(
+    "git pull --progress --rebase origin main",
+  )
 })
