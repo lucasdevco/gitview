@@ -40,7 +40,11 @@ export function OperationSheet({
   blockedBy?: string
   /** For an operation that runs as a job: the job it will queue behind, shown in the sheet. */
   queuesBehind?: string
-  /** Content to the right of a visible title, such as tabs. */
+  /**
+   * Content to the right of a visible title, such as tabs. A sheet with a
+   * header is anchored by its top edge rather than centred, so switching
+   * tabs that differ in height does not move the tabs.
+   */
   header?: ReactNode
   children: ReactNode
 }) {
@@ -50,7 +54,10 @@ export function OperationSheet({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/25" />
         <Dialog.Content
           style={{ width }}
-          className="fixed top-1/2 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover text-popover-foreground shadow-2xl"
+          className={cn(
+            "fixed left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border bg-popover text-popover-foreground shadow-2xl",
+            showTitle && header ? "top-[12vh]" : "top-1/2 -translate-y-1/2",
+          )}
           aria-describedby={undefined}
         >
           {showTitle ? (
