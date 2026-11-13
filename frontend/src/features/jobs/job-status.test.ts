@@ -78,3 +78,22 @@ test("otherwise the newest finished job is shown unless it is hidden", () => {
   expect(jobToShow(jobs, new Set(["latest"]))).toEqual({ job: jobs[0], waiting: 0 })
   expect(jobToShow(jobs, new Set(["earlier", "latest"]))).toBeUndefined()
 })
+
+test("a failed or canceled job is dropped once a later job succeeds", () => {
+  const jobs = [job("failed", "failed"), job("canceled", "canceled"), job("ok", "succeeded")]
+  expect(jobToShow(jobs, new Set())).toEqual({ job: jobs[2], waiting: 0 })
+  // The success hides itself after a while; the earlier failures stay gone.
+  expect(jobToShow(jobs, new Set(["ok"]))).toBeUndefined()
+})
+
+test("a failed job stays until a later job succeeds or it is dismissed", () => {
+  const failed = job("failed", "failed")
+  expect(jobToShow([failed], new Set())).toEqual({ job: failed, waiting: 0 })
+  // A later job that fails too does not drop it.
+  const alsoFailed = job("also", "failed")
+  expect(jobToShow([failed, alsoFailed], new Set(["also"]))).toEqual({ job: failed, waiting: 0 })
+  // While a later job runs, the failure comes back if that job does not succeed.
+  expect(jobToShow([failed, job("run", "running")], new Set())?.job.id).toBe("run")
+  expect(jobToShow([failed, job("run", "canceled")], new Set(["run"]))).toEqual({ job: failed, waiting: 0 })
+  expect(jobToShow([failed], new Set(["failed"]))).toBeUndefined()
+})

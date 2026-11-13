@@ -63,7 +63,8 @@ export function writesBlockedBy(jobs: readonly Job[] | undefined): string | unde
  * The job the strip shows: the running one, or the oldest queued (jobs run
  * one at a time, so the others wait behind it); else the newest finished job
  * not in `hidden` — the ones the user dismissed and those that had finished
- * before the page loaded, which are not news.
+ * before the page loaded, which are not news. A failed or canceled job (and
+ * its 详情) stays until it is dismissed or a later job succeeds.
  */
 export function jobToShow(
   jobs: readonly Job[],
@@ -72,6 +73,8 @@ export function jobToShow(
   const active = jobs.filter((job) => describeJob(job).active)
   const first = active.find((job) => job.state === "running") ?? active.at(0)
   if (first) return { job: first, waiting: active.length - 1 }
-  const finished = jobs.filter((job) => !hidden.has(job.id)).at(-1)
+  // Jobs are listed oldest first and run one at a time, so a job after the last success finished after it.
+  const lastSuccess = jobs.map((job) => job.state).lastIndexOf("succeeded")
+  const finished = jobs.filter((job, index) => !hidden.has(job.id) && index >= lastSuccess).at(-1)
   return finished && { job: finished, waiting: 0 }
 }
