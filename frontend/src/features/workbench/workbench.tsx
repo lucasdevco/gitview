@@ -78,7 +78,6 @@ function Shell({ summary }: { summary?: RepoSummary }) {
         behind={current?.behind}
         ahead={current?.ahead}
       />
-      {summary && <InProgressBanner summary={summary} conflictedCount={status.data?.conflicted.length ?? 0} />}
       <div className="min-h-0 flex-1">
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize="18%" minSize="12%" maxSize="32%">
@@ -104,27 +103,35 @@ function Shell({ summary }: { summary?: RepoSummary }) {
           </ResizablePanel>
           <ResizableHandle orientation="horizontal" />
           <ResizablePanel>
-            <main className="h-full" aria-label={summary ? VIEW_LABELS[shown] : "正在加载仓库"} aria-busy={!summary}>
-              {summary && shown === "status" && <FileStatusView repoId={summary.id} />}
-              {summary && shown === "stash" && stash && (
-                <StashView
-                  key={stash.oid}
-                  repoId={summary.id}
-                  stash={stash}
-                  onAction={setStashAction}
-                  onReveal={reveal}
-                />
-              )}
-              {summary && (shown === "history" || shown === "search") && (
-                <HistoryView
-                  summary={summary}
-                  refs={refs.data}
-                  selection={selection}
-                  onSelect={select}
-                  searchMode={shown === "search"}
-                />
-              )}
-            </main>
+            {/* The merge/rebase banner sits above the main pane only, so the sidebar does not move when it comes and goes. */}
+            <div className="flex h-full flex-col">
+              {summary && <InProgressBanner summary={summary} conflictedCount={status.data?.conflicted.length ?? 0} />}
+              <main
+                className="min-h-0 flex-1"
+                aria-label={summary ? VIEW_LABELS[shown] : "正在加载仓库"}
+                aria-busy={!summary}
+              >
+                {summary && shown === "status" && <FileStatusView repoId={summary.id} />}
+                {summary && shown === "stash" && stash && (
+                  <StashView
+                    key={stash.oid}
+                    repoId={summary.id}
+                    stash={stash}
+                    onAction={setStashAction}
+                    onReveal={reveal}
+                  />
+                )}
+                {summary && (shown === "history" || shown === "search") && (
+                  <HistoryView
+                    summary={summary}
+                    refs={refs.data}
+                    selection={selection}
+                    onSelect={select}
+                    searchMode={shown === "search"}
+                  />
+                )}
+              </main>
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

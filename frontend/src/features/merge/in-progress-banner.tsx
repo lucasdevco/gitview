@@ -1,4 +1,4 @@
-// The banner under the title bar while the repository is in the middle of a
+// The banner above the main pane while the repository is in the middle of a
 // merge, rebase, cherry-pick or revert, with 中止合并 / 中止变基.
 import { TriangleAlert } from "lucide-react"
 import { useState } from "react"
