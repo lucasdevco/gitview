@@ -129,6 +129,7 @@ export function CommitPanel({
         >
           <input
             type="checkbox"
+            aria-label={`立即推送变更到 ${targetName}`}
             checked={pushAfterCommit && !!target}
             disabled={!target}
             onChange={(event) => setPushAfterCommit(event.target.checked)}
@@ -138,6 +139,7 @@ export function CommitPanel({
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
+            aria-label="更正上一次提交"
             checked={request.amend}
             disabled={empty || merging}
             onChange={(event) => setAmend(event.target.checked)}

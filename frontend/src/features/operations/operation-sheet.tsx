@@ -3,7 +3,7 @@
 // dialog will run, built with the lib/command-preview builders from the same
 // request the dialog sends, so the preview matches the command log.
 import { Dialog } from "radix-ui"
-import type { ReactNode } from "react"
+import { type ReactNode, useId } from "react"
 import { cn } from "@/lib/utils"
 
 export function OperationSheet({
@@ -133,9 +133,13 @@ export function Check({
   onChange: (value: boolean) => void
   disabled?: boolean
 }) {
+  // The label is tied to the checkbox by id as well as by nesting, so every
+  // accessibility tree names the checkbox after it.
+  const id = useId()
   return (
-    <label className="flex items-center gap-2">
+    <label htmlFor={id} className="flex items-center gap-2">
       <input
+        id={id}
         type="checkbox"
         checked={checked}
         disabled={disabled}
