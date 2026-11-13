@@ -30,12 +30,16 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={badge ? `${label}（${badge}）` : label}
       className="relative flex min-w-11 flex-col items-center gap-0.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent"
     >
       <Icon className="size-[18px] text-primary" strokeWidth={1.6} />
       <span className="whitespace-nowrap">{label}</span>
       {!!badge && (
-        <span className="absolute top-0 left-1/2 ml-1 min-w-3.5 rounded-full bg-primary px-1 text-[9px] leading-3.5 text-primary-foreground">
+        <span
+          aria-hidden="true"
+          className="absolute top-0 left-1/2 ml-1 min-w-3.5 rounded-full bg-primary px-1 text-[9px] leading-3.5 text-primary-foreground"
+        >
           {badge}
         </span>
       )}
