@@ -17,6 +17,7 @@ import type { RepoSummary } from "@/lib/api/repos"
 import { useStartJob } from "@/lib/api/use-job"
 import { useOperation } from "@/lib/api/use-operation"
 import { BranchDialog, type BranchDialogTab } from "./branch-dialog"
+import { useCopyBranchName } from "./copy-branch-name"
 import { RenameBranchDialog } from "./rename-branch-dialog"
 
 /**
@@ -47,6 +48,8 @@ export type BranchActions = {
   pushToUpstream?: (branch: string) => void
   /** 推送到 ▸ <remote>. */
   pushTo?: (branch: string, remote: string) => void
+  /** 复制分支名字, confirming it or showing the name when the clipboard refuses. */
+  copyName: (branch: string) => void
   /** 与当前对比. */
   compare?: (branch: string) => void
   /**
@@ -94,6 +97,7 @@ export function useBranchOperations(
   const hasRemotes = !!refs?.remotes.length
 
   const writesBlocked = useWritesBlocked(repoId)
+  const copyName = useCopyBranchName()
 
   const actions: BranchActions | undefined = summary && {
     writesBlocked,
@@ -104,6 +108,7 @@ export function useBranchOperations(
     openBranchDialog: (options) =>
       setDialog({ kind: "branch", tab: options?.tab ?? "new", branches: options?.branches ?? [] }),
     rename: (branch) => setDialog({ kind: "rename", branch }),
+    copyName: copyName.copy,
     delete: (branch) => setDialog({ kind: "branch", tab: "delete", branches: [branch] }),
     setUpstream: (branch, upstream) =>
       setUpstream.mutate({ branch, upstream }, { onError: fail(`无法让 ${branch} 跟踪 ${upstream}`) }),
@@ -175,5 +180,13 @@ export function useBranchOperations(
   } else if (dialog?.kind === "failure") {
     dialogs = <OperationErrorDialog title={dialog.title} error={dialog.error} onClose={close} />
   }
-  return { actions, dialogs }
+  return {
+    actions,
+    dialogs: (
+      <>
+        {dialogs}
+        {copyName.feedback}
+      </>
+    ),
+  }
 }

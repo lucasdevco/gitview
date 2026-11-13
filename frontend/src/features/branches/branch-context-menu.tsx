@@ -88,7 +88,7 @@ export function BranchContextMenu({
             删除 {name}
           </MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={() => void navigator.clipboard?.writeText(name)}>复制分支名字</MenuItem>
+          <MenuItem onSelect={run(actions?.copyName)}>复制分支名字</MenuItem>
           <MenuSeparator />
           <MenuItem disabled>创建拉取请求…</MenuItem>
         </ContextMenu.Content>
