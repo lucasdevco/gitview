@@ -28,8 +28,9 @@ export function StashDialog({ repoId, dirty, onClose }: { repoId: string; dirty:
       width={520}
       command={stashPushCommand(request)}
       onClose={onClose}
-      confirmLabel={push.isPending ? "正在贮藏…" : "贮藏"}
+      confirmLabel="贮藏"
       disabled={!enabled}
+      pending={push.isPending}
       blockedBy={blocked}
       onConfirm={confirm}
     >
@@ -83,9 +84,9 @@ export function StashActionSheet({
       width={480}
       command={apply ? stashApplyCommand(request) : stashDropCommand(request)}
       onClose={onClose}
-      confirmLabel={operation.isPending ? "正在执行…" : apply ? "应用" : "删除"}
+      confirmLabel={apply ? "应用" : "删除"}
       destructive={!apply}
-      disabled={operation.isPending}
+      pending={operation.isPending}
       blockedBy={blocked}
       onConfirm={confirm}
     >

@@ -200,6 +200,30 @@ export function pendingPrompt(jobs: readonly Job[] | undefined): { job: Job; pro
   return job?.prompt && { job, prompt: job.prompt }
 }
 
+/**
+ * Where one job a dialog started stands. A job the list does not show yet
+ * (its response and first event are still on their way) is running.
+ */
+export type JobRun =
+  | { state: "running"; progress?: JobProgress; waitingForCredentials: boolean }
+  | { state: "succeeded" }
+  /** `error` is filled in once the list is refetched after the job finished. */
+  | { state: "failed"; error?: ApiError }
+  | { state: "canceled" }
+
+export function jobRun(jobs: readonly Job[] | undefined, jobId: string): JobRun {
+  const job = jobs?.find((listed) => listed.id === jobId)
+  if (!job || !isFinished(job.state)) {
+    return {
+      state: "running",
+      ...(job?.progress && { progress: job.progress }),
+      waitingForCredentials: !!job?.prompt,
+    }
+  }
+  if (job.state === "failed") return { state: "failed", error: jobError(job) }
+  return { state: job.state === "succeeded" ? "succeeded" : "canceled" }
+}
+
 /** A failed job's error as an ApiError, the way a failed operation throws it. */
 export function jobError(job: Job): ApiError | undefined {
   if (job.state !== "failed" || !job.error) return undefined

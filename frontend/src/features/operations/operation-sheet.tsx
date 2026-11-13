@@ -2,6 +2,7 @@
 // modelled on Sourcetree's sheets. The footer shows the git command the
 // dialog will run, built with the lib/command-preview builders from the same
 // request the dialog sends, so the preview matches the command log.
+import { LoaderCircle } from "lucide-react"
 import { Dialog } from "radix-ui"
 import { type ReactNode, useId } from "react"
 import { cn } from "@/lib/utils"
@@ -14,8 +15,10 @@ export function OperationSheet({
   onClose,
   onConfirm,
   confirmLabel = "确定",
+  closeLabel = "取消",
   destructive = false,
   disabled,
+  pending = false,
   blockedBy,
   queuesBehind,
   header,
@@ -30,9 +33,16 @@ export function OperationSheet({
   onClose: () => void
   onConfirm: () => void
   confirmLabel?: string
+  /** The button that closes the sheet, e.g. "在后台运行" while a job it started runs. */
+  closeLabel?: string
   /** The confirm button loses work (discard, delete, abort): shown in red. */
   destructive?: boolean
   disabled?: boolean
+  /**
+   * The confirmed request is in flight: the confirm button shows a spinner
+   * and is disabled so it cannot be sent twice.
+   */
+  pending?: boolean
   /**
    * Why the operation cannot run now (a background job holds the write
    * lock, see useWritesBlocked): shown in the sheet, confirm disabled.
@@ -85,21 +95,24 @@ export function OperationSheet({
               onClick={onClose}
               className="h-6 min-w-20 rounded-md border bg-background px-3 shadow-xs"
             >
-              取消
+              {closeLabel}
             </button>
             <button
               type="button"
               onClick={onConfirm}
-              disabled={disabled || !!blockedBy}
+              disabled={disabled || pending || !!blockedBy}
+              aria-busy={pending || undefined}
               title={blockedBy}
               data-variant={destructive ? "destructive" : "default"}
               className={cn(
-                "h-6 min-w-20 rounded-md px-3 shadow-xs disabled:bg-muted disabled:text-muted-foreground",
+                "inline-flex h-6 min-w-20 items-center justify-center gap-1.5 rounded-md px-3 shadow-xs",
+                pending ? "cursor-progress opacity-80" : "disabled:bg-muted disabled:text-muted-foreground",
                 destructive
                   ? "bg-destructive text-white hover:bg-destructive/90"
                   : "bg-primary text-primary-foreground",
               )}
             >
+              {pending && <LoaderCircle aria-hidden="true" className="size-3 animate-spin" />}
               {confirmLabel}
             </button>
           </div>

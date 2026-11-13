@@ -46,6 +46,7 @@ export function BranchDialog({
       confirmLabel={form.confirmLabel}
       destructive={tab === "delete"}
       disabled={!form.canSubmit}
+      pending={form.operation.isPending}
       blockedBy={form.blocked}
       onConfirm={form.submit}
       header={

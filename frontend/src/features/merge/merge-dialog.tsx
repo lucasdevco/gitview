@@ -70,6 +70,7 @@ export function MergeDialog({
       onClose={onClose}
       onConfirm={submit}
       disabled={!canSubmit}
+      pending={busy}
       blockedBy={jobBlocked}
     >
       <Field label="合并来源">
@@ -166,7 +167,7 @@ export function RebaseSheet({
       confirmLabel="变基"
       onClose={onClose}
       onConfirm={submit}
-      disabled={rebase.isPending}
+      pending={rebase.isPending}
       blockedBy={blocked}
     >
       <p className="break-words">

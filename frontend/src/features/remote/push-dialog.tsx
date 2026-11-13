@@ -4,12 +4,13 @@
 // Pushing runs as a background job; a rejected push is explained in the job
 // strip with the advice to pull first.
 import { useState } from "react"
+import { JobRunStatus } from "@/features/jobs/job-run-status"
 import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Group, OperationSheet } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
 import type { PushRequest } from "@/lib/api/jobs"
-import { useStartJob } from "@/lib/api/use-job"
+import { useJobRun } from "@/lib/api/use-job"
 import { pushCommands } from "@/lib/command-preview"
 import { defaultRemote, type PushRowEdit, pushBranch, pushRows, remoteBranchProblem } from "./remotes"
 
@@ -31,7 +32,7 @@ export function PushDialog({
   initial?: PushDialogOptions
   onClose: () => void
 }) {
-  const start = useStartJob(repoId, "push")
+  const job = useJobRun(repoId, "push", { onSucceeded: onClose })
   const queuesBehind = useWritesBlocked(repoId)
   const remotes = refs?.remotes ?? []
   const locals = refs?.branches ?? []
@@ -71,9 +72,11 @@ export function PushDialog({
       width={680}
       command={pushCommands(request).join(" && ") || "git push"}
       onClose={onClose}
-      disabled={!remote || (chosen.length === 0 && !tags) || problems.length > 0 || start.isPending}
-      queuesBehind={queuesBehind}
-      onConfirm={() => start.mutate(request, { onSuccess: onClose })}
+      disabled={!remote || (chosen.length === 0 && !tags) || problems.length > 0}
+      pending={job.pending}
+      closeLabel={job.pending ? "在后台运行" : "取消"}
+      queuesBehind={job.pending ? undefined : queuesBehind}
+      onConfirm={() => job.run(request)}
     >
       <div className="flex items-center gap-2">
         <span>推送到仓库：</span>
@@ -145,7 +148,8 @@ export function PushDialog({
         />
       </Group>
       <Check label="推送所有标签" checked={tags} onChange={setTags} />
-      {start.error && <OperationErrorNotice error={start.error} onDismiss={() => start.reset()} />}
+      <JobRunStatus {...job} />
+      {job.error && <OperationErrorNotice error={job.error} onDismiss={job.reset} />}
     </OperationSheet>
   )
 }

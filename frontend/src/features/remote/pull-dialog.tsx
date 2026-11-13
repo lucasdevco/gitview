@@ -1,18 +1,19 @@
 // The 拉取 dialog. Pulling runs as a background job: confirming starts it and
-// closes the dialog, and the job strip shows its progress and outcome.
+// keeps the dialog open with its progress until it finishes.
 import { RefreshCw } from "lucide-react"
 import { useState } from "react"
+import { JobRunStatus } from "@/features/jobs/job-run-status"
 import { useWritesBlocked } from "@/features/jobs/write-block"
 import { OperationErrorNotice } from "@/features/operations/operation-error-view"
 import { Check, Field, Group, OperationSheet, selectClass } from "@/features/operations/operation-sheet"
 import type { Refs } from "@/lib/api/history"
 import type { RepoSummary } from "@/lib/api/repos"
-import { useStartJob } from "@/lib/api/use-job"
+import { useJobRun, useStartJob } from "@/lib/api/use-job"
 import { pullCommand } from "@/lib/command-preview"
 import { DEFAULT_PULL_OPTIONS, defaultPullBranch, defaultRemote, type PullOptions, pullRequest } from "./remotes"
 
 export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; refs?: Refs; onClose: () => void }) {
-  const start = useStartJob(summary.id, "pull")
+  const job = useJobRun(summary.id, "pull", { onSucceeded: onClose })
   const refresh = useStartJob(summary.id, "fetch")
   const queuesBehind = useWritesBlocked(summary.id)
   const remotes = refs?.remotes ?? []
@@ -32,9 +33,11 @@ export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; r
       title="拉取"
       command={pullCommand(request)}
       onClose={onClose}
-      disabled={!remote || !branch || !summary.branch || start.isPending}
-      queuesBehind={queuesBehind}
-      onConfirm={() => start.mutate(request, { onSuccess: onClose })}
+      disabled={!remote || !branch || !summary.branch}
+      pending={job.pending}
+      closeLabel={job.pending ? "在后台运行" : "取消"}
+      queuesBehind={job.pending ? undefined : queuesBehind}
+      onConfirm={() => job.run(request)}
     >
       <Field label="从仓库拉取" hint={url}>
         <select
@@ -92,7 +95,8 @@ export function PullDialog({ summary, refs, onClose }: { summary: RepoSummary; r
           onChange={option("rebase")}
         />
       </Group>
-      {start.error && <OperationErrorNotice error={start.error} onDismiss={() => start.reset()} />}
+      <JobRunStatus {...job} />
+      {job.error && <OperationErrorNotice error={job.error} onDismiss={job.reset} />}
       {refresh.error && <OperationErrorNotice error={refresh.error} onDismiss={() => refresh.reset()} />}
     </OperationSheet>
   )

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import { ApiError } from "./client"
-import { applyJobUpdate, applyPromptAnswered, type Job, type JobUpdate, jobError, pendingPrompt } from "./jobs"
+import { applyJobUpdate, applyPromptAnswered, type Job, type JobUpdate, jobError, jobRun, pendingPrompt } from "./jobs"
 
 const queued: Job = { id: "j1", repoId: "r1", operation: "fetch", state: "queued", commands: [] }
 const update = (fields: Partial<JobUpdate>): JobUpdate => ({
@@ -75,4 +75,35 @@ test("a failed job's error reads like a failed operation's", () => {
   expect(error).toMatchObject({ code: "git_failed", message: "git fetch failed", commands: [command] })
   expect(error?.output).toContain("'nowhere'")
   expect(jobError({ ...queued, state: "canceled" })).toBeUndefined()
+})
+
+test("a job started from a dialog runs until the list shows it finished", () => {
+  const progress = { phase: "Receiving objects", percent: 40, text: "Receiving objects:  40% (4/10)" }
+  // Started, but neither its response nor its first event has listed it yet.
+  expect(jobRun(undefined, "j1")).toEqual({ state: "running", waitingForCredentials: false })
+  expect(jobRun([queued], "j1")).toEqual({ state: "running", waitingForCredentials: false })
+  expect(jobRun([{ ...queued, state: "running", progress }], "j1")).toEqual({
+    state: "running",
+    progress,
+    waitingForCredentials: false,
+  })
+  const prompt = { id: "p1", text: "Username for 'https://example.com':", secret: false }
+  expect(jobRun([{ ...queued, state: "running", prompt }], "j1")).toEqual({
+    state: "running",
+    waitingForCredentials: true,
+  })
+  expect(jobRun([{ ...queued, state: "succeeded" }], "j1")).toEqual({ state: "succeeded" })
+  expect(jobRun([{ ...queued, state: "canceled" }], "j1")).toEqual({ state: "canceled" })
+})
+
+test("a failed job's run carries its error once the refetched list has it", () => {
+  expect(jobRun([{ ...queued, state: "failed" }], "j1")).toEqual({ state: "failed", error: undefined })
+  const failed: Job = {
+    ...queued,
+    state: "failed",
+    error: { code: "push_rejected", message: "rejected", hint: "pull first" },
+  }
+  const run = jobRun([failed], "j1")
+  expect(run?.state).toBe("failed")
+  expect(run?.state === "failed" && run.error).toBeInstanceOf(ApiError)
 })

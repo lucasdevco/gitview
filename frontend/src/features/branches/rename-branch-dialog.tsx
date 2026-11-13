@@ -36,6 +36,7 @@ export function RenameBranchDialog({
       onConfirm={submit}
       confirmLabel="重命名"
       disabled={!canSubmit}
+      pending={operation.isPending}
       blockedBy={blocked}
     >
       <Field label="新名称" hint={problem ? undefined : `refs/heads/${newName}`}>

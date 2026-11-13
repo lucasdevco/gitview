@@ -68,7 +68,7 @@ function AbortSheet({
       command={command()}
       confirmLabel={label}
       destructive
-      disabled={operation.isPending}
+      pending={operation.isPending}
       blockedBy={blocked}
       onClose={onClose}
       onConfirm={() => !operation.isPending && operation.mutate({}, { onSuccess: onClose })}

@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
 import { useApi } from "./context"
 import {
   answerPrompt,
@@ -8,6 +9,8 @@ import {
   type JobName,
   type JobRequests,
   jobKeys,
+  jobRun,
+  jobsQuery,
   startJob,
 } from "./jobs"
 
@@ -50,4 +53,40 @@ export function useAnswerPrompt(repoId: string) {
 export function useCancelJob(repoId: string) {
   const api = useApi()
   return useMutation({ mutationFn: (jobId: string) => cancelJob(api, repoId, jobId) })
+}
+
+/**
+ * Starts a job from a dialog and follows it to the end, so the dialog can
+ * stay open with a spinner and git's progress until the job has finished.
+ * `onSucceeded` runs once when it succeeds (close the dialog then); a failed
+ * job leaves its error in `error`. A job waiting for credentials is answered
+ * in CredentialDialog; `waitingForCredentials` tells the dialog to step aside.
+ */
+export function useJobRun<Op extends JobName>(repoId: string, op: Op, { onSucceeded }: { onSucceeded: () => void }) {
+  const api = useApi()
+  const start = useStartJob(repoId, op)
+  const jobs = useQuery(jobsQuery(api, repoId))
+  const [jobId, setJobId] = useState<string>()
+  const run = jobId ? jobRun(jobs.data, jobId) : undefined
+  const succeeded = useRef(onSucceeded)
+  succeeded.current = onSucceeded
+  useEffect(() => {
+    if (run?.state === "succeeded") succeeded.current()
+  }, [run?.state])
+  const running = run?.state === "running" ? run : undefined
+  return {
+    run: (request: JobRequests[Op]) => {
+      setJobId(undefined)
+      start.mutate(request, { onSuccess: (job) => setJobId(job.id) })
+    },
+    pending: start.isPending || !!running,
+    progress: running?.progress,
+    waitingForCredentials: !!running?.waitingForCredentials,
+    canceled: run?.state === "canceled",
+    error: (start.error ?? (run?.state === "failed" ? run.error : undefined)) || undefined,
+    reset: () => {
+      start.reset()
+      setJobId(undefined)
+    },
+  }
 }
