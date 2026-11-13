@@ -1,5 +1,5 @@
 import { expect, test } from "vitest"
-import { parseDiff } from "./parse-diff.ts"
+import { describeParents, parseDiff } from "./parse-diff.ts"
 
 const modified = `diff --git a/notes.txt b/notes.txt
 index 5626abf..f719efd 100644
@@ -145,8 +145,7 @@ rename to b.txt
   ).toEqual([])
 })
 
-test("a conflicted file's combined diff is numbered against the first parent", () => {
-  const [hunk] = parseDiff(`diff --cc f
+const conflicted = `diff --cc f
 index 1e8e5b4,8b6c9ac..0000000
 --- a/f
 +++ b/f
@@ -158,15 +157,44 @@ index 1e8e5b4,8b6c9ac..0000000
 + other
 ++>>>>>>> other
   z
-`)
+`
+
+test("a conflicted file's combined diff keeps each line's per-parent markers and numbers lines in the working tree file", () => {
+  const [hunk] = parseDiff(conflicted)
   expect(hunk).toMatchObject({ index: 1, from: 1, to: 7, oldStart: 1, oldCount: 3 })
+  // No old line numbers: each parent numbers its lines differently.
   expect(hunk?.lines).toEqual([
-    { kind: "context", text: "a", oldNo: 1, newNo: 1 },
-    { kind: "add", text: "<<<<<<< HEAD", newNo: 2 },
-    { kind: "add", text: "main", oldNo: 2, newNo: 3 },
-    { kind: "add", text: "=======", newNo: 4 },
-    { kind: "add", text: "other", newNo: 5 },
-    { kind: "add", text: ">>>>>>> other", newNo: 6 },
-    { kind: "context", text: "z", oldNo: 3, newNo: 7 },
+    { kind: "context", parents: "  ", text: "a", newNo: 1 },
+    { kind: "add", parents: "++", text: "<<<<<<< HEAD", newNo: 2 },
+    { kind: "context", parents: " +", text: "main", newNo: 3 },
+    { kind: "add", parents: "++", text: "=======", newNo: 4 },
+    { kind: "context", parents: "+ ", text: "other", newNo: 5 },
+    { kind: "add", parents: "++", text: ">>>>>>> other", newNo: 6 },
+    { kind: "context", parents: "  ", text: "z", newNo: 7 },
   ])
+})
+
+test("a combined diff's lines removed from a parent are deletions marked with that parent", () => {
+  const [hunk] = parseDiff(`diff --cc f
+@@@ -1,2 -1,2 +1,2 @@@
+  a
+- b
+ -c
+++d
+`)
+  expect(hunk?.lines).toEqual([
+    { kind: "context", parents: "  ", text: "a", newNo: 1 },
+    { kind: "del", parents: "- ", text: "b" },
+    { kind: "del", parents: " -", text: "c" },
+    { kind: "add", parents: "++", text: "d", newNo: 2 },
+  ])
+})
+
+test("combined diff markers are explained per parent", () => {
+  expect(describeParents("++")).toBe("HEAD 和另一方都没有这一行")
+  expect(describeParents(" +")).toBe("来自 HEAD（另一方没有这一行）")
+  expect(describeParents("+ ")).toBe("来自另一方（HEAD 没有这一行）")
+  expect(describeParents("  ")).toBe("HEAD 和另一方都有这一行")
+  expect(describeParents("- ")).toBe("已从 HEAD 的版本中删除")
+  expect(describeParents(" -")).toBe("已从另一方的版本中删除")
 })

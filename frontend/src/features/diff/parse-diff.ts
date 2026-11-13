@@ -13,6 +13,12 @@ export type DiffLine = {
   newNo?: number
   /** Set on the last line of a side that has no trailing newline. */
   noNewline?: true
+  /**
+   * Combined diffs (conflicted files) only: one marker per parent, HEAD
+   * first — "+" the line is not in that parent, "-" it was removed from
+   * it, " " that parent has it. See describeParents.
+   */
+  parents?: string
 }
 
 export type DiffHunk = {
@@ -48,8 +54,9 @@ type Cursor = { hunk: DiffHunk; oldNo: number; newNo: number; parentsLeft: numbe
  * Parses a single-file patch. Header lines before the first hunk are
  * skipped; each hunk consumes exactly the number of lines its header
  * announces, so content that looks like a header (a deleted `-- comment`) is
- * kept and anything after the last hunk is ignored. Combined diffs of
- * conflicted files are numbered against the first parent.
+ * kept and anything after the last hunk is ignored. Lines of combined diffs
+ * (conflicted files) keep their per-parent markers and are numbered in the
+ * working tree file only.
  */
 export function parseDiff(patch: string): DiffHunk[] {
   const hunks: DiffHunk[] = []
@@ -108,6 +115,10 @@ function readLine(cursor: Cursor, raw: string) {
   for (let column = 0; column < width; column++) {
     if (inParent(column)) cursor.parentsLeft[column] = (cursor.parentsLeft[column] ?? 0) - 1
   }
+  if (width > 1) {
+    cursor.hunk.lines.push(combinedLine(cursor, prefix, text))
+    return
+  }
   const line: DiffLine = { kind: removed ? "del" : prefix.includes("+") ? "add" : "context", text }
   if (inParent(0)) line.oldNo = cursor.oldNo++
   if (!removed) {
@@ -115,4 +126,35 @@ function readLine(cursor: Cursor, raw: string) {
     cursor.newLeft--
   }
   cursor.hunk.lines.push(line)
+}
+
+// A combined diff's line keeps its per-parent markers. It counts as added
+// only when no parent has it (conflict markers, new text) and as context when
+// some parent has it, so a line taken from one side is not shown as new. It
+// is numbered in the result only: every parent numbers its lines differently.
+function combinedLine(cursor: Cursor, parents: string, text: string): DiffLine {
+  if (parents.includes("-")) return { kind: "del", parents, text }
+  cursor.newLeft--
+  const kind = [...parents].every((mark) => mark === "+") ? "add" : "context"
+  return { kind, parents, text, newNo: cursor.newNo++ }
+}
+
+/**
+ * Explains a combined diff line's per-parent markers ("+ ", " -", …): which
+ * of HEAD and the other side (the branch being merged or the commit being
+ * replayed) have the line.
+ */
+export function describeParents(parents: string): string {
+  const width = parents.length
+  const name = (column: number) => (column === 0 ? "HEAD" : width === 2 ? "另一方" : `父提交 ${column + 1}`)
+  const marked = (mark: string) =>
+    [...parents].flatMap((each, column) => (each === mark ? [name(column)] : [])).join("和")
+  const [removed, missing, present] = [marked("-"), marked("+"), marked(" ")]
+  let text: string
+  if (removed) text = `已从${removed}的版本中删除`
+  else if (!missing) text = `${present}都有这一行`
+  else if (!present) text = `${missing}都没有这一行`
+  else text = `来自${present}（${missing}没有这一行）`
+  // Space Latin text from Chinese, as elsewhere in the UI.
+  return text.replace(/([A-Za-z0-9])(?=[一-鿿])/g, "$1 ").replace(/([一-鿿])(?=[A-Za-z0-9])/g, "$1 ")
 }

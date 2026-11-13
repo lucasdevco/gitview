@@ -4,7 +4,7 @@ import type { FileChange, FileDiff } from "@/lib/api/worktree"
 import { cn } from "@/lib/utils"
 import { describeChange } from "./file-path"
 import { FileStatusIcon } from "./file-status-icon"
-import { type DiffHunk, type DiffLine, parseDiff } from "./parse-diff"
+import { type DiffHunk, type DiffLine, describeParents, parseDiff } from "./parse-diff"
 import { type DiffMatch, findDiffMatches } from "./search"
 
 /** A button in a hunk header, e.g. "暂存区块". It acts on the hunk it is shown for. */
@@ -194,6 +194,11 @@ function DiffBody({
               <span title={hunk.header}>
                 块 {hunk.index}： 行 {hunk.from}-{hunk.to}
               </span>
+              {hunk.lines[0]?.parents?.length === 2 && (
+                <span className="text-[11px]" title="冲突文件的合并差异：每行前有两列标记，“+”表示该方没有这一行">
+                  标记列：左 HEAD · 右 另一方
+                </span>
+              )}
               <span className="ml-auto flex gap-1">
                 {hunkActions.map((action) => (
                   <button
@@ -266,13 +271,21 @@ function LineRow({
         "grid grid-cols-[3rem_3rem_1.25rem_1fr] whitespace-pre",
         line.kind === "add" && "bg-success/12 text-success",
         line.kind === "del" && "bg-destructive/10 text-destructive",
+        // A conflicted file's line that only one side has.
+        line.kind === "context" && line.parents?.includes("+") && "bg-muted/70",
       )}
     >
       <span className="pr-2 text-right text-muted-foreground/70 select-none">{line.oldNo ?? ""}</span>
       <span className="pr-2 text-right text-muted-foreground/70 select-none">{line.newNo ?? ""}</span>
-      <span className="text-center opacity-70 select-none">
-        {line.kind === "add" ? "+" : line.kind === "del" ? "-" : ""}
-      </span>
+      {line.parents === undefined ? (
+        <span className="text-center opacity-70 select-none">
+          {line.kind === "add" ? "+" : line.kind === "del" ? "-" : ""}
+        </span>
+      ) : (
+        <span className="text-center opacity-70 select-none" title={describeParents(line.parents)}>
+          {line.parents}
+        </span>
+      )}
       <span className="pr-4 text-foreground">
         <Highlighted text={line.text} matches={matches} active={active} activeRef={activeRef} />
         {line.noNewline && (
